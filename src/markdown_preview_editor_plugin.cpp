@@ -2,7 +2,6 @@
 
 #include "markdown_label.h"
 
-#include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/code_edit.hpp>
 #include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/engine.hpp>
@@ -10,6 +9,8 @@
 #include <godot_cpp/classes/h_split_container.hpp>
 #include <godot_cpp/classes/item_list.hpp>
 #include <godot_cpp/classes/line_edit.hpp>
+#include <godot_cpp/classes/menu_button.hpp>
+#include <godot_cpp/classes/popup_menu.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/classes/script_editor.hpp>
 #include <godot_cpp/classes/script_editor_base.hpp>
@@ -74,8 +75,8 @@ void MarkdownPreviewEditorPlugin::_exit_tree() {
 	if (LineEdit *filter = get_node_by_id<LineEdit>(filter_id)) {
 		filter->disconnect("text_changed", callable_mp(this, &MarkdownPreviewEditorPlugin::queue_tab_sync).unbind(1));
 	}
-	if (Button *button = get_node_by_id<Button>(button_id)) {
-		memdelete(button);
+	if (MenuButton *mode_menu = get_node_by_id<MenuButton>(mode_menu_id)) {
+		memdelete(mode_menu);
 	}
 	for (const KeyValue<uint64_t, PreviewTab> &entry : previews) {
 		ScriptEditorBase *tab = get_node_by_id<ScriptEditorBase>(entry.key);
@@ -87,13 +88,14 @@ void MarkdownPreviewEditorPlugin::_exit_tree() {
 		const int32_t original_index = split->get_index();
 		editor_area->reparent(tab, false);
 		editor_area->set_h_size_flags(entry.value.editor_area_h_flags);
+		editor_area->show();
 		tab->move_child(editor_area, original_index);
 		memdelete(split);
 	}
 	previews.clear();
 	active_path = String();
 	active_tab_id = 0;
-	button_id = 0;
+	mode_menu_id = 0;
 	filter_id = 0;
 	script_list_id = 0;
 	tab_container_id = 0;
@@ -109,7 +111,7 @@ void MarkdownPreviewEditorPlugin::attach() {
 	ScriptEditor *editor = EditorInterface::get_singleton()->get_script_editor();
 	// This is the private ScriptEditor layout in Godot 4.7.2.
 	VBoxContainer *main = find_child_by_type<VBoxContainer>(editor);
-	HBoxContainer *menu = find_child_by_type<HBoxContainer>(main);
+	HBoxContainer *toolbar = find_child_by_type<HBoxContainer>(main);
 	HSplitContainer *body = find_child_by_type<HSplitContainer>(main);
 	VBoxContainer *editor_column = find_child_by_type<VBoxContainer>(body);
 	TabContainer *tabs = find_child_by_type<TabContainer>(editor_column);
@@ -117,7 +119,7 @@ void MarkdownPreviewEditorPlugin::attach() {
 	VBoxContainer *file_column = Object::cast_to<VBoxContainer>(sidebar && sidebar->get_child_count() > 0 ? sidebar->get_child(0) : nullptr);
 	ItemList *script_list = find_child_by_type<ItemList>(file_column);
 	LineEdit *filter = find_child_by_type<LineEdit>(file_column);
-	if (menu == nullptr || tabs == nullptr || tabs->are_tabs_visible() || script_list == nullptr || filter == nullptr) {
+	if (toolbar == nullptr || tabs == nullptr || tabs->are_tabs_visible() || script_list == nullptr || filter == nullptr) {
 		return;
 	}
 
@@ -128,20 +130,25 @@ void MarkdownPreviewEditorPlugin::attach() {
 		refresh_timer->connect("timeout", callable_mp(this, &MarkdownPreviewEditorPlugin::refresh_preview));
 		add_child(refresh_timer);
 	}
-	Button *button = memnew(Button);
-	button->set_name("MarkdownPreviewToggle");
-	const String locale = TranslationServer::get_singleton()->get_tool_locale();
-	button->set_text(locale.begins_with("zh") ? String::utf8("预览") : String("Preview"));
-	button->set_theme_type_variation("FlatButton");
-	button->set_toggle_mode(true);
-	button->hide();
-	button->connect("toggled", callable_mp(this, &MarkdownPreviewEditorPlugin::toggle_preview));
-	menu->add_child(button);
-	const Ref<Texture2D> online_docs_icon = menu->get_theme_icon("ExternalLink", "EditorIcons");
-	for (int32_t i = 0; i < menu->get_child_count(); ++i) {
-		const Button *menu_button = Object::cast_to<Button>(menu->get_child(i));
-		if (menu_button != nullptr && online_docs_icon.is_valid() && menu_button->get_button_icon() == online_docs_icon) {
-			menu->move_child(button, i);
+	MenuButton *mode_menu = memnew(MenuButton);
+	mode_menu->set_name("MarkdownPreviewMenu");
+	const bool chinese = TranslationServer::get_singleton()->get_tool_locale().begins_with("zh");
+	mode_menu->set_text(chinese ? String::utf8("预览") : String("Preview"));
+	mode_menu->set_flat(false);
+	mode_menu->set_theme_type_variation("FlatMenuButton");
+	mode_menu->set_switch_on_hover(true);
+	PopupMenu *popup = mode_menu->get_popup();
+	popup->add_radio_check_item(chinese ? String::utf8("查看源文件") : String("View Source"), VIEW_SOURCE);
+	popup->add_radio_check_item(chinese ? String::utf8("右侧打开预览") : String("Open Preview to the Right"), VIEW_SPLIT);
+	popup->add_radio_check_item(chinese ? String::utf8("仅预览") : String("Preview Only"), VIEW_PREVIEW);
+	popup->connect("id_pressed", callable_mp(this, &MarkdownPreviewEditorPlugin::select_view_mode));
+	mode_menu->hide();
+	toolbar->add_child(mode_menu);
+	// The expanding document title follows the native Debug menu.
+	for (int32_t i = 1; i < toolbar->get_child_count(); ++i) {
+		const HBoxContainer *title = Object::cast_to<HBoxContainer>(toolbar->get_child(i));
+		if (title != nullptr && title->get_h_size_flags().has_flag(Control::SIZE_EXPAND) && Object::cast_to<MenuButton>(toolbar->get_child(i - 1)) != nullptr) {
+			toolbar->move_child(mode_menu, i);
 			break;
 		}
 	}
@@ -150,7 +157,7 @@ void MarkdownPreviewEditorPlugin::attach() {
 	tab_container_id = tabs->get_instance_id();
 	script_list_id = script_list->get_instance_id();
 	filter_id = filter->get_instance_id();
-	button_id = button->get_instance_id();
+	mode_menu_id = mode_menu->get_instance_id();
 	editor->connect("visibility_changed", callable_mp(this, &MarkdownPreviewEditorPlugin::queue_tab_sync));
 	tabs->connect("tab_changed", callable_mp(this, &MarkdownPreviewEditorPlugin::queue_tab_sync).unbind(1));
 	tabs->connect("child_order_changed", callable_mp(this, &MarkdownPreviewEditorPlugin::queue_tab_sync));
@@ -174,7 +181,7 @@ void MarkdownPreviewEditorPlugin::sync_current_tab() {
 			previews.erase(tab_id);
 		}
 	}
-	Button *button = get_node_by_id<Button>(button_id);
+	MenuButton *mode_menu = get_node_by_id<MenuButton>(mode_menu_id);
 	ScriptEditor *editor = get_node_by_id<ScriptEditor>(script_editor_id);
 	ScriptEditorBase *tab = editor && editor->is_visible_in_tree() ? editor->get_current_editor() : nullptr;
 	const uint64_t tab_id = tab ? tab->get_instance_id() : 0;
@@ -192,13 +199,21 @@ void MarkdownPreviewEditorPlugin::sync_current_tab() {
 	const bool is_markdown = path.get_extension().nocasecmp_to("md") == 0;
 	const PreviewTab *preview_tab = previews.getptr(tab_id);
 	MarkdownLabel *label = preview_tab ? get_node_by_id<MarkdownLabel>(preview_tab->label_id) : nullptr;
-	if (label != nullptr && !is_markdown) {
-		label->hide();
+	Control *editor_area = preview_tab ? get_node_by_id<Control>(preview_tab->editor_area_id) : nullptr;
+	const ViewMode mode = is_markdown && label && editor_area ? preview_tab->mode : VIEW_SOURCE;
+	const bool enabled = mode != VIEW_SOURCE;
+	if (editor_area != nullptr) {
+		editor_area->set_visible(mode != VIEW_PREVIEW);
 	}
-	const bool enabled = is_markdown && label && label->is_visible();
-	if (button != nullptr) {
-		button->set_pressed_no_signal(enabled);
-		button->set_visible(is_markdown);
+	if (label != nullptr) {
+		label->set_visible(enabled);
+	}
+	if (mode_menu != nullptr) {
+		PopupMenu *popup = mode_menu->get_popup();
+		for (int32_t i = 0; i < popup->get_item_count(); ++i) {
+			popup->set_item_checked(i, popup->get_item_id(i) == mode);
+		}
+		mode_menu->set_visible(is_markdown);
 	}
 	const String previous_path = active_path;
 	const uint64_t previous_source_id = source_id;
@@ -266,7 +281,7 @@ void MarkdownPreviewEditorPlugin::set_preview_source(CodeEdit *p_source, Markdow
 	}
 }
 
-MarkdownLabel *MarkdownPreviewEditorPlugin::create_preview(ScriptEditorBase *p_tab, CodeEdit *p_source) {
+MarkdownPreviewEditorPlugin::PreviewTab *MarkdownPreviewEditorPlugin::create_preview(ScriptEditorBase *p_tab, CodeEdit *p_source) {
 	VBoxContainer *editor_area = Object::cast_to<VBoxContainer>(p_source->get_parent());
 	if (editor_area == nullptr || editor_area->get_parent() != p_tab) {
 		return nullptr;
@@ -285,11 +300,13 @@ MarkdownLabel *MarkdownPreviewEditorPlugin::create_preview(ScriptEditorBase *p_t
 	label->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	label->set_custom_minimum_size(Vector2(80.0, 0.0));
 	split->add_child(label);
-	previews.insert(p_tab->get_instance_id(), { split->get_instance_id(), editor_area->get_instance_id(), label->get_instance_id(), original_h_flags });
-	return label;
+	return &previews.insert(p_tab->get_instance_id(), { split->get_instance_id(), editor_area->get_instance_id(), label->get_instance_id(), original_h_flags })->value;
 }
 
-void MarkdownPreviewEditorPlugin::toggle_preview(bool p_pressed) {
+void MarkdownPreviewEditorPlugin::select_view_mode(int32_t p_id) {
+	if (p_id < VIEW_SOURCE || p_id > VIEW_PREVIEW) {
+		return;
+	}
 	sync_current_tab();
 	ScriptEditorBase *tab = get_node_by_id<ScriptEditorBase>(active_tab_id);
 	if (tab == nullptr || active_path.is_empty()) {
@@ -299,14 +316,19 @@ void MarkdownPreviewEditorPlugin::toggle_preview(bool p_pressed) {
 	if (source == nullptr) {
 		return;
 	}
-	const PreviewTab *preview_tab = previews.getptr(active_tab_id);
-	MarkdownLabel *label = preview_tab ? get_node_by_id<MarkdownLabel>(preview_tab->label_id) : nullptr;
-	if (p_pressed && label == nullptr) {
-		label = create_preview(tab, source);
+	const ViewMode mode = static_cast<ViewMode>(p_id);
+	PreviewTab *preview_tab = previews.getptr(active_tab_id);
+	if (preview_tab == nullptr && mode != VIEW_SOURCE) {
+		preview_tab = create_preview(tab, source);
 	}
-	if (label != nullptr) {
-		label->set_visible(p_pressed);
+	if (preview_tab != nullptr) {
+		preview_tab->mode = mode;
 		sync_current_tab();
+	}
+	if (mode == VIEW_SPLIT) {
+		queue_scroll_sync(false);
+	}
+	if (source->is_visible_in_tree()) {
 		source->grab_focus();
 	}
 }
@@ -349,7 +371,7 @@ void MarkdownPreviewEditorPlugin::sync_scroll() {
 	scroll_sync_queued = false;
 	CodeEdit *source = get_node_by_id<CodeEdit>(source_id);
 	MarkdownLabel *label = get_node_by_id<MarkdownLabel>(active_preview_id);
-	if (source == nullptr || label == nullptr || !label->is_visible_in_tree() || !refresh_timer->is_stopped() || source->get_version() != preview_source_version) {
+	if (source == nullptr || label == nullptr || !source->is_visible_in_tree() || !label->is_visible_in_tree() || !refresh_timer->is_stopped() || source->get_version() != preview_source_version) {
 		return;
 	}
 	VScrollBar *source_scroll = source->get_v_scroll_bar();
