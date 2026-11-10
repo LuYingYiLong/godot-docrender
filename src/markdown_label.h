@@ -163,6 +163,8 @@ private:
 	void _update_context_menu();
 	Key _get_menu_action_accelerator(const String &p_action);
 	void rebuild_layout();
+	double get_offset_for_source_line(double p_line, int32_t p_line_count);
+	double get_source_line_at_offset(double p_offset, int32_t p_line_count);
 	void draw_selection_for_item(const MarkdownCanvasItem& p_item);
 	void draw_selection_for_paragraph(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, int64_t p_global_start, int64_t p_global_end);
 	void draw_search_highlight_for_item(const MarkdownCanvasItem& p_item);
@@ -199,6 +201,7 @@ public:
 
 	void set_label(MarkdownLabel* p_label);
 	void set_markdown_text(const String& p_text);
+	String resolve_image_uri(const String& p_uri) const;
 	void append_text_incremental(const String& p_delta);
 	void finish_stream();
 	void clear_document();
@@ -245,7 +248,10 @@ public:
 	};
 
 private:
+	friend class MarkdownLabelCanvas;
+
 	String raw_text;
+	String image_base_dir;
 	ScrollContainer* scroll_container = nullptr;
 	MarginContainer* margin_container = nullptr;
 	MarkdownLabelCanvas* canvas = nullptr;
@@ -285,6 +291,7 @@ public:
 
 	void set_markdown_text(const String& p_text);
 	String get_markdown_text() const;
+	void set_image_base_dir(const String& p_dir);
 
 	void append_text(const String& p_delta);
 	void finish_stream();
@@ -359,6 +366,8 @@ public:
 	PackedStringArray get_anchors() const;
 	bool scroll_to_anchor(const String& p_anchor, float p_align = 0.0f);
 	bool scroll_to_search_result(float p_align = 0.0f);
+	double get_scroll_offset_for_source_line(double p_line, int32_t p_line_count);
+	double get_source_line_at_scroll_offset(double p_offset, int32_t p_line_count);
 
 	Error load_markdown_file(const String& p_path);
 	void refresh();

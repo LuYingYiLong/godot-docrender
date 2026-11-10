@@ -124,6 +124,7 @@ struct MarkdownCanvasLine {
 
 struct MarkdownCanvasItem {
 	MarkdownBlockType type = MARKDOWN_BLOCK_PARAGRAPH;
+	int32_t source_line = 0;
 	Ref<TextParagraph> paragraph;
 	Ref<TextParagraph> header_paragraph;
 	Ref<StyleBox> panel_stylebox;

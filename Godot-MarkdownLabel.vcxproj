@@ -100,12 +100,14 @@
     <ClCompile Include="src\markdown_document.cpp" />
     <ClCompile Include="src\markdown_label.cpp" />
     <ClCompile Include="src\markdown_parser.cpp" />
+    <ClCompile Include="src\markdown_preview_editor_plugin.cpp" />
     <ClCompile Include="src\register_types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\markdown_document.h" />
     <ClInclude Include="src\markdown_label.h" />
     <ClInclude Include="src\markdown_parser.h" />
+    <ClInclude Include="src\markdown_preview_editor_plugin.h" />
     <ClInclude Include="src\register_types.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

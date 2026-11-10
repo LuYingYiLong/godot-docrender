@@ -18,6 +18,7 @@
 #include <godot_cpp/classes/popup_menu.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/resource_uid.hpp>
 #include <godot_cpp/classes/style_box_empty.hpp>
 #include <godot_cpp/classes/style_box_flat.hpp>
 #include <godot_cpp/classes/style_box_line.hpp>
@@ -703,6 +704,17 @@ namespace {
 			return entry;
 		}
 
+		if (p_uri.begins_with("uid://")) {
+			ResourceUID *resource_uid = ResourceUID::get_singleton();
+			if (!resource_uid->has_id(resource_uid->text_to_id(p_uri))) {
+				// Editor imports can register the UID after this render.
+				MarkdownImageCacheEntry entry;
+				entry.status = MARKDOWN_IMAGE_FAILED;
+				entry.error = "unknown_resource_uid";
+				return entry;
+			}
+		}
+
 		if (is_remote_image_uri(p_uri)) {
 			MarkdownImageCacheEntry entry;
 			if (is_gif_image_uri(p_uri) && !has_gif_plugin_support()) {
@@ -791,7 +803,8 @@ namespace {
 				p_paragraph->add_string(p_text.substr(pos, span.start - pos), p_normal_font, std::max<int32_t>(1, p_font_size));
 			}
 			if (!span.image_uri.is_empty()) {
-				MarkdownImageCacheEntry image_entry = load_image_texture(span.image_uri, p_canvas);
+				const String image_uri = p_canvas ? p_canvas->resolve_image_uri(span.image_uri) : span.image_uri;
+				MarkdownImageCacheEntry image_entry = load_image_texture(image_uri, p_canvas);
 				const bool image_ready = image_entry.status == MARKDOWN_IMAGE_READY;
 				const bool image_failed = image_entry.status == MARKDOWN_IMAGE_FAILED;
 				Ref<Texture2D> tex = image_ready ? image_entry.texture : (image_failed ? p_cache.icon.file_broken : Ref<Texture2D>());
@@ -1137,6 +1150,13 @@ void MarkdownLabelCanvas::set_markdown_text(const String& p_text) {
 	internal_processing_enabled = false;
 	set_process_internal(false);
 	mark_layout_dirty();
+}
+
+String MarkdownLabelCanvas::resolve_image_uri(const String& p_uri) const {
+	if (label == nullptr || label->image_base_dir.is_empty() || p_uri.is_absolute_path() || p_uri.contains(":")) {
+		return p_uri;
+	}
+	return label->image_base_dir.path_join(p_uri).simplify_path();
 }
 
 void MarkdownLabelCanvas::parse_current_text_incremental() {
@@ -1867,6 +1887,7 @@ void MarkdownLabelCanvas::rebuild_layout() {
 			}
 
 			items.push_back(previous_item);
+			items.back().source_line = block.line - 1;
 			register_item_footnote_numbers(previous_item);
 			record_footnote_reference_offsets(previous_item.paragraph, previous_item.text_rect, previous_item.spans);
 			for (const MarkdownTableCell& cell : previous_item.cells) {
@@ -1914,6 +1935,7 @@ void MarkdownLabelCanvas::rebuild_layout() {
 		item.background_color = Color(0, 0, 0, 0);
 		item.border_color = Color(0, 0, 0, 0);
 		item.type = block.type;
+		item.source_line = block.line - 1;
 		item.content_hash = compute_block_hash(block);
 
 		switch (block.type) {
@@ -2445,18 +2467,18 @@ void MarkdownLabelCanvas::rebuild_layout() {
 		item.rect = Rect2(0.0f, y, width, paragraph_size.y + top_padding + bottom_padding);
 
 		const int32_t item_index = static_cast<int32_t>(items.size());
-		for (int32_t line_index = 0; line_index < item.paragraph->get_line_count(); line_index++) {
+		const int32_t paragraph_lines = item.paragraph->get_line_count();
+		Vector2 line_position = item.text_rect.position;
+		for (int32_t line_index = 0; line_index < paragraph_lines; line_index++) {
 			const Vector2i range = item.paragraph->get_line_range(line_index);
 			MarkdownCanvasLine line;
 			line.item_index = item_index;
 			line.paragraph_line = line_index;
 			line.global_start = item.paragraph_global_start + range.x;
 			line.global_end = item.paragraph_global_start + range.y;
-			line.position = item.text_rect.position;
-			for (int32_t previous_line = 0; previous_line < line_index; previous_line++) {
-				line.position.y += item.paragraph->get_line_size(previous_line).y + theme_cache.constant.line_separation;
-			}
+			line.position = line_position;
 			line.size = item.paragraph->get_line_size(line_index);
+			line_position.y += line.size.y + theme_cache.constant.line_separation;
 			lines.push_back(line);
 		}
 		record_footnote_reference_offsets(item.paragraph, item.text_rect, item.spans);
@@ -2532,6 +2554,46 @@ void MarkdownLabelCanvas::rebuild_layout() {
 	if (label != nullptr) {
 		label->notify_canvas_layout_changed();
 	}
+}
+
+double MarkdownLabelCanvas::get_offset_for_source_line(double p_line, int32_t p_line_count) {
+	rebuild_layout();
+	if (items.empty() || p_line <= 0.0) {
+		return 0.0;
+	}
+	const auto next = std::upper_bound(items.begin(), items.end(), p_line, [](double p_line, const MarkdownCanvasItem &p_item) {
+		return p_line < p_item.source_line;
+	});
+	const MarkdownCanvasItem *previous = next == items.begin() ? nullptr : &*(next - 1);
+	const double start_line = previous ? previous->source_line : 0.0;
+	const double start_offset = previous ? previous->rect.position.y : 0.0;
+	const double end_line = next == items.end() ? p_line_count : next->source_line;
+	const double end_offset = next == items.end() ? content_height : next->rect.position.y;
+	if (end_line <= start_line) {
+		return start_offset;
+	}
+	const double fraction = Math::clamp((p_line - start_line) / (end_line - start_line), 0.0, 1.0);
+	return Math::lerp(start_offset, end_offset, fraction);
+}
+
+double MarkdownLabelCanvas::get_source_line_at_offset(double p_offset, int32_t p_line_count) {
+	rebuild_layout();
+	if (items.empty() || p_offset <= 0.0) {
+		return 0.0;
+	}
+	const auto next = std::upper_bound(items.begin(), items.end(), p_offset, [](double p_offset, const MarkdownCanvasItem &p_item) {
+		return p_offset < p_item.rect.position.y;
+	});
+	const MarkdownCanvasItem *previous = next == items.begin() ? nullptr : &*(next - 1);
+	const double start_line = previous ? previous->source_line : 0.0;
+	const double start_offset = previous ? previous->rect.position.y : 0.0;
+	const double end_line = next == items.end() ? p_line_count : next->source_line;
+	const double end_offset = next == items.end() ? content_height : next->rect.position.y;
+	if (end_offset <= start_offset) {
+		return start_line;
+	}
+	const double fraction = Math::clamp((p_offset - start_offset) / (end_offset - start_offset), 0.0, 1.0);
+	return Math::lerp(start_line, end_line, fraction);
 }
 
 void MarkdownLabelCanvas::draw_selection_for_item(const MarkdownCanvasItem& p_item) {
@@ -3715,6 +3777,18 @@ String MarkdownLabel::get_markdown_text() const {
 	return raw_text;
 }
 
+void MarkdownLabel::set_image_base_dir(const String& p_dir) {
+	if (image_base_dir == p_dir) {
+		return;
+	}
+	image_base_dir = p_dir;
+	if (canvas != nullptr) {
+		canvas->layout_prefix_reuse_requested = false;
+		canvas->mark_layout_dirty();
+	}
+	notify_canvas_layout_changed();
+}
+
 void MarkdownLabel::append_text(const String& p_delta) {
 	ensure_controls();
 	update_scroll_following();
@@ -4080,6 +4154,14 @@ bool MarkdownLabel::scroll_to_search_result(float p_align) {
 	const float target = std::max<float>(0.0f, y - viewport_height * p_align);
 	v_scroll->set_value(std::min<float>(target, v_scroll->get_max() - v_scroll->get_page()));
 	return true;
+}
+
+double MarkdownLabel::get_scroll_offset_for_source_line(double p_line, int32_t p_line_count) {
+	return canvas ? canvas->get_offset_for_source_line(p_line, p_line_count) : 0.0;
+}
+
+double MarkdownLabel::get_source_line_at_scroll_offset(double p_offset, int32_t p_line_count) {
+	return canvas ? canvas->get_source_line_at_offset(p_offset, p_line_count) : 0.0;
 }
 
 Error MarkdownLabel::load_markdown_file(const String& p_path) {

@@ -21,9 +21,9 @@ grow_vertical = 2
 [node name="MarkdownLabel" type="MarkdownLabel" parent="PanelContainer" unique_id=1842356690]
 text = "# Markdown 语法
 
-[![image](uid://fmmnj4gretid)](https://markdown.com.cn)
+[![MarkdownLabel icon](uid://babn27hd7j422)](https://markdown.com.cn)
 
-![image](uid://fmmnj4gretid)
+![MarkdownLabel icon](uid://babn27hd7j422)
 
 ## 标题
 # 一级标题
