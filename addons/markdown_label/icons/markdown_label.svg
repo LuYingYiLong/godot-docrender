@@ -1,4 +1,2 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg data-name="图层 1" version="1.1" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
- <path class="cls-1" d="M3,1h10c1.1,0,2,.9,2,2v10c0,1.1-.9,2-2,2H3c-1.1,0-2-.9-2-2V3c0-1.1.9-2,2-2ZM4.5,10.45v-2.8l1.4,1.4,1.4-1.4v2.8h1.4v-4.9h-1.4l-1.4,1.4-1.4-1.4h-1.4v4.9h1.4ZM12.2,8.35v-2.8h-1.4v2.8h-1.4l2.1,2.1,2.1-2.1h-1.4Z" fill="#8eef97"/>
-</svg>
+<svg data-name="图层 1" version="1.1" viewBox="0 0 16 16" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><linearGradient id="linearGradient2" x1="1.0002" x2="15" y1="8" y2="8" gradientUnits="userSpaceOnUse"><stop stop-color="#8eef97" offset="0"/></linearGradient></defs><path d="m6 3c-0.26519 5.66e-5 -0.51954 0.10542-0.70703 0.29297l-4 4c-0.39038 0.3905-0.39038 1.0236 0 1.4141l4 4c0.18749 0.18755 0.44184 0.29291 0.70703 0.29297h8c0.55228 0 1-0.44772 1-1v-8c0-0.55228-0.44772-1-1-1h-8zm-2.334 2.6055h1.127l1.6895 1.6895 1.6895-1.6895h1.127v4.5078h-1.127v-2.9141l-1.6895 1.6914-1.6895-1.6914v2.9141h-1.127v-4.5078zm7.8867 0h1.6895v2.2539h1.4082l-2.252 2.5352-2.2539-2.5352h1.4082v-2.2539z" fill="url(#linearGradient2)"/></svg>

@@ -92,6 +92,8 @@ See the full theme reference:
 addons/markdown_label/docs/markdown_label_theme_reference.md
 ```
 
+Apply the example theme to a `LatexLabel` node to style standalone formulas. [LatexLabel example theme](addons/markdown_label/example/latex_label_theme.tres) · [LatexLabel theme reference](addons/markdown_label/docs/latex_label_theme_reference.md)
+
 ## Quick Start
 
 ### 1. Install The Addon

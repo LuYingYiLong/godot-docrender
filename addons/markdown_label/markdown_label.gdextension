@@ -2,6 +2,7 @@
 
 entry_symbol = "markdown_label_library_init"
 compatibility_minimum = "4.5"
+reload = false
 
 [libraries]
 
@@ -42,3 +43,5 @@ windows.release.x86_64 = "bin/markdown_label.windows.template_release.x86_64.dll
 [icons]
 
 MarkdownLabel = "icons/markdown_label.svg"
+LatexLabel = "icons/latex_label.svg"
+LatexLabel3D = "icons/latex_label_3d.svg"
