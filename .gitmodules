@@ -2,3 +2,9 @@
 	path = godot-cpp
 	url = https://github.com/godotengine/godot-cpp.git
 	branch = 4.5
+[submodule "src/thirdparty/microtex"]
+	path = src/thirdparty/microtex
+	url = https://github.com/NanoMichael/MicroTeX.git
+[submodule "src/thirdparty/tinyxml2"]
+	path = src/thirdparty/tinyxml2
+	url = https://github.com/leethomason/tinyxml2.git

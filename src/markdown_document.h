@@ -16,9 +16,9 @@ protected:
 	static void _bind_methods();
 
 public:
-	void set_text(const String &p_text);
+	void set_text(const String& p_text);
 	String get_text() const;
 
-	void set_source_path(const String &p_path);
+	void set_source_path(const String& p_path);
 	String get_source_path() const;
 };

@@ -363,6 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .sconsign.dblite
+/src/gen/microtex_fonts.gen.h
+/src/gen/math/
 AGENTS.md
 .vscode/
 !addons/markdown_label/bin

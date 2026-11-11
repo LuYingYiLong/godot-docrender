@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LatexLabel" inherits="Control" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Displays a LaTeX math expression using MicroTeX.
+	</brief_description>
+	<description>
+		Enter an expression such as [code]\frac{1}{\sqrt{x}}[/code] in [member text]. [LatexLabel] uses embedded math fonts and draws the result on the Godot canvas. Its minimum size follows the dimensions of the formula.
+		To change the size or color, override the [code]font_size[/code] or [code]font_color[/code] theme item. The default values come from the [Label] theme.
+	</description>
+	<methods>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the error from the last attempt to lay out [member text]. Returns an empty string if the expression rendered successfully or is empty. The label lays out its expression after entering the scene tree.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="display_mode" type="bool" setter="set_display_mode" getter="is_display_mode" default="true">
+			Uses display math style when enabled and the more compact inline math style when disabled.
+		</member>
+		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
+			The LaTeX expression to display. Supply the formula directly, for example [code]\sum_{n=1}^{10} n^2[/code].
+		</member>
+	</members>
+</class>

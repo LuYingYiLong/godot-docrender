@@ -1,6 +1,6 @@
 #pragma once
 
-#include "markdown_parser.h"
+#include "../markdown_parser.h"
 
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/font.hpp>
@@ -24,7 +24,7 @@
 #include <vector>
 
 namespace godot {
-class PopupMenu;
+	class PopupMenu;
 }
 
 using namespace godot;
@@ -131,7 +131,7 @@ private:
 	bool selection_dragged = false;
 	bool selection_drag_attempt = false;
 	bool internal_processing_enabled = false;
-	PopupMenu *menu = nullptr;
+	PopupMenu* menu = nullptr;
 	int64_t selection_anchor = 0;
 	int64_t selection_caret = 0;
 	int64_t search_match_start = -1;
@@ -157,11 +157,12 @@ private:
 	double pending_layout_elapsed_msec = 0.0;
 
 	void mark_layout_dirty();
+	MarkdownParseOptions get_parse_options() const;
 	void parse_current_text_incremental();
 	void build_theme_cache();
 	void _generate_context_menu();
 	void _update_context_menu();
-	Key _get_menu_action_accelerator(const String &p_action);
+	Key _get_menu_action_accelerator(const String& p_action);
 	void rebuild_layout();
 	double get_offset_for_source_line(double p_line, int32_t p_line_count);
 	double get_source_line_at_offset(double p_offset, int32_t p_line_count);
@@ -170,7 +171,7 @@ private:
 	void draw_search_highlight_for_item(const MarkdownCanvasItem& p_item);
 	void draw_range_background_for_paragraph(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, int64_t p_global_start, int64_t p_global_end, int64_t p_range_start, int64_t p_range_end, const Ref<StyleBox>& p_stylebox);
 	void draw_stylebox_or_rect(const Ref<StyleBox>& p_stylebox, const Rect2& p_rect, const Color& p_fallback_color);
-	void draw_paragraph_images(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, const HashMap<String, Ref<Texture2D>>& p_image_map);
+	void draw_paragraph_objects(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, const MarkdownParagraphObjects& p_objects);
 	void draw_span_decorations(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, const std::vector<MarkdownInlineSpan>& p_spans, int64_t p_global_start, bool p_draw_code_backgrounds, bool p_draw_link_underlines);
 	void draw_paragraph_text(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, const std::vector<MarkdownInlineSpan>& p_spans, int64_t p_global_start, const Color& p_default_color);
 	Rect2 get_visible_content_rect() const;
@@ -232,7 +233,7 @@ public:
 	float get_anchor_offset(const String& p_anchor) const;
 	float get_search_result_y() const;
 	float get_bottom_position() const;
-	PopupMenu *get_menu();
+	PopupMenu* get_menu();
 	bool is_menu_visible() const;
 	void menu_option(int p_option);
 };
@@ -258,6 +259,8 @@ private:
 	int32_t content_margin = 16;
 	int32_t extra_font_size = 0;
 	bool open_external_links = true;
+	bool parse_latex = false;
+	bool parse_gfm = true;
 	bool selection_enabled = true;
 	bool deselect_on_focus_loss_enabled = true;
 	bool drag_and_drop_selection_enabled = true;
@@ -292,6 +295,10 @@ public:
 	void set_markdown_text(const String& p_text);
 	String get_markdown_text() const;
 	void set_image_base_dir(const String& p_dir);
+	void set_parse_latex(bool p_enabled);
+	bool is_parsing_latex() const;
+	void set_parse_gfm(bool p_enabled);
+	bool is_parsing_gfm() const;
 
 	void append_text(const String& p_delta);
 	void finish_stream();
@@ -379,7 +386,7 @@ public:
 	HScrollBar* get_h_scroll_bar() const;
 	VScrollBar* get_v_scroll_bar() const;
 
-	PopupMenu *get_menu();
+	PopupMenu* get_menu();
 	bool is_menu_visible() const;
 	void menu_option(int p_option);
 };

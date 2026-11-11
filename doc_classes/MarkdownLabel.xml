@@ -16,6 +16,7 @@
 		- Links ([code][url]text[/url][/code]) and images
 		- Footnotes ([code][^id][/code] reference and [code][^id]: definition[/code])
 		- Tables
+		- LaTeX math when [member parse_latex] is enabled
 
 		[b]Streaming:[/b] When [member streaming_enabled] is [code]true[/code], [method append_text] performs incremental re-parsing of only the unstable tail region (controlled by [member max_unstable_lines]). Enable [member deferred_layout_enabled] to coalesce streaming layout updates and minimum-size notifications. Call [method finish_stream] after the last append to force a full re-parse for correct final layout.
 
@@ -461,6 +462,13 @@
 		</member>
 		<member name="open_external_links" type="bool" setter="set_open_external_links" getter="get_open_external_links" default="true">
 			If [code]true[/code], clicking an http/https link opens it in the system default browser.
+		</member>
+		<member name="parse_gfm" type="bool" setter="set_parse_gfm" getter="is_parsing_gfm" default="true">
+			Enables the supported GitHub Flavored Markdown extensions for tables, task lists, strikethrough, and [code]&lt;www.example.com&gt;[/code] autolinks. Changing this property reparses the current text. Math parsing is controlled by [member parse_latex].
+		</member>
+		<member name="parse_latex" type="bool" setter="set_parse_latex" getter="is_parsing_latex" default="false">
+			If [code]true[/code], uses [TeXRender] to render [code]$...$[/code] as inline math. A centered display formula starts a line with [code]$$[/code] and ends the same or a later line with [code]$$[/code].
+			Escape a literal dollar sign as [code]\$[/code]. Inline code and fenced code keep their dollar signs. If parsing a formula fails, its source is displayed as text. Text selection copies the formula source, including its delimiters.
 		</member>
 		<member name="selection_enabled" type="bool" setter="set_selection_enabled" getter="is_selection_enabled" default="true">
 			If [code]true[/code], text can be selected with the mouse.

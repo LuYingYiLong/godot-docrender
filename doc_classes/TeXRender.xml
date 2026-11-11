@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="TeXRender" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Lays out and draws a LaTeX math expression on a [CanvasItem].
+	</brief_description>
+	<description>
+		Call [method parse] on the main thread to create a layout. Keep the [TeXRender] instance to measure it and draw it repeatedly. Call [method draw] from [method CanvasItem._draw] or a [signal CanvasItem.draw] callback.
+		Use [constant STYLE_TEXT] for inline math. Use [method get_baseline_offset] to align the formula with the baseline of surrounding text.
+	</description>
+	<methods>
+		<method name="clear">
+			<return type="void" />
+			<description>
+				Clears the layout, its settings, and the last error.
+			</description>
+		</method>
+		<method name="draw" qualifiers="const">
+			<return type="void" />
+			<param index="0" name="canvas" type="CanvasItem" />
+			<param index="1" name="position" type="Vector2" default="Vector2(0, 0)" />
+			<description>
+				Draws the current layout with its top-left corner at [param position] in [param canvas]'s local coordinates. After drawing, the canvas item's draw transform is set to identity.
+			</description>
+		</method>
+		<method name="get_baseline" qualifiers="const">
+			<return type="float" />
+			<description>
+				Returns the baseline position as a fraction of the layout height. Returns [code]0.0[/code] for an empty layout.
+			</description>
+		</method>
+		<method name="get_baseline_offset" qualifiers="const">
+			<return type="float" />
+			<description>
+				Returns the distance from the top of the layout to its baseline in pixels, measured using the layout's integer height.
+			</description>
+		</method>
+		<method name="get_depth" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the depth below the baseline in pixels, including any bottom inset and padding.
+			</description>
+		</method>
+		<method name="get_foreground" qualifiers="const">
+			<return type="Color" />
+			<description>
+				Returns the configured foreground color.
+			</description>
+		</method>
+		<method name="get_height" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the total layout height in pixels.
+			</description>
+		</method>
+		<method name="get_insets" qualifiers="const">
+			<return type="Vector4i" />
+			<description>
+				Returns the effective insets in left, top, right, bottom order. Includes MicroTeX's automatic insets when enabled.
+			</description>
+		</method>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the error message from the last parse attempt, or an empty string on success.
+			</description>
+		</method>
+		<method name="get_size" qualifiers="const">
+			<return type="Vector2i" />
+			<description>
+				Returns the total layout size in pixels.
+			</description>
+		</method>
+		<method name="get_text_size" qualifiers="const">
+			<return type="float" />
+			<description>
+				Returns the current text size in pixels, or [code]0.0[/code] when there is no layout.
+			</description>
+		</method>
+		<method name="get_width" qualifiers="const">
+			<return type="int" />
+			<description>
+				Returns the total layout width in pixels.
+			</description>
+		</method>
+		<method name="is_valid" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if a formula layout is available.
+			</description>
+		</method>
+		<method name="parse">
+			<return type="int" enum="Error" />
+			<param index="0" name="text" type="String" />
+			<param index="1" name="text_size" type="float" default="16.0" />
+			<param index="2" name="style" type="int" enum="TeXRender.Style" default="0" />
+			<param index="3" name="foreground" type="Color" default="Color(1, 1, 1, 1)" />
+			<description>
+				Replaces the current layout with the parsed LaTeX expression and returns [constant OK] on success. Empty or whitespace-only input clears the layout and returns [constant OK]. A parse error clears the layout and can be read with [method get_render_error].
+			</description>
+		</method>
+		<method name="set_foreground">
+			<return type="void" />
+			<param index="0" name="color" type="Color" />
+			<description>
+				Changes the foreground of the current layout. A fully transparent color uses MicroTeX's default foreground. Colors specified in the expression still apply.
+			</description>
+		</method>
+		<method name="set_height">
+			<return type="void" />
+			<param index="0" name="height" type="int" />
+			<param index="1" name="alignment" type="int" enum="VerticalAlignment" default="0" />
+			<description>
+				Expands the layout to at least [param height] pixels, positioning the formula at the top, center, or bottom of the extra space.
+			</description>
+		</method>
+		<method name="set_insets">
+			<return type="void" />
+			<param index="0" name="insets" type="Vector4i" />
+			<param index="1" name="true_values" type="bool" default="false" />
+			<description>
+				Sets insets in left, top, right, bottom order. When [param true_values] is [code]false[/code], MicroTeX adds its automatic padding to the specified values. Pass [code]Vector4i(0, 0, 0, 0), true[/code] for tight inline layout.
+			</description>
+		</method>
+		<method name="set_text_size">
+			<return type="void" />
+			<param index="0" name="text_size" type="float" />
+			<description>
+				Scales the current formula to [param text_size] pixels. Insets keep their current pixel values.
+			</description>
+		</method>
+		<method name="set_width">
+			<return type="void" />
+			<param index="0" name="width" type="int" />
+			<param index="1" name="alignment" type="int" enum="HorizontalAlignment" default="0" />
+			<description>
+				Expands the layout to at least [param width] pixels, positioning the formula at the left, center, or right of the extra space.
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="STYLE_DISPLAY" value="0" enum="Style">Display math style.</constant>
+		<constant name="STYLE_DISPLAY_CRAMPED" value="1" enum="Style">Cramped display math style.</constant>
+		<constant name="STYLE_TEXT" value="2" enum="Style">Inline math style.</constant>
+		<constant name="STYLE_TEXT_CRAMPED" value="3" enum="Style">Cramped inline math style.</constant>
+		<constant name="STYLE_SCRIPT" value="4" enum="Style">Script math style.</constant>
+		<constant name="STYLE_SCRIPT_CRAMPED" value="5" enum="Style">Cramped script math style.</constant>
+		<constant name="STYLE_SCRIPT_SCRIPT" value="6" enum="Style">Nested script math style.</constant>
+		<constant name="STYLE_SCRIPT_SCRIPT_CRAMPED" value="7" enum="Style">Cramped nested script math style.</constant>
+	</constants>
+</class>

@@ -1,11 +1,68 @@
 #!/usr/bin/env python
-import os
-import sys
+from pathlib import Path
 
 env = SConscript("godot-cpp/SConstruct")
 
 env.Append(CPPPATH=["src/"])
-sources = Glob("src/*.cpp")
+if env.get("is_msvc", False):
+    env.AppendUnique(CCFLAGS=["/utf-8", "/wd4828"])
+
+tex_render = "src/tex_render.cpp"
+sources = Glob("src/*.cpp", exclude=[tex_render]) + Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp")
+
+microtex = "src/thirdparty/microtex"
+tinyxml2 = "src/thirdparty/tinyxml2"
+math_sources = [f"{tinyxml2}/tinyxml2.cpp"]
+math_sources += [f"{microtex}/src/{name}.cpp" for name in ("latex", "render")]
+for folder in ("atom", "box", "core", "fonts", "utils", "res/builtin", "res/font", "res/parser", "res/reg", "res/sym"):
+    math_sources += Glob(f"{microtex}/src/{folder}/*.cpp")
+
+
+def embed_math_fonts(target, source, env):
+    with Path(str(target[0])).open("w", encoding="utf-8", newline="\n") as output:
+        output.write("#pragma once\n\n#include <cstddef>\n#include <cstdint>\n\nnamespace {\n")
+        output.write("struct EmbeddedMathFont {\n\tconst char *name;\n\tconst uint8_t *data;\n\tstd::size_t size;\n};\n")
+        for index, font in enumerate(source):
+            data = Path(str(font)).read_bytes()
+            output.write(f"constexpr uint8_t math_font_{index}[] = {{\n")
+            for offset in range(0, len(data), 24):
+                output.write("\t" + ", ".join(f"0x{byte:02x}" for byte in data[offset:offset + 24]) + ",\n")
+            output.write("};\n")
+        output.write("constexpr EmbeddedMathFont embedded_math_fonts[] = {\n")
+        for index, font in enumerate(source):
+            output.write(f'\t{{ "{Path(str(font)).name}", math_font_{index}, sizeof(math_font_{index}) }},\n')
+        output.write("};\n}\n")
+
+
+fonts = sorted(Path(microtex, "res", "fonts").rglob("*.ttf"))
+if not fonts or not Path(tinyxml2, "tinyxml2.cpp").is_file():
+    print("Missing MicroTeX dependencies. Run git submodule update --init --recursive.")
+    Exit(1)
+
+font_header = env.Command(
+    "src/gen/microtex_fonts.gen.h", [font.as_posix() for font in fonts],
+    env.Action(embed_math_fonts, "Embedding MicroTeX fonts"),
+)
+
+math_env = env.Clone()
+math_env.Append(CPPPATH=[f"{microtex}/src", tinyxml2])
+# MicroTeX reports parser errors using C++ exceptions.
+if math_env.get("is_msvc", False):
+    math_env["CPPDEFINES"] = [define for define in math_env["CPPDEFINES"] if define != ("_HAS_EXCEPTIONS", 0)]
+    math_env.AppendUnique(CXXFLAGS=["/EHsc"])
+else:
+    math_env["CXXFLAGS"] = [flag for flag in math_env["CXXFLAGS"] if flag != "-fno-exceptions"]
+    math_env.AppendUnique(CXXFLAGS=["-fexceptions"])
+    if env["platform"] == "web":
+        env.AppendUnique(LINKFLAGS=["-fexceptions"])
+
+math_object = math_env.StaticObject if env["platform"] == "ios" else math_env.SharedObject
+render_object = math_object(tex_render)
+math_env.Depends(render_object, font_header)
+sources += render_object
+for source in math_sources:
+    source_path = Path(str(source)).relative_to("src/thirdparty").with_suffix("")
+    sources += math_object(f"src/gen/math/{source_path.as_posix()}{math_env['OBJSUFFIX']}", source)
 
 if env["target"] in ["editor", "template_debug"]:
     try:
@@ -33,10 +90,6 @@ elif env["platform"] == "ios":
             source=sources,
         )
 else:
-    if env["platform"] == "windows" and not env["use_mingw"]:
-        env.Append(CCFLAGS=["/utf-8", "/wd4828"])
-        env.Append(CXXFLAGS=["/utf-8"])
-
     library = env.SharedLibrary(
         "addons/markdown_label/bin/markdown_label{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
         source=sources,

@@ -7,6 +7,54 @@
 using namespace godot;
 
 namespace {
+	template <typename Text>
+	static bool is_escaped_at(const Text& p_text, int64_t p_position) {
+		int64_t start = p_position;
+		while (start > 0 && p_text[start - 1] == '\\') {
+			start--;
+		}
+		return (p_position - start) % 2 != 0;
+	}
+
+	static bool is_latex_whitespace(char32_t p_character) {
+		return p_character == ' ' || p_character == '\t' || p_character == '\n' || p_character == '\r';
+	}
+
+	template <typename Text>
+	static int64_t find_inline_latex_end(const Text& p_text, int64_t p_start) {
+		const int64_t length = p_text.length();
+		if (p_start + 1 >= length || p_text[p_start + 1] == '$' || is_latex_whitespace(p_text[p_start + 1]) ||
+			is_escaped_at(p_text, p_start) || (p_start > 0 && p_text[p_start - 1] == '$' && !is_escaped_at(p_text, p_start - 1))) {
+			return -1;
+		}
+
+		for (int64_t i = p_start + 1; i < length; i++) {
+			if (p_text[i] == '\n' || p_text[i] == '`') {
+				break;
+			}
+			if (p_text[i] != '$' || is_escaped_at(p_text, i)) {
+				continue;
+			}
+			const char32_t after = i + 1 < length ? p_text[i + 1] : 0;
+			// Avoid treating two currency amounts as one formula.
+			if (after == '$' || (after >= '0' && after <= '9') || is_latex_whitespace(p_text[i - 1])) {
+				break;
+			}
+			return i;
+		}
+		return -1;
+	}
+
+	static int64_t find_display_latex_end(const String& p_text, int64_t p_start) {
+		for (int64_t i = p_text.find("$$", p_start); i >= 0; i = p_text.find("$$", i + 2)) {
+			if ((i == 0 || p_text[i - 1] != '$') && (i + 2 == p_text.length() || p_text[i + 2] != '$') &&
+				!is_escaped_at(p_text, i)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 	static bool is_blank_line(const String& p_line) {
 		return p_line.strip_edges().is_empty();
 	}
@@ -316,9 +364,11 @@ namespace {
 		const char32_t check_char = trimmed_left[3];
 		if (check_char == 'x' || check_char == 'X') {
 			r_checked = true;
-		} else if (check_char == ' ') {
+		}
+		else if (check_char == ' ') {
 			r_checked = false;
-		} else {
+		}
+		else {
 			return false;
 		}
 
@@ -472,7 +522,7 @@ uint64_t compute_block_hash(const MarkdownBlock& p_block) {
 	return to_hash.hash();
 }
 
-MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
+MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const MarkdownParseOptions& p_options) {
 	MarkdownInlineSpanParseResult result;
 	if (p_text.is_empty()) {
 		return result;
@@ -485,7 +535,7 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 	auto append_span = [&result](const MarkdownInlineSpan& span) {
 		if (!result.spans.empty()) {
 			const MarkdownInlineSpan& last = result.spans.back();
-			if (last.link_uri == span.link_uri && last.image_uri == span.image_uri && last.image_title == span.image_title && last.footnote_id == span.footnote_id && last.footnote_number == span.footnote_number && last.footnote_ref == span.footnote_ref && last.bold == span.bold && last.italic == span.italic && last.code == span.code && last.strikethrough == span.strikethrough && last.highlight == span.highlight && last.custom_color == span.custom_color && (!last.custom_color || last.color == span.color) && last.end == span.start) {
+			if (last.latex.is_empty() && span.latex.is_empty() && last.link_uri == span.link_uri && last.image_uri == span.image_uri && last.image_title == span.image_title && last.footnote_id == span.footnote_id && last.footnote_number == span.footnote_number && last.footnote_ref == span.footnote_ref && last.bold == span.bold && last.italic == span.italic && last.code == span.code && last.strikethrough == span.strikethrough && last.highlight == span.highlight && last.custom_color == span.custom_color && (!last.custom_color || last.color == span.color) && last.end == span.start) {
 				result.spans.back().text += span.text;
 				result.spans.back().end = span.end;
 				return;
@@ -506,15 +556,28 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 		append_span(span);
 		};
 
-	auto find_close = [&](size_t start, char32_t c) -> size_t {
+	auto skip_inline_latex = [&](size_t& r_pos) {
+		if (p_options.parse_latex && raw[r_pos] == '$') {
+			const int64_t end = find_inline_latex_end(raw, r_pos);
+			if (end >= 0) {
+				r_pos = static_cast<size_t>(end);
+				return true;
+			}
+		}
+		return false;
+	};
+
+	auto find_format_close = [&](size_t start, const std::string& marker) -> size_t {
+		if (!p_options.parse_latex) {
+			return raw.find(marker, start);
+		}
 		for (size_t i = start; i < len; i++) {
-			unsigned char byte = static_cast<unsigned char>(raw[i]);
-			if (byte < 0x80 && static_cast<char32_t>(byte) == c) {
+			if (!skip_inline_latex(i) && raw.compare(i, marker.length(), marker) == 0) {
 				return i;
 			}
 		}
 		return std::string::npos;
-		};
+	};
 
 	auto find_str = [&](size_t start, const std::string& needle) -> size_t {
 		if (start >= len) {
@@ -527,6 +590,9 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 	auto find_bracket_close = [&](size_t start) -> size_t {
 		int32_t bracket_depth = 1;
 		for (size_t i = start; i < len; i++) {
+			if (skip_inline_latex(i)) {
+				continue;
+			}
 			unsigned char byte = static_cast<unsigned char>(raw[i]);
 			if (byte >= 0x80) {
 				continue;
@@ -572,10 +638,24 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 
 		if (raw[pos] == '\\' && pos + 1 < len) {
 			const char32_t next = raw[pos + 1];
-			const String escapable = "\\`*_{}[]()#+-.!|";
-			if (next == '\\' || next == '`' || next == '*' || next == '_' || next == '{' || next == '}' || next == '[' || next == ']' || next == '(' || next == ')' || next == '#' || next == '+' || next == '-' || next == '.' || next == '!' || next == '|') {
+			if (next == '\\' || next == '`' || next == '*' || next == '_' || next == '{' || next == '}' || next == '[' || next == ']' || next == '(' || next == ')' || next == '#' || next == '+' || next == '-' || next == '.' || next == '!' || next == '|' || (p_options.parse_latex && next == '$')) {
 				emit_plain(pos + 1, pos + 2);
 				pos += 2;
+				continue;
+			}
+		}
+
+		if (p_options.parse_latex && raw[pos] == '$') {
+			const int64_t close = find_inline_latex_end(raw, pos);
+			if (close >= 0) {
+				MarkdownInlineSpan span;
+				span.latex = String::utf8(raw.data() + pos + 1, close - static_cast<int64_t>(pos) - 1);
+				span.text = String::utf8(raw.data() + pos, close - static_cast<int64_t>(pos) + 1);
+				span.start = output.length();
+				output += span.text;
+				span.end = output.length();
+				append_span(span);
+				pos = static_cast<size_t>(close + 1);
 				continue;
 			}
 		}
@@ -619,7 +699,8 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 						if (title_end > title_start) {
 							span.image_title = full_url.substr(title_start + 1, title_end - title_start - 1);
 						}
-					} else {
+					}
+					else {
 						span.image_uri = full_url;
 					}
 					String alt_text = String::utf8(raw.data() + pos + 2, static_cast<int64_t>(bracket_end - pos - 2));
@@ -638,31 +719,31 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 			continue;
 		}
 
-			// Autolink: <url> or <email>
-			if (raw[pos] == '<') {
-				size_t gt = pos + 1;
-				while (gt < len && raw[gt] != '>' && raw[gt] != '\n' && raw[gt] != ' ' && raw[gt] != '<') gt++;
-				if (gt < len && raw[gt] == '>' && gt > pos + 1) {
-					String url = String::utf8(raw.data() + pos + 1, static_cast<int64_t>(gt - pos - 1));
-					bool is_url_or_email = false;
-					if (url.contains("://") || url.begins_with("www.")) is_url_or_email = true;
-					if (url.contains("@") && url.contains(".")) is_url_or_email = true;
-					if (is_url_or_email) {
-						MarkdownInlineSpan span;
-						span.text = url;
-						span.link_uri = url;
-						span.start = static_cast<int64_t>(output.length());
-						output += url;
-						span.end = static_cast<int64_t>(output.length());
-						append_span(span);
-						pos = gt + 1;
-						continue;
-					}
+		// Autolink: <url> or <email>
+		if (raw[pos] == '<') {
+			size_t gt = pos + 1;
+			while (gt < len && raw[gt] != '>' && raw[gt] != '\n' && raw[gt] != ' ' && raw[gt] != '<') gt++;
+			if (gt < len && raw[gt] == '>' && gt > pos + 1) {
+				String url = String::utf8(raw.data() + pos + 1, static_cast<int64_t>(gt - pos - 1));
+				bool is_url_or_email = false;
+				if (url.contains("://") || (p_options.parse_gfm && url.begins_with("www."))) is_url_or_email = true;
+				if (url.contains("@") && url.contains(".")) is_url_or_email = true;
+				if (is_url_or_email) {
+					MarkdownInlineSpan span;
+					span.text = url;
+					span.link_uri = url;
+					span.start = static_cast<int64_t>(output.length());
+					output += url;
+					span.end = static_cast<int64_t>(output.length());
+					append_span(span);
+					pos = gt + 1;
+					continue;
 				}
-				emit_plain(pos, pos + 1);
-				pos++;
-				continue;
 			}
+			emit_plain(pos, pos + 1);
+			pos++;
+			continue;
+		}
 
 		if (raw[pos] == '[') {
 			size_t bracket_end = find_bracket_close(pos + 1);
@@ -671,7 +752,7 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 				if (url_end != std::string::npos && url_end > bracket_end + 2) {
 					const String link_text = String::utf8(raw.data() + pos + 1, static_cast<int64_t>(bracket_end - pos - 1));
 					const String link_uri = String::utf8(raw.data() + bracket_end + 2, static_cast<int64_t>(url_end - bracket_end - 2)).strip_edges();
-					MarkdownInlineSpanParseResult inner_result = parse_inline_spans(link_text);
+					MarkdownInlineSpanParseResult inner_result = parse_inline_spans(link_text, p_options);
 					if (inner_result.spans.empty()) {
 						MarkdownInlineSpan span;
 						span.text = inner_result.output_text.is_empty() ? link_text : inner_result.output_text;
@@ -700,57 +781,51 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 			continue;
 		}
 
-			if (raw[pos] == '~' && pos + 1 < len && raw[pos + 1] == '~') {
-				size_t end = pos + 2;
-				while (end + 1 < len && !(raw[end] == '~' && raw[end + 1] == '~')) {
-					end++;
+		if (p_options.parse_gfm && raw[pos] == '~' && pos + 1 < len && raw[pos + 1] == '~') {
+			const size_t end = find_format_close(pos + 2, "~~");
+			if (end != std::string::npos) {
+				size_t inner_start = pos + 2;
+				String inner = String::utf8(raw.data() + inner_start, static_cast<int64_t>(end - inner_start));
+				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner, p_options);
+				for (MarkdownInlineSpan& span : inner_result.spans) {
+					span.strikethrough = true;
+					span.start += static_cast<int64_t>(output.length());
+					span.end += static_cast<int64_t>(output.length());
 				}
-				if (end + 1 < len) {
-					size_t inner_start = pos + 2;
-					String inner = String::utf8(raw.data() + inner_start, static_cast<int64_t>(end - inner_start));
-					MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner);
-					for (MarkdownInlineSpan& span : inner_result.spans) {
-						span.strikethrough = true;
-						span.start += static_cast<int64_t>(output.length());
-						span.end += static_cast<int64_t>(output.length());
-					}
-					output += inner_result.output_text;
-					for (const MarkdownInlineSpan& span : inner_result.spans) {
-						append_span(span);
-					}
-					pos = end + 2;
-					continue;
+				output += inner_result.output_text;
+				for (const MarkdownInlineSpan& span : inner_result.spans) {
+					append_span(span);
 				}
-				emit_plain(pos, pos + 2);
-				pos += 2;
+				pos = end + 2;
 				continue;
 			}
+			emit_plain(pos, pos + 2);
+			pos += 2;
+			continue;
+		}
 
-			if (raw[pos] == '=' && pos + 1 < len && raw[pos + 1] == '=') {
-				size_t end = pos + 2;
-				while (end + 1 < len && !(raw[end] == '=' && raw[end + 1] == '=')) {
-					end++;
+		if (raw[pos] == '=' && pos + 1 < len && raw[pos + 1] == '=') {
+			const size_t end = find_format_close(pos + 2, "==");
+			if (end != std::string::npos) {
+				size_t inner_start = pos + 2;
+				String inner = String::utf8(raw.data() + inner_start, static_cast<int64_t>(end - inner_start));
+				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner, p_options);
+				for (MarkdownInlineSpan& span : inner_result.spans) {
+					span.highlight = true;
+					span.start += static_cast<int64_t>(output.length());
+					span.end += static_cast<int64_t>(output.length());
 				}
-				if (end + 1 < len) {
-					size_t inner_start = pos + 2;
-					String inner = String::utf8(raw.data() + inner_start, static_cast<int64_t>(end - inner_start));
-					MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner);
-					for (MarkdownInlineSpan& span : inner_result.spans) {
-						span.highlight = true;
-						span.start += static_cast<int64_t>(output.length());
-						span.end += static_cast<int64_t>(output.length());
-					}
-					output += inner_result.output_text;
-					for (const MarkdownInlineSpan& span : inner_result.spans) {
-						append_span(span);
-					}
-					pos = end + 2;
-					continue;
+				output += inner_result.output_text;
+				for (const MarkdownInlineSpan& span : inner_result.spans) {
+					append_span(span);
 				}
-				emit_plain(pos, pos + 2);
-				pos += 2;
+				pos = end + 2;
 				continue;
 			}
+			emit_plain(pos, pos + 2);
+			pos += 2;
+			continue;
+		}
 
 		if (raw[pos] == '`') {
 			size_t end = pos + 1;
@@ -790,10 +865,10 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 		}
 
 		if (pos + 2 < len && raw[pos] == '*' && raw[pos + 1] == '*' && raw[pos + 2] == '*' && (pos + 3 >= len || raw[pos + 3] != '*')) {
-			size_t close_pos = find_str(pos + 3, "***");
+			size_t close_pos = find_format_close(pos + 3, "***");
 			if (close_pos != std::string::npos && close_pos > pos + 3) {
 				String inner = String::utf8(raw.data() + pos + 3, static_cast<int64_t>(close_pos - pos - 3));
-				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner);
+				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner, p_options);
 				for (MarkdownInlineSpan& span : inner_result.spans) {
 					span.bold = true;
 					span.italic = true;
@@ -810,10 +885,10 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 		}
 
 		if (pos + 1 < len && raw[pos] == '*' && raw[pos + 1] == '*') {
-			size_t close_pos = find_str(pos + 2, "**");
+			size_t close_pos = find_format_close(pos + 2, "**");
 			if (close_pos != std::string::npos && close_pos > pos + 2) {
 				String inner = String::utf8(raw.data() + pos + 2, static_cast<int64_t>(close_pos - pos - 2));
-				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner);
+				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner, p_options);
 				for (MarkdownInlineSpan& span : inner_result.spans) {
 					span.bold = true;
 					span.start += static_cast<int64_t>(output.length());
@@ -829,13 +904,10 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 		}
 
 		if (raw[pos] == '*') {
-			size_t close_pos = pos + 1;
-			while (close_pos < len && raw[close_pos] != '*') {
-				close_pos++;
-			}
+			size_t close_pos = find_format_close(pos + 1, "*");
 			if (close_pos < len && close_pos > pos + 1) {
 				String inner = String::utf8(raw.data() + pos + 1, static_cast<int64_t>(close_pos - pos - 1));
-				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner);
+				MarkdownInlineSpanParseResult inner_result = parse_inline_spans(inner, p_options);
 				for (MarkdownInlineSpan& span : inner_result.spans) {
 					span.italic = true;
 					span.start += static_cast<int64_t>(output.length());
@@ -856,7 +928,8 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 			if (b >= 0x80) {
 				continue;
 			}
-			if (raw[i] == '\\' || raw[i] == '*' || raw[i] == '[' || raw[i] == '!' || raw[i] == '`' || raw[i] == '~' || raw[i] == '=' || raw[i] == '<') {
+			if (raw[i] == '\\' || raw[i] == '*' || raw[i] == '[' || raw[i] == '!' || raw[i] == '`' || raw[i] == '=' || raw[i] == '<' ||
+				(p_options.parse_gfm && raw[i] == '~') || (p_options.parse_latex && raw[i] == '$')) {
 				next_special = i;
 				break;
 			}
@@ -868,7 +941,7 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text) {
 	return result;
 }
 
-MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state, int32_t p_max_lines) {
+MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state, int32_t p_max_lines, const MarkdownParseOptions& p_options) {
 	std::vector<String> lines = split_lines(p_text);
 	MarkdownParseResult result;
 	std::vector<MarkdownBlock>& blocks = result.blocks;
@@ -897,6 +970,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 
 	int32_t max_index = std::min<int32_t>(static_cast<int32_t>(lines.size()), p_max_lines);
 	int32_t index = 0;
+	int32_t latex_scan_boundary = 0;
 
 	auto flush_paragraph = [&]() {
 		if (!paragraph_accumulator.is_empty()) {
@@ -927,7 +1001,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			for (int32_t di = 0; di < static_cast<int32_t>(blockquote_depths.size()); di++) {
 				block.item_levels.push_back(blockquote_depths[di]);
 			}
-			block.children = parse_markdown_blocks(text);
+			block.children = parse_markdown_blocks(text, nullptr, INT_MAX, p_options);
 			blocks.push_back(block);
 			blockquote_lines.clear();
 			blockquote_depths.clear();
@@ -949,7 +1023,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			task_checked_vec.clear();
 			task_line = 0;
 		}
-	};
+		};
 
 	auto flush_list = [&]() {
 		if (!list_items.empty()) {
@@ -1061,6 +1135,56 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			continue;
 		}
 
+		if (p_options.parse_latex && get_indent(line) <= 3) {
+			const String trimmed = trim_left_indent(line);
+			if (trimmed.begins_with("$$") && !trimmed.begins_with("$$$")) {
+				int32_t closing_line = index;
+				int64_t close = find_display_latex_end(trimmed, 2);
+				bool closed = close >= 0 && close == trimmed.length() - 2;
+				if (close < 0 && index >= latex_scan_boundary) {
+					int32_t candidate = index + 1;
+					for (; candidate < max_index; candidate++) {
+						const String& candidate_line = lines[candidate];
+						const String candidate_text = trim_left_indent(candidate_line);
+						if (get_indent(candidate_line) <= 3 &&
+							(candidate_text.begins_with("```") || candidate_text.begins_with("~~~"))) {
+							break;
+						}
+						close = find_display_latex_end(candidate_line, 0);
+						if (close >= 0) {
+							closing_line = candidate;
+							closed = close == candidate_line.length() - 2;
+							break;
+						}
+					}
+					latex_scan_boundary = candidate;
+					if (candidate == max_index && state.unclosed_latex_line == 0) {
+						state.unclosed_latex_line = paragraph_line > 0 ? paragraph_line : index + 1;
+					}
+				}
+
+				if (closed) {
+					PackedStringArray source_lines;
+					source_lines.push_back(trimmed);
+					for (int32_t i = index + 1; i <= closing_line; i++) {
+						source_lines.push_back(lines[i]);
+					}
+					flush_all();
+					state.in_list = false;
+					state.in_blockquote = false;
+					MarkdownBlock block;
+					block.type = MARKDOWN_BLOCK_LATEX;
+					block.line = index + 1;
+					block.end_line = closing_line + 1;
+					block.text = String("\n").join(source_lines);
+					block.argument = block.text.substr(2, block.text.length() - 4).strip_edges();
+					blocks.push_back(block);
+					index = closing_line + 1;
+					continue;
+				}
+			}
+		}
+
 		// Footnote definition
 		String footnote_id;
 		String footnote_text;
@@ -1110,12 +1234,19 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			};
 
 		// Helper: parse table cell row
-		auto parse_table_cells = [](const String& p_line) -> PackedStringArray {
+		auto parse_table_cells = [&p_options](const String& p_line) -> PackedStringArray {
 			PackedStringArray cells;
 			int32_t start = 0;
 			if (p_line.length() > 0 && p_line[0] == '|') start = 1;
 			int32_t pos = start;
 			for (int32_t j = start; j <= p_line.length(); j++) {
+				if (p_options.parse_latex && j < p_line.length() && p_line[j] == '$') {
+					const int64_t end = find_inline_latex_end(p_line, j);
+					if (end >= 0) {
+						j = static_cast<int32_t>(end);
+						continue;
+					}
+				}
 				if (j == p_line.length() || p_line[j] == '|') {
 					String cell = p_line.substr(pos, j - pos).strip_edges();
 					cells.push_back(cell);
@@ -1139,7 +1270,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			};
 
 		// Table detection
-		if (line.strip_edges().begins_with("|")) {
+		if (p_options.parse_gfm && line.strip_edges().begins_with("|")) {
 			PackedStringArray first_cells = parse_table_cells(line);
 			if (first_cells.size() >= 2 && index + 1 < lines.size() && is_table_separator(lines[index + 1])) {
 				flush_all();
@@ -1238,7 +1369,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 		// Task list
 		String task_item_text;
 		bool task_checked = false;
-		if (is_task_list_item(line, task_item_text, task_checked)) {
+		if (p_options.parse_gfm && is_task_list_item(line, task_item_text, task_checked)) {
 			flush_paragraph();
 			flush_blockquote();
 			flush_list();
@@ -1336,15 +1467,30 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 	return result;
 }
 
-std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const MarkdownParserState* p_initial_state, int32_t p_max_lines) {
-	return parse_markdown_document(p_text, p_initial_state, p_max_lines).blocks;
+std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const MarkdownParserState* p_initial_state, int32_t p_max_lines, const MarkdownParseOptions& p_options) {
+	return parse_markdown_document(p_text, p_initial_state, p_max_lines, p_options).blocks;
 }
 
 int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std::vector<String>& p_lines, const MarkdownParserState& p_state, int32_t p_max_unstable_lines) {
+	auto include_latex_block_start = [&](int32_t p_start) {
+		if (p_state.unclosed_latex_line > 0) {
+			p_start = std::min(p_start, p_state.unclosed_latex_line - 1);
+		}
+		const auto next = std::upper_bound(p_blocks.begin(), p_blocks.end(), p_start + 1,
+			[](int32_t p_line, const MarkdownBlock& p_block) { return p_line < p_block.line; });
+		if (next != p_blocks.begin()) {
+			const MarkdownBlock& block = *(next - 1);
+			if (block.type == MARKDOWN_BLOCK_LATEX && p_start + 1 <= block.end_line) {
+				return block.line - 1;
+			}
+		}
+		return p_start;
+	};
+
 	if (p_state.in_fenced_code || p_state.in_list || p_state.in_blockquote) {
 		for (int32_t i = static_cast<int32_t>(p_blocks.size()) - 1; i >= 0; i--) {
 			if ((p_state.in_fenced_code && p_blocks[i].type == MARKDOWN_BLOCK_CODE) || (p_state.in_list && (p_blocks[i].type == MARKDOWN_BLOCK_UNORDERED_LIST || p_blocks[i].type == MARKDOWN_BLOCK_ORDERED_LIST)) || (p_state.in_blockquote && p_blocks[i].type == MARKDOWN_BLOCK_BLOCKQUOTE)) {
-				return std::max<int32_t>(0, p_blocks[i].line - 1);
+				return include_latex_block_start(std::max<int32_t>(0, p_blocks[i].line - 1));
 			}
 		}
 	}
@@ -1354,17 +1500,17 @@ int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std:
 	}
 
 	if (p_blocks.back().type == MARKDOWN_BLOCK_TABLE) {
-		return std::max<int32_t>(0, p_blocks.back().line - 1);
+		return include_latex_block_start(std::max<int32_t>(0, p_blocks.back().line - 1));
 	}
 
 	int32_t last_block_line = p_blocks.back().line - 1;
 	int32_t tail_lines = std::min<int32_t>(p_max_unstable_lines, static_cast<int32_t>(p_lines.size()) - last_block_line);
 	int32_t reparse_start = std::max<int32_t>(0, static_cast<int32_t>(p_lines.size()) - tail_lines);
 
-	return reparse_start;
+	return include_latex_block_start(reparse_start);
 }
 
-void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock>& r_blocks, MarkdownParserState& r_state) {
+void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock>& r_blocks, MarkdownParserState& r_state, const MarkdownParseOptions& p_options) {
 	r_blocks.erase(std::remove_if(r_blocks.begin(), r_blocks.end(), [p_reparse_line](const MarkdownBlock& b) { return b.line >= p_reparse_line + 1; }), r_blocks.end());
 
 	r_state.reset();
@@ -1372,20 +1518,26 @@ void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<
 	std::vector<String> lines = split_lines(p_raw_text);
 	String tail_text;
 	for (int32_t i = p_reparse_line; i < static_cast<int32_t>(lines.size()); i++) {
-		if (!tail_text.is_empty()) {
+		if (i > p_reparse_line) {
 			tail_text += "\n";
 		}
 		tail_text += lines[i];
 	}
 
-	MarkdownParseResult tail_result = parse_markdown_document(tail_text);
+	MarkdownParseResult tail_result = parse_markdown_document(tail_text, nullptr, INT_MAX, p_options);
 	std::vector<MarkdownBlock> tail_blocks = tail_result.blocks;
 
 	for (MarkdownBlock& block : tail_blocks) {
 		block.line += p_reparse_line;
+		if (block.end_line > 0) {
+			block.end_line += p_reparse_line;
+		}
 	}
 
 	r_state = tail_result.state;
+	if (r_state.unclosed_latex_line > 0) {
+		r_state.unclosed_latex_line += p_reparse_line;
+	}
 	r_state.stable_block_count = static_cast<int32_t>(r_blocks.size() + tail_blocks.size());
 	r_state.stable_source_offset = p_raw_text.length();
 	r_blocks.insert(r_blocks.end(), tail_blocks.begin(), tail_blocks.end());

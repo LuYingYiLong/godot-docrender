@@ -1,7 +1,9 @@
 #include "register_types.h"
 
-#include "markdown_label.h"
-#include "markdown_preview_editor_plugin.h"
+#include "nodes/latex_label.h"
+#include "nodes/markdown_label.h"
+#include "editor/markdown_preview_editor_plugin.h"
+#include "tex_render.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/classes/editor_plugin_registration.hpp>
@@ -11,14 +13,18 @@
 using namespace godot;
 
 namespace {
-bool preview_plugin_registered = false;
+	bool preview_plugin_registered = false;
 }
 
 void initialize_markdown_label_module(ModuleInitializationLevel p_level) {
 	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
 		GDREGISTER_INTERNAL_CLASS(MarkdownLabelCanvas);
 		GDREGISTER_CLASS(MarkdownLabel);
-	} else if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR && Engine::get_singleton()->is_editor_hint()) {
+		GDREGISTER_CLASS(TeXRender);
+		GDREGISTER_CLASS(LatexLabel);
+	}
+
+	else if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR && Engine::get_singleton()->is_editor_hint()) {
 		GDREGISTER_INTERNAL_CLASS(MarkdownPreviewEditorPlugin);
 		EditorPlugins::add_by_type<MarkdownPreviewEditorPlugin>();
 		preview_plugin_registered = true;
@@ -30,10 +36,13 @@ void uninitialize_markdown_label_module(ModuleInitializationLevel p_level) {
 		EditorPlugins::remove_by_type<MarkdownPreviewEditorPlugin>();
 		preview_plugin_registered = false;
 	}
+	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
+		TeXRender::shutdown_renderer();
+	}
 }
 
 extern "C" {
-	GDExtensionBool GDE_EXPORT markdown_label_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
+	GDExtensionBool GDE_EXPORT markdown_label_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization* r_initialization) {
 		godot::GDExtensionBinding::InitObject init_obj(p_get_proc_address, p_library, r_initialization);
 
 		init_obj.register_initializer(initialize_markdown_label_module);

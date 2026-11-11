@@ -130,6 +130,7 @@ jobs:
           name: markdown-label-addon-files
           path: |
             ${{ github.workspace }}/addons/markdown_label/markdown_label.gdextension
+            ${{ github.workspace }}/addons/markdown_label/MicroTeX-LICENSES.txt
             ${{ github.workspace }}/addons/markdown_label/icons/**
             ${{ github.workspace }}/addons/markdown_label/docs/**
             ${{ github.workspace }}/addons/markdown_label/example/**

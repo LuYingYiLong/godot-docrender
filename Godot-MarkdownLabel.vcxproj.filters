@@ -13,29 +13,47 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
+    <Filter Include="Header Files\nodes">
+      <UniqueIdentifier>{c962ed92-e2f0-4d9b-a8cf-ba2ab635fc8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\nodes">
+      <UniqueIdentifier>{71fee902-18b2-4b85-beaa-b0301c852fa6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\editor">
+      <UniqueIdentifier>{9f2d9e38-3428-4869-ae53-5d2cd9b32bb0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\editor">
+      <UniqueIdentifier>{58195be0-f623-4cf3-b5c2-c2a26c4ac371}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\register_types.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\markdown_document.cpp">
+    <ClCompile Include="src\tex_render.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\markdown_label.cpp">
+    <ClCompile Include="src\markdown_document.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\markdown_parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\markdown_preview_editor_plugin.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\nodes\latex_label.cpp">
+      <Filter>Source Files\nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nodes\markdown_label.cpp">
+      <Filter>Source Files\nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
+      <Filter>Source Files\editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\register_types.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\markdown_label.h">
+    <ClInclude Include="src\tex_render.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\markdown_parser.h">
@@ -44,8 +62,14 @@
     <ClInclude Include="src\markdown_document.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\markdown_preview_editor_plugin.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\nodes\latex_label.h">
+      <Filter>Header Files\nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodes\markdown_label.h">
+      <Filter>Header Files\nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">
+      <Filter>Header Files\editor</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

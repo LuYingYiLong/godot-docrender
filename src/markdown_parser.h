@@ -1,5 +1,7 @@
 #pragma once
 
+#include "tex_render.h"
+
 #include <godot_cpp/classes/font.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/style_box.hpp>
@@ -27,6 +29,7 @@ enum MarkdownBlockType {
 	MARKDOWN_BLOCK_TABLE,
 	MARKDOWN_BLOCK_TASK_LIST,
 	MARKDOWN_BLOCK_FOOTNOTES,
+	MARKDOWN_BLOCK_LATEX,
 };
 
 struct MarkdownFootnoteDefinition {
@@ -46,6 +49,7 @@ struct MarkdownBlock {
 	int32_t columns = 0;
 	int32_t header_rows = 0;
 	int32_t line = 0;
+	int32_t end_line = 0;
 	String anchor;
 	int32_t indent = 0;
 	int32_t list_start = 1;
@@ -60,6 +64,7 @@ struct MarkdownInlineSpan {
 	String image_uri;
 	String image_title;
 	String footnote_id;
+	String latex;
 	int32_t footnote_number = 0;
 	int64_t start = 0;
 	int64_t end = 0;
@@ -71,6 +76,12 @@ struct MarkdownInlineSpan {
 	bool highlight = false;
 	bool custom_color = false;
 	bool footnote_ref = false;
+	bool display_math = false;
+};
+
+struct MarkdownParagraphObjects {
+	HashMap<String, Ref<Texture2D>> images;
+	HashMap<String, Ref<TeXRender>> formulas;
 };
 
 struct MarkdownTableCell {
@@ -80,7 +91,7 @@ struct MarkdownTableCell {
 	Rect2 text_rect;
 	String text;
 	std::vector<MarkdownInlineSpan> spans;
-	HashMap<String, Ref<Texture2D>> image_map;
+	MarkdownParagraphObjects objects;
 	int64_t global_start = 0;
 	int64_t global_end = 0;
 	Color text_color;
@@ -105,7 +116,7 @@ struct MarkdownBlockquoteLine {
 	Rect2 text_rect;
 	String text;
 	std::vector<MarkdownInlineSpan> spans;
-	HashMap<String, Ref<Texture2D>> image_map;
+	MarkdownParagraphObjects objects;
 	std::vector<MarkdownListMarker> list_markers;
 	int64_t global_start = 0;
 	int64_t global_end = 0;
@@ -159,7 +170,7 @@ struct MarkdownCanvasItem {
 	uint64_t content_hash = 0;
 	std::vector<MarkdownListMarker> list_markers;
 	std::vector<MarkdownTableCell> cells;
-	HashMap<String, Ref<Texture2D>> image_map;
+	MarkdownParagraphObjects objects;
 	std::vector<MarkdownBlockquoteLine> quote_lines;
 	std::vector<String> footnote_ids;
 	std::vector<int32_t> footnote_numbers;
@@ -178,6 +189,7 @@ struct MarkdownParserState {
 	bool list_ordered = false;
 	bool in_blockquote = false;
 	int32_t blockquote_depth = 0;
+	int32_t unclosed_latex_line = 0;
 	int64_t stable_source_offset = 0;
 	int32_t stable_block_count = 0;
 
@@ -192,6 +204,7 @@ struct MarkdownParserState {
 		list_ordered = false;
 		in_blockquote = false;
 		blockquote_depth = 0;
+		unclosed_latex_line = 0;
 		stable_source_offset = 0;
 		stable_block_count = 0;
 	}
@@ -202,10 +215,15 @@ struct MarkdownParseResult {
 	MarkdownParserState state;
 };
 
+struct MarkdownParseOptions {
+	bool parse_latex = false;
+	bool parse_gfm = true;
+};
+
 // Parser functions
-std::vector<String> split_lines(const String &p_text);
-MarkdownParseResult parse_markdown_document(const String &p_text, const MarkdownParserState *p_initial_state = nullptr, int32_t p_max_lines = INT_MAX);
-std::vector<MarkdownBlock> parse_markdown_blocks(const String &p_text, const MarkdownParserState *p_initial_state = nullptr, int32_t p_max_lines = INT_MAX);
+std::vector<String> split_lines(const String& p_text);
+MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {});
+std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {});
 
 // Inline span parsing result
 struct MarkdownInlineSpanParseResult {
@@ -213,10 +231,10 @@ struct MarkdownInlineSpanParseResult {
 	std::vector<MarkdownInlineSpan> spans;
 };
 
-MarkdownInlineSpanParseResult parse_inline_spans(const String &p_text);
+MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const MarkdownParseOptions& p_options = {});
 
 // Streaming helpers
-int32_t find_reparse_line(const std::vector<MarkdownBlock> &p_blocks, const std::vector<String> &p_lines, const MarkdownParserState &p_state, int32_t p_max_unstable_lines);
-void rebuild_tail(const String &p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock> &r_blocks, MarkdownParserState &r_state);
-uint64_t compute_block_hash(const MarkdownBlock &p_block);
-String slugify_heading(const String &p_text);
+int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std::vector<String>& p_lines, const MarkdownParserState& p_state, int32_t p_max_unstable_lines);
+void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock>& r_blocks, MarkdownParserState& r_state, const MarkdownParseOptions& p_options = {});
+uint64_t compute_block_hash(const MarkdownBlock& p_block);
+String slugify_heading(const String& p_text);
