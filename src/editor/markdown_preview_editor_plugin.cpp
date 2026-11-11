@@ -12,11 +12,13 @@
 #include <godot_cpp/classes/menu_button.hpp>
 #include <godot_cpp/classes/popup_menu.hpp>
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/script_editor.hpp>
 #include <godot_cpp/classes/script_editor_base.hpp>
 #include <godot_cpp/classes/syntax_highlighter.hpp>
 #include <godot_cpp/classes/tab_container.hpp>
 #include <godot_cpp/classes/timer.hpp>
+#include <godot_cpp/classes/translation_domain.hpp>
 #include <godot_cpp/classes/translation_server.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/classes/v_scroll_bar.hpp>
@@ -27,6 +29,17 @@
 
 namespace godot {
 	namespace {
+		struct TranslationCatalog {
+			const char* domain;
+			const char* path;
+		};
+
+		constexpr TranslationCatalog TRANSLATION_CATALOGS[] = {
+			{ "godot.editor", "res://addons/docrender/translations/editor.zh_Hans.po" },
+			{ "godot.properties", "res://addons/docrender/translations/properties.zh_Hans.po" },
+			{ "godot.documentation", "res://addons/docrender/translations/documentation.zh_Hans.po" },
+		};
+
 		template <typename T>
 		T* find_child_by_type(Node* p_parent) {
 			T* match = nullptr;
@@ -52,6 +65,8 @@ namespace godot {
 	} // namespace
 
 	void MarkdownPreviewEditorPlugin::_enter_tree() {
+		load_translations();
+		set_translation_domain("godot.editor");
 		const Dictionary version = Engine::get_singleton()->get_version_info();
 		if (int64_t(version["major"]) == 4 && int64_t(version["minor"]) == 7 && int64_t(version["patch"]) == 2) {
 			callable_mp(this, &MarkdownPreviewEditorPlugin::attach).call_deferred();
@@ -59,6 +74,7 @@ namespace godot {
 	}
 
 	void MarkdownPreviewEditorPlugin::_exit_tree() {
+		unload_translations();
 		set_preview_source(nullptr, nullptr);
 		if (ScriptEditorBase* tab = get_node_by_id<ScriptEditorBase>(active_tab_id)) {
 			tab->disconnect("name_changed", callable_mp(this, &MarkdownPreviewEditorPlugin::queue_tab_sync));
@@ -102,6 +118,29 @@ namespace godot {
 		scroll_sync_queued = false;
 	}
 
+	void MarkdownPreviewEditorPlugin::load_translations() {
+		ResourceLoader* loader = ResourceLoader::get_singleton();
+		TranslationServer* server = TranslationServer::get_singleton();
+		for (const TranslationCatalog& catalog : TRANSLATION_CATALOGS) {
+			if (!loader->exists(catalog.path, "Translation")) {
+				continue;
+			}
+			const Ref<Translation> translation = loader->load(catalog.path, "Translation");
+			if (translation.is_valid()) {
+				server->get_or_add_domain(catalog.domain)->add_translation(translation);
+				translations.insert(catalog.domain, translation);
+			}
+		}
+	}
+
+	void MarkdownPreviewEditorPlugin::unload_translations() {
+		TranslationServer* server = TranslationServer::get_singleton();
+		for (const KeyValue<StringName, Ref<Translation>>& entry : translations) {
+			server->get_or_add_domain(entry.key)->remove_translation(entry.value);
+		}
+		translations.clear();
+	}
+
 	void MarkdownPreviewEditorPlugin::attach() {
 		if (!is_inside_tree() || script_editor_id != 0) {
 			return;
@@ -130,15 +169,15 @@ namespace godot {
 		}
 		MenuButton* mode_menu = memnew(MenuButton);
 		mode_menu->set_name("MarkdownPreviewMenu");
-		const bool chinese = TranslationServer::get_singleton()->get_tool_locale().begins_with("zh");
-		mode_menu->set_text(chinese ? String::utf8("预览") : String("Preview"));
+		mode_menu->set_auto_translate_mode(Node::AUTO_TRANSLATE_MODE_DISABLED);
+		mode_menu->set_text(tr("Preview", "Godot DocRender"));
 		mode_menu->set_flat(false);
 		mode_menu->set_theme_type_variation("FlatMenuButton");
 		mode_menu->set_switch_on_hover(true);
 		PopupMenu* popup = mode_menu->get_popup();
-		popup->add_radio_check_item(chinese ? String::utf8("查看源文件") : String("View Source"), VIEW_SOURCE);
-		popup->add_radio_check_item(chinese ? String::utf8("右侧打开预览") : String("Open Preview to the Right"), VIEW_SPLIT);
-		popup->add_radio_check_item(chinese ? String::utf8("仅预览") : String("Preview Only"), VIEW_PREVIEW);
+		popup->add_radio_check_item(tr("View Source", "Godot DocRender"), VIEW_SOURCE);
+		popup->add_radio_check_item(tr("Open Preview to the Right", "Godot DocRender"), VIEW_SPLIT);
+		popup->add_radio_check_item(tr("Preview Only", "Godot DocRender"), VIEW_PREVIEW);
 		popup->connect("id_pressed", callable_mp(this, &MarkdownPreviewEditorPlugin::select_view_mode));
 		mode_menu->hide();
 		toolbar->add_child(mode_menu);

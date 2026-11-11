@@ -1,0 +1,1142 @@
+# Godot DocRender Simplified Chinese translations.
+# Distributed under the project license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Godot DocRender VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-11-11 22:15+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_Hans\n"
+"Language-Team: zh_Hans <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"A Control node for rendering Markdown text with scroll, text selection, search, and streaming "
+"support."
+msgstr "渲染 Markdown 文本的 Control 节点，支持滚动、选择、搜索和流式输出。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Activates the given link URI. Emits the [signal link_pressed] signal. If [member "
+"open_external_links] is [code]true[/code] and the URI starts with [code]http://[/code] or "
+"[code]https://[/code], opens it in the system default browser."
+msgstr ""
+"激活指定的链接 URI，并发出 [signal link_pressed] 信号。当 [member open_external_links] 为 [code]true[/code]，且 URI"
+" 以 [code]http://[/code] 或 [code]https://[/code] 开头时，使用系统默认浏览器打开。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Additional font size added to all text sizes in the document. Clamped to [code][0, 16][/code]. "
+"Can also be changed by the user with Ctrl+MouseWheel."
+msgstr "应用于文档所有文本的额外字号。取值限制在 [code][0, 16][/code]。用户也可用 Ctrl+鼠标滚轮调整。"
+
+#. doc_classes/LatexLabel.xml
+msgid ""
+"Aligns the formula horizontally. Left and right mirror in right-to-left layouts. Fill places the "
+"formula at the left without stretching it."
+msgstr "设置公式的水平对齐方式。在从右向左的布局中，左对齐和右对齐互换。填充模式会将公式放在左侧，保持原尺寸。"
+
+#. doc_classes/LatexLabel.xml
+msgid ""
+"Aligns the formula vertically inside the normal stylebox margins. Fill places the formula at the "
+"top."
+msgstr "在常规样式盒的边距内垂直对齐公式。填充模式会将公式放在顶部。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Allows 3D lights to affect the formula."
+msgstr "使公式受 3D 光照影响。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Appends [param delta] to the current Markdown text. When [member streaming_enabled] is "
+"[code]true[/code], only the unstable tail region is re-parsed for performance. When [member "
+"scroll_following] is [code]true[/code] and the scroll bar was already at the bottom, the view "
+"automatically scrolls to stay at the bottom."
+msgstr ""
+"将 [param delta] 追加到当前 Markdown 文本。[member streaming_enabled] 为 [code]true[/code] "
+"时，仅重新解析尚未稳定的末尾区域以提升性能。[member scroll_following] 为 [code]true[/code] 且滚动条已在底部时，视图会跟随新内容保持在底部。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Autowrap space trimming flags. See [constant TextServer.BREAK_TRIM_START_EDGE_SPACES] and "
+"[constant TextServer.BREAK_TRIM_END_EDGE_SPACES]."
+msgstr ""
+"自动换行时的空格裁剪标志。参见 [constant TextServer.BREAK_TRIM_START_EDGE_SPACES] 和 [constant "
+"TextServer.BREAK_TRIM_END_EDGE_SPACES]。"
+
+#. doc_classes/LatexLabel.xml
+msgid "Background drawn when the control has keyboard focus."
+msgstr "控件拥有键盘焦点时绘制的背景。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Blends transparent texels."
+msgstr "对透明纹素进行混合。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Call [method parse] on the main thread to create a layout. Keep the [TeXRender] instance to "
+"measure it and draw it repeatedly. Call [method draw] from [method CanvasItem._draw] or a [signal"
+" CanvasItem.draw] callback.\n"
+"Use [constant STYLE_TEXT] for inline math. Use [method get_baseline_offset] to align the formula "
+"with the baseline of surrounding text."
+msgstr ""
+"在主线程调用 [method parse] 创建布局。保留 [TeXRender] 实例以反复测量和绘制。请从 [method CanvasItem._draw] 或 [signal "
+"CanvasItem.draw] 的回调中调用 [method draw]。\n"
+"行内公式使用 [constant STYLE_TEXT]。使用 [method get_baseline_offset] 将公式基线与周围文字对齐。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Changes the foreground of the current layout. A fully transparent color uses MicroTeX's default "
+"foreground. Colors specified in the expression still apply."
+msgstr "更改当前布局的前景色。使用完全透明的颜色时，沿用 MicroTeX 的默认前景色。表达式内部指定的颜色仍然生效。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Clears all Markdown text and resets the document state. Emits [signal text_changed]."
+msgstr "清空 Markdown 文本并重置文档状态。发出 [signal text_changed]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Clears the current text selection."
+msgstr "清除当前的文本选择。"
+
+#. doc_classes/TeXRender.xml
+msgid "Clears the layout, its settings, and the last error."
+msgstr "清除布局、布局设置和上次错误。"
+
+#. doc_classes/MermaidRender.xml
+msgid "Clears the output, metadata, and error."
+msgstr "清除输出、元数据和错误。"
+
+#. doc_classes/LatexLabel.xml
+msgid ""
+"Clips formula drawing to the control's rectangle. The formula can be laid out in a narrower "
+"control when enabled. Its height and the normal stylebox margins still contribute to the minimum "
+"size."
+msgstr "将公式裁剪到控件矩形内。启用后可在更窄的控件内排版，高度和常规样式盒的边距仍计入最小尺寸。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Color of connections and arrowheads for diagram types that support a shared line color."
+msgstr "连线和箭头的颜色，适用于支持统一连线颜色的图表类型。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Color of node text and labels that use the diagram's shared text color."
+msgstr "图表节点文字以及使用图表统一文字颜色的标签颜色。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Context menu item ID for the Copy action."
+msgstr "右键菜单中「复制」的菜单项 ID。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Context menu item ID for the Select All action."
+msgstr "右键菜单中「全选」的菜单项 ID。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Controls [member double_sided]."
+msgstr "控制 [member double_sided]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Controls [member fixed_size]."
+msgstr "控制 [member fixed_size]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Controls [member no_depth_test]."
+msgstr "控制 [member no_depth_test]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Controls [member shaded]."
+msgstr "控制 [member shaded]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Controls how the formula faces the camera."
+msgstr "控制公式如何朝向摄像机。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Controls how the material handles transparent texels."
+msgstr "控制材质如何处理透明纹素。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Controls palette selection in [constant THEME_AUTO]. Falls back to the [Label] theme's font color."
+msgstr "控制 [constant THEME_AUTO] 的配色选择。未设置时使用 [Label] 主题的字体颜色。"
+
+#. doc_classes/TeXRender.xml
+msgid "Cramped display math style."
+msgstr "紧缩独立公式样式。"
+
+#. doc_classes/TeXRender.xml
+msgid "Cramped inline math style."
+msgstr "紧缩行内公式样式。"
+
+#. doc_classes/TeXRender.xml
+msgid "Cramped nested script math style."
+msgstr "紧缩嵌套上下标样式。"
+
+#. doc_classes/TeXRender.xml
+msgid "Cramped script math style."
+msgstr "紧缩上下标样式。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Create a [MermaidRender] instance to configure a diagram, export it, or read its layout for "
+"custom drawing. Call [method render] on the main thread. The operation is synchronous and stores "
+"its result on the instance.\n"
+"Use [method get_texture] for PNG or JPEG output, [method get_output_text] for SVG, ASCII, or "
+"JSON, and [method get_bytes] for binary data. The current SDK backend is available in Windows x64"
+" MSVC builds with Merman enabled."
+msgstr ""
+"创建 [MermaidRender] 实例来配置或导出图表，也可以读取布局用于自定义绘制。在主线程调用 [method render]。操作同步执行，结果保存在实例上。\n"
+"使用 [method get_texture] 读取 PNG 或 JPEG 输出，使用 [method get_output_text] 读取 SVG、ASCII 或 JSON，使用 "
+"[method get_bytes] 读取二进制数据。启用 Merman 的 Windows x64 MSVC 构建支持当前 SDK 后端。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Creates a new [ImageTexture] from the current PNG or JPEG output. Keep the returned texture if "
+"you plan to draw it repeatedly."
+msgstr "根据当前 PNG 或 JPEG 输出创建新的 [ImageTexture]。如果需要反复绘制，请保留返回的纹理。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Decodes the current PNG or JPEG output into a new [Image]. Returns [code]null[/code] for other "
+"output formats or an empty result."
+msgstr "将当前的 PNG 或 JPEG 输出解码为新的 [Image]。输出为空或使用其他格式时返回 [code]null[/code]。"
+
+#. doc_classes/LatexLabel.xml
+msgid "Default background and content margins for the formula."
+msgstr "公式的默认背景和内容边距。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Deferred streaming layout flush interval in milliseconds. Clamped to [code][1, 1000][/code]."
+msgstr "延迟流式排版的刷新间隔，单位为毫秒。取值限制在 [code][1, 1000][/code]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Disables the depth test for the formula material."
+msgstr "禁用公式材质的深度测试。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Discards texels below the opacity threshold."
+msgstr "丢弃不透明度低于阈值的纹素。"
+
+#. doc_classes/TeXRender.xml
+msgid "Display math style."
+msgstr "独立公式样式。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Displays a LaTeX formula in a 3D scene."
+msgstr "在 3D 场景中显示 LaTeX 公式。"
+
+#. doc_classes/LatexLabel.xml
+msgid "Displays a LaTeX math expression using MicroTeX."
+msgstr "使用 MicroTeX 显示 LaTeX 数学表达式。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Displays a standalone Mermaid diagram using Merman."
+msgstr "使用 Merman 显示独立的 Mermaid 图表。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Draws both sides of the formula quad."
+msgstr "绘制公式四边形的两面。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Draws opaque portions in a depth prepass."
+msgstr "在深度预通道中绘制不透明区域。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Draws the current layout with its top-left corner at [param position] in [param canvas]'s local "
+"coordinates. After drawing, the canvas item's draw transform is set to identity."
+msgstr "绘制当前布局，使其左上角位于 [param canvas] 局部坐标中的 [param position]。绘制完成后，画布项的绘制变换会恢复为单位变换。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Emitted when [member extra_font_size] changes, either programmatically or via Ctrl+MouseWheel."
+msgstr "[member extra_font_size] 通过代码或 Ctrl+鼠标滚轮发生变化时发出。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Emitted when a link is clicked. [param uri] is the target URL. If [member open_external_links] is"
+" [code]true[/code], http/https links are also opened in the browser automatically."
+msgstr ""
+"点击链接时发出。[param uri] 是目标 URL。[member open_external_links] 为 [code]true[/code] 时，还会在浏览器中自动打开 "
+"http/https 链接。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Emitted when the Markdown parser encounters a warning, such as a broken image or an unrecognized "
+"block type."
+msgstr "Markdown 解析器遇到警告时发出，例如图片无法加载或遇到无法识别的块类型。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Emitted when the Markdown text changes via [method set_markdown_text], [method append_text], "
+"[method clear], or [method load_markdown_file]."
+msgstr ""
+"通过 [method set_markdown_text]、[method append_text]、[method clear] 或 [method load_markdown_file] "
+"修改 Markdown 文本时发出。"
+
+#. doc_classes/MermaidLabel.xml
+msgid ""
+"Emitted when the current diagram finishes rendering. Inspect [method get_texture] and [method "
+"get_render_error] for the result."
+msgstr "当前图表完成渲染时发出。通过 [method get_texture] 和 [method get_render_error] 查看结果。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Enables or disables the specified draw flag."
+msgstr "启用或禁用指定的绘制标志。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Enables the supported GitHub Flavored Markdown extensions for tables, task lists, strikethrough, "
+"and [code]<www.example.com>[/code] autolinks. Changing this property reparses the current text. "
+"Math parsing is controlled by [member parse_latex]."
+msgstr ""
+"启用表格、任务列表、删除线和 [code]<www.example.com>[/code] 自动链接等受支持的 GitHub Flavored Markdown "
+"扩展。修改此属性会重新解析当前文本。数学公式解析由 [member parse_latex] 控制。"
+
+#. doc_classes/MermaidLabel.xml
+msgid ""
+"Enter Mermaid source directly in [member text]. The diagram renders in the background after the "
+"control enters the scene tree. When ready, the diagram is centered in the control and its logical"
+" size becomes the control's minimum size.\n"
+"Use [member theme_mode] to select a default diagram palette. Set the [theme_item "
+"node_background_color], [theme_item node_border_color], [theme_item node_text_color], and "
+"[theme_item line_color] theme items to customize the diagram. Changing the theme rerenders the "
+"diagram.\n"
+"[method get_texture] returns the rendered texture for use by other controls. The Merman backend "
+"is available in Windows x64 MSVC builds with the SDK installed."
+msgstr ""
+"在 [member text] 中直接输入 Mermaid 源码。控件进入场景树后，图表会在后台渲染。渲染完成后，图表在控件中居中，其逻辑尺寸成为控件的最小尺寸。\n"
+"使用 [member theme_mode] 选择图表的默认配色。设置 [theme_item node_background_color]、[theme_item "
+"node_border_color]、[theme_item node_text_color] 和 [theme_item line_color] 主题项可自定义图表。修改主题后会重新渲染图表。"
+"\n"
+"[method get_texture] 返回渲染后的纹理，供其他控件使用。安装 SDK 后，Windows x64 MSVC 构建可使用 Merman 后端。"
+
+#. doc_classes/LatexLabel.xml
+msgid ""
+"Enter an expression such as [code]\\"
+"frac{1}{\\sqrt{x}}[/code] in [member text]. [LatexLabel] uses"
+" embedded math fonts and draws the result on the Godot canvas. Its minimum size follows the "
+"dimensions of the formula.\n"
+"Use [member label_settings] to share a font size and color between labels, or override the "
+"[code]font_size[/code] and [code]font_color[/code] theme items. Theme values fall back to the "
+"[Label] theme."
+msgstr ""
+"在 [member text] 中输入表达式，例如 [code]\\"
+"frac{1}{\\sqrt{x}}[/code]。[LatexLabel] 使用内置数学字体在 Godot "
+"画布上绘制公式，最小尺寸由公式大小决定。\n"
+"使用 [member label_settings] 在多个标签间共享字号和颜色，也可以覆盖 [code]font_size[/code] 和 [code]font_color[/code] "
+"主题项。未设置的主题值沿用 [Label] 的主题。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Executes a Merman operation and replaces the previous result. Example IDs include "
+"[code]png[/code], [code]svg[/code], [code]pdf[/code], [code]semantic-json[/code], [code]layout-"
+"json[/code], and [code]validation-json[/code]. Consult [method get_runtime_catalog] for the full "
+"list.\n"
+"Pass Merman options as a dictionary with JSON-compatible values. Use [code]site_config[/code] for"
+" Mermaid settings, [code]raster[/code] for image export settings, and [code]presentation[/code] "
+"for Merman theme roles. Options depend on the operation. For document analysis, supply the "
+"document text and its [param uri].\n"
+"[param timeout_msec] limits the operation in milliseconds. Use [code]0[/code] to run without a "
+"deadline. Returns [constant OK] when the operation produces a result. For validation and analysis"
+" operations, inspect the returned JSON for diagnostics."
+msgstr ""
+"执行 Merman 操作并替换上一次的结果。操作 ID 示例包括 [code]png[/code]、[code]svg[/code]、[code]pdf[/code]、[code"
+"]semantic-json[/code]、[code]layout-json[/code] 和 [code]validation-json[/code]。完整列表见 [method "
+"get_runtime_catalog]。\n"
+"通过字典传入 Merman 选项，字典值须兼容 JSON。Mermaid 设置用 [code]site_config[/code]，图片导出设置用 "
+"[code]raster[/code]，Merman 主题角色设置用 [code]presentation[/code]。可用选项取决于操作。分析文档时请提供文档文本及其 [param "
+"uri]。\n"
+"[param timeout_msec] 指定操作时限，单位为毫秒。设为 [code]0[/code] 可取消时限。操作产生结果时返回 [constant "
+"OK]。对于验证和分析操作，请检查返回的 JSON 中的诊断信息。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Expands the layout to at least [param height] pixels, positioning the formula at the top, center,"
+" or bottom of the extra space."
+msgstr "将布局高度扩展到至少 [param height] 像素，使公式在额外空间中顶部对齐、居中或底部对齐。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Expands the layout to at least [param width] pixels, positioning the formula at the left, center,"
+" or right of the extra space."
+msgstr "将布局宽度扩展到至少 [param width] 像素，使公式在额外空间中左对齐、居中或右对齐。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Exposes RichTextLabel-compatible visible-character scroll following. MarkdownLabel does not "
+"currently implement visible-character clipping, so this property is stored but has no visual "
+"effect."
+msgstr "提供与 RichTextLabel 兼容的逐字显示滚动跟随属性。MarkdownLabel 目前尚未实现按可见字符数裁剪，因此该属性会保存但没有可见效果。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Fill color of diagram nodes, such as flowchart boxes and sequence diagram participants."
+msgstr "图表节点的填充颜色，例如流程图方框和时序图参与者的背景。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Flushes any deferred streaming parse and layout update immediately. Returns [code]true[/code] if "
+"pending text was flushed."
+msgstr "立即执行延迟的流式解析和排版更新。处理了待更新的文本时返回 [code]true[/code]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Font size used for formula layout, in pixels."
+msgstr "公式排版使用的字号，单位为像素。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Forces a full re-parse of the entire document. Call this after the last [method append_text] call"
+" to ensure correct final layout. Respects [member scroll_following] behavior."
+msgstr "强制重新解析整篇文档。在最后一次调用 [method append_text] 后调用此方法，以生成正确的最终布局。遵循 [member scroll_following] 的设置。"
+
+#. doc_classes/LatexLabel.xml
+msgid "Foreground color for the formula when [member label_settings] is unset."
+msgstr "未设置 [member label_settings] 时使用的公式前景色。"
+
+#. doc_classes/LatexLabel.xml
+msgid "Formula size when [member label_settings] is unset."
+msgstr "未设置 [member label_settings] 时使用的公式字号。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Handles a menu option selection by its identifier. Typically used with the IDs from the [enum "
+"MenuItems] enum."
+msgstr "按标识符处理菜单选项。通常使用 [enum MenuItems] 中定义的 ID。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If [code]true[/code], [method append_text] performs incremental re-parsing. Enable this for real-"
+"time text streaming scenarios."
+msgstr "为 [code]true[/code] 时，[method append_text] 使用增量解析。适用于需要实时显示流式文本的场景。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], a context menu with Copy and Select All options appears on right-click."
+msgstr "为 [code]true[/code] 时，右键单击会显示含「复制」和「全选」的菜单。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], clicking an http/https link opens it in the system default browser."
+msgstr "为 [code]true[/code] 时，点击 http/https 链接会使用系统默认浏览器打开。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], internal vertical scrolling is active."
+msgstr "为 [code]true[/code] 时，启用内部垂直滚动。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], keyboard shortcuts (Ctrl+C, Ctrl+A) are handled by the control."
+msgstr "为 [code]true[/code] 时，控件处理键盘快捷键（Ctrl+C、Ctrl+A）。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If [code]true[/code], renders closed fenced [code]mermaid[/code] blocks as diagrams using Merman."
+" The rendering palette follows the luminance of the Markdown theme's text color. The editor's "
+"Markdown preview enables this property.\n"
+"The source code is displayed while rendering, after an error, or on builds without the Merman "
+"backend. Text selection copies the diagram source."
+msgstr ""
+"为 [code]true[/code] 时，使用 Merman 将已闭合的 [code]mermaid[/code] 围栏代码块渲染为图表。图表配色取决于 Markdown "
+"主题文字颜色的亮度。编辑器的 Markdown 预览会启用此属性。\n"
+"渲染期间、渲染失败或构建中缺少 Merman 后端时显示图表源码。复制选区时会复制图表源码。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], selected text can be dragged and dropped to other controls."
+msgstr "为 [code]true[/code] 时，可以将选中文本拖放到其他控件。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If [code]true[/code], streaming appends are parsed and laid out in batches instead of on every "
+"[method append_text] call."
+msgstr "为 [code]true[/code] 时，流式追加的内容分批解析和排版，无需每次调用 [method append_text] 时立即处理。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], text can be selected with the mouse."
+msgstr "为 [code]true[/code] 时，可以用鼠标选择文本。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], the control reports the rendered content height as its minimum height."
+msgstr "为 [code]true[/code] 时，控件将渲染内容的高度作为最小高度。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "If [code]true[/code], the text selection is automatically cleared when the node loses focus."
+msgstr "为 [code]true[/code] 时，节点失去焦点会自动清除选区。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If [code]true[/code], the view follows appended content while the scroll bar is already at the "
+"bottom."
+msgstr "为 [code]true[/code] 时，如果滚动条已在底部，视图会跟随追加内容。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If [code]true[/code], uses [TeXRender] to render [code]$...$[/code] as inline math. A centered "
+"display formula starts a line with [code]$$[/code] and ends the same or a later line with "
+"[code]$$[/code].\n"
+"Escape a literal dollar sign as [code]\\$[/code]. Inline code and fenced code keep their dollar "
+"signs. If parsing a formula fails, its source is displayed as text. Text selection copies the "
+"formula source, including its delimiters."
+msgstr ""
+"为 [code]true[/code] 时，使用 [TeXRender] 将 [code]$...$[/code] 渲染为行内公式。居中的块级公式从行首的 [code]$$[/code] "
+"开始，并以同一行或后续行中的 [code]$$[/code] 结束。\n"
+"使用 [code]\\$[/code] 转义美元符号。行内代码和围栏代码块中的美元符号按原文显示。解析公式失败时显示公式源码。复制选区时会保留公式源码及其定界符。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If set to something other than [constant TextServer.AUTOWRAP_OFF], rendered Markdown text wraps "
+"inside the control bounds."
+msgstr "设为 [constant TextServer.AUTOWRAP_OFF] 以外的值时，渲染后的 Markdown 文本会在控件范围内换行。"
+
+#. doc_classes/TeXRender.xml
+msgid "Inline math style."
+msgstr "行内公式样式。"
+
+#. doc_classes/TeXRender.xml
+msgid "Lays out and draws a LaTeX math expression on a [CanvasItem]."
+msgstr "在 [CanvasItem] 上排版并绘制 LaTeX 数学表达式。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Loads Markdown text from the file at [param path] and sets it as the document content. Returns "
+"[constant OK] on success, or an error code such as [constant ERR_FILE_CANT_OPEN] if the file "
+"could not be opened. Emits [signal text_changed] on success."
+msgstr ""
+"从 [param path] 指定的文件读取 Markdown 文本并设为文档内容。成功时返回 [constant OK]，并发出 [signal text_changed]。无法打开文件时返回"
+" [constant ERR_FILE_CANT_OPEN] 等错误码。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Maintains the formula's apparent size as camera distance changes."
+msgstr "摄像机距离改变时，保持公式的视觉大小。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"MarkdownLabel is a [Control] node that renders Markdown text. It provides scrolling, text "
+"selection, text search, link click detection, and streaming text support suitable for real-time "
+"output (e.g., AI chat).\n"
+"\n"
+"Supported Markdown features:\n"
+"- ATX headings (h1–h6)\n"
+"- Fenced code blocks with optional language tag\n"
+"- Blockquotes (including nested)\n"
+"- Ordered and unordered lists, task lists\n"
+"- Thematic breaks (horizontal rules)\n"
+"- Inline formatting: bold, italic, bold-italic, inline code, strikethrough, ==highlight==\n"
+"- Links ([code][url]text[/url][/code]) and images\n"
+"- Footnotes ([code][^id][/code] reference and [code][^id]: definition[/code])\n"
+"- Tables\n"
+"- LaTeX math when [member parse_latex] is enabled\n"
+"- Mermaid diagrams when [member parse_mermaid] is enabled\n"
+"\n"
+"[b]Streaming:[/b] When [member streaming_enabled] is [code]true[/code], [method append_text] "
+"performs incremental re-parsing of only the unstable tail region (controlled by [member "
+"max_unstable_lines]). Enable [member deferred_layout_enabled] to coalesce streaming layout "
+"updates and minimum-size notifications. Call [method finish_stream] after the last append to "
+"force a full re-parse for correct final layout.\n"
+"\n"
+"[b]Theme:[/b] All visual properties are read from the Godot theme system under the type name "
+"[code]\"MarkdownLabel\"[/code]. See the project documentation for the complete list of theme "
+"properties (fonts, font sizes, colors, styleboxes, constants, and icons).\n"
+"\n"
+"[b]Note:[/b] This node programmatically creates its internal scroll container, margin container, "
+"and canvas children in [constant Node.NOTIFICATION_ENTER_TREE]. Do not add child nodes manually."
+msgstr ""
+"MarkdownLabel 是渲染 Markdown 文本的 [Control] 节点。它支持滚动、文本选择、搜索、链接点击和适用于 AI 聊天等实时场景的流式输出。\n"
+"\n"
+"支持的 Markdown 语法：\n"
+"- ATX 标题（h1 至 h6）\n"
+"- 可指定语言的围栏代码块\n"
+"- 引用块，包括嵌套引用\n"
+"- 有序列表、无序列表和任务列表\n"
+"- 分隔线\n"
+"- 行内格式，包括粗体、斜体、粗斜体、行内代码、删除线和 ==高亮==\n"
+"- 链接（[code][url]text[/url][/code]）和图片\n"
+"- 脚注（[code][^id][/code] 引用和 [code][^id]: definition[/code] 定义）\n"
+"- 表格\n"
+"- 启用 [member parse_latex] 时支持 LaTeX 数学公式\n"
+"- 启用 [member parse_mermaid] 时支持 Mermaid 图表\n"
+"\n"
+"[b]流式输出：[/b] 当 [member streaming_enabled] 为 [code]true[/code] 时，[method append_text] "
+"仅增量解析尚未稳定的末尾区域，其范围由 [member max_unstable_lines] 控制。启用 [member deferred_layout_enabled] "
+"可合并流式排版更新和最小尺寸通知。最后一次追加后调用 [method finish_stream] 完整解析文档并生成最终布局。\n"
+"\n"
+"[b]主题：[/b] 所有视觉属性均从 Godot 主题中的 [code]\"MarkdownLabel\"[/code] 类型读取。完整的字体、字号、颜色、样式盒、常量和图标列表见项目文档。\n"
+"\n"
+"[b]注意：[/b] 节点在 [constant Node.NOTIFICATION_ENTER_TREE] 时自动创建内部的滚动容器、边距容器和绘制子节点。请避免手动添加子节点。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Marks the layout as dirty and triggers a redraw. Call this after changing theme properties to "
+"force a visual update."
+msgstr "将布局标记为需要更新并触发重绘。主题属性改变后可调用此方法强制刷新。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Maximum number of lines from the end of the document that are re-parsed on each [method "
+"append_text] call in streaming mode. Clamped to [code][1, 256][/code]."
+msgstr "流式模式下，每次调用 [method append_text] 最多从文档末尾重新解析的行数。取值限制在 [code][1, 256][/code]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Minimum opacity for a texel to appear in alpha discard mode."
+msgstr "Alpha 丢弃模式中保留纹素所需的最低不透明度。"
+
+#. doc_classes/TeXRender.xml
+msgid "Nested script math style."
+msgstr "嵌套上下标样式。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Number of draw flags."
+msgstr "绘制标志的数量。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid ""
+"Offset from the node's origin in formula pixels. Positive X moves right and positive Y moves up "
+"in local space."
+msgstr "以公式像素为单位设置相对于节点原点的偏移。局部 X 轴正方向向右，Y 轴正方向向上。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid ""
+"Places the formula's left edge, center, or right edge at the node's origin. Fill uses the center "
+"for a single formula."
+msgstr "将公式的左边缘、中心或右边缘对齐到节点原点。填充模式下，单个公式居中。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Places the formula's top edge, center, or bottom edge at the node's origin."
+msgstr "将公式的上边缘、中心或下边缘对齐到节点原点。"
+
+#. doc_classes/MermaidRender.xml
+msgid "Renders Mermaid diagrams and exposes Merman's diagram data."
+msgstr "渲染 Mermaid 图表并提供 Merman 的图表数据。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Replaces the current layout with the parsed LaTeX expression and returns [constant OK] on "
+"success. Empty or whitespace-only input clears the layout and returns [constant OK]. A parse "
+"error clears the layout and can be read with [method get_render_error]."
+msgstr ""
+"用解析后的 LaTeX 表达式替换当前布局。成功时返回 [constant OK]。空输入或仅含空白的输入会清除布局并返回 [constant OK]。解析错误也会清除布局，错误信息可通过 "
+"[method get_render_error] 读取。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Represents the total number of menu items. Used for bounds checking."
+msgstr "菜单项总数，用于检查索引范围。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid ""
+"Resolution multiplier for the formula texture, from [code]1.0[/code] to [code]4.0[/code]. The "
+"formula's layout, alignment, and size in 3D stay the same. The longest texture edge is capped at "
+"4096 pixels."
+msgstr "公式纹理的分辨率倍率，范围为 [code]1.0[/code] 至 [code]4.0[/code]。3D 中的排版、对齐和尺寸由公式的逻辑尺寸决定。纹理长边上限为 4096 像素。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Returns Merman's runtime catalog, including supported operation IDs in "
+"[code]capabilities.operation_ids[/code]. Returns an empty dictionary when the backend is "
+"unavailable."
+msgstr "返回 Merman 的运行时目录。支持的操作 ID 位于 [code]capabilities.operation_ids[/code]。后端不可用时返回空字典。"
+
+#. doc_classes/MermaidRender.xml
+msgid "Returns SVG, ASCII, or JSON output as a string. Returns an empty string for binary output."
+msgstr "以字符串形式返回 SVG、ASCII 或 JSON 输出。二进制输出返回空字符串。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns [code]true[/code] if a formula layout is available."
+msgstr "有可用的公式布局时返回 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if drag-and-drop of selected text is enabled. The default value is "
+"[code]true[/code]."
+msgstr "允许拖放选中的文本时返回 [code]true[/code]。默认值为 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if external links (http/https) are automatically opened in the system "
+"browser."
+msgstr "外部链接（http/https）会自动在系统浏览器中打开时，返回 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns [code]true[/code] if internal vertical scrolling is active."
+msgstr "内部垂直滚动已启用时，返回 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if keyboard shortcuts (Ctrl+C, Ctrl+A) are enabled. The default value "
+"is [code]true[/code]."
+msgstr "启用键盘快捷键（Ctrl+C、Ctrl+A）时返回 [code]true[/code]。默认值为 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if scroll following for visible-character reveals is enabled. "
+"MarkdownLabel currently exposes this for RichTextLabel API parity; it has no effect until "
+"visible-character clipping is implemented."
+msgstr "启用逐字显示时的滚动跟随，则返回 [code]true[/code]。MarkdownLabel 提供此属性以兼容 RichTextLabel API。实现按可见字符数裁剪前，该属性没有效果。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if streaming layout updates are coalesced instead of being applied on "
+"every [method append_text] call."
+msgstr "流式排版更新会合并处理时，返回 [code]true[/code]。启用后每次调用 [method append_text] 时无需立即更新布局。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns [code]true[/code] if streaming mode is enabled. The default value is [code]false[/code]."
+msgstr "启用流式模式时返回 [code]true[/code]。默认值为 [code]false[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns [code]true[/code] if text selection is enabled. The default value is [code]true[/code]."
+msgstr "启用文本选择时返回 [code]true[/code]。默认值为 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns [code]true[/code] if the context menu is currently visible."
+msgstr "右键菜单当前可见时返回 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if the control reports its rendered content height as its minimum "
+"height."
+msgstr "控件将已渲染内容的高度作为最小高度时，返回 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns [code]true[/code] if the document contains a heading with the given anchor ID."
+msgstr "文档中存在具有给定锚点 ID 的标题时，返回 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if the right-click context menu is enabled. The default value is "
+"[code]false[/code]."
+msgstr "启用右键菜单时返回 [code]true[/code]。默认值为 [code]false[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if the selection is automatically cleared when the node loses focus. "
+"The default value is [code]true[/code]."
+msgstr "节点失去焦点时会自动清除选区，则返回 [code]true[/code]。默认值为 [code]true[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns [code]true[/code] if the view follows appended content when it is already scrolled to the"
+" bottom."
+msgstr "视图位于底部并跟随新追加内容滚动时，返回 [code]true[/code]。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Returns a copy of Merman's metadata or structured error details for the last operation. For JSON "
+"operations, read the operation's data with [method get_output_text]."
+msgstr "返回上次操作的 Merman 元数据副本或结构化错误详情。JSON 操作的数据可通过 [method get_output_text] 读取。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the URI of the link at the given local position (relative to the MarkdownLabel), or an "
+"empty string if no link is under the position."
+msgstr "返回指定局部坐标处的链接 URI，坐标相对于 MarkdownLabel。该位置没有链接时返回空字符串。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the additional font size added to all text in the document. The default value is "
+"[code]0[/code]."
+msgstr "返回应用于文档全部文本的额外字号。默认值为 [code]0[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns the autowrap space trimming flags."
+msgstr "返回自动换行时的空格裁剪标志。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Returns the baseline position as a fraction of the layout height. Returns [code]0.0[/code] for an"
+" empty layout."
+msgstr "返回基线位置占布局高度的比例。布局为空时返回 [code]0.0[/code]。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the configured foreground color."
+msgstr "返回设置的前景色。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns the content margin in pixels. The default value is [code]16[/code]."
+msgstr "返回内容边距，单位为像素。默认值为 [code]16[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns the current autowrap mode. The default value is [constant TextServer.AUTOWRAP_WORD_SMART]."
+msgstr "返回当前自动换行模式。默认值为 [constant TextServer.AUTOWRAP_WORD_SMART]。"
+
+#. doc_classes/MermaidLabel.xml
+msgid ""
+"Returns the current diagram's rendering error. Returns an empty string while rendering or when "
+"there is no error."
+msgstr "返回当前图表的渲染错误。渲染期间或没有错误时返回空字符串。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns the current raw Markdown text."
+msgstr "返回当前的 Markdown 源文本。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the current text size in pixels, or [code]0.0[/code] when there is no layout."
+msgstr "返回当前字号，单位为像素。没有布局时返回 [code]0.0[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns the currently selected plain text, or an empty string if nothing is selected."
+msgstr "返回当前选中的纯文本。未选中文本时返回空字符串。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the deferred streaming layout flush interval in milliseconds. The default value is "
+"[code]33[/code]."
+msgstr "返回延迟流式排版的刷新间隔，单位为毫秒。默认值为 [code]33[/code]。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the depth below the baseline in pixels, including any bottom inset and padding."
+msgstr "返回基线下方的深度，单位为像素，包含底部内嵌距和留白。"
+
+#. doc_classes/MermaidRender.xml
+msgid ""
+"Returns the diagnostic message for the last failed operation. Returns an empty string after a "
+"successful operation."
+msgstr "返回最近一次失败操作的诊断信息。操作成功时返回空字符串。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Returns the distance from the top of the layout to its baseline in pixels, measured using the "
+"layout's integer height."
+msgstr "返回布局顶部到基线的距离，单位为像素，按布局的整数高度计算。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Returns the effective insets in left, top, right, bottom order. Includes MicroTeX's automatic "
+"insets when enabled."
+msgstr "按左、上、右、下的顺序返回实际内嵌距。启用自动内嵌距时包含 MicroTeX 添加的部分。"
+
+#. doc_classes/LatexLabel.xml
+msgid ""
+"Returns the error from the last attempt to lay out [member text]. Returns an empty string if the "
+"expression rendered successfully or is empty. The label lays out its expression after entering "
+"the scene tree."
+msgstr "返回上次排版 [member text] 时的错误。表达式为空或渲染成功时返回空字符串。标签进入场景树后才会排版。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid ""
+"Returns the error from the last layout update, or an empty string on success. Formula changes are"
+" applied on a deferred update."
+msgstr "返回上次排版更新的错误信息。排版成功时返回空字符串。公式改动会在延迟更新时应用。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the error message from the last parse attempt, or an empty string on success."
+msgstr "返回上次解析的错误信息。解析成功时返回空字符串。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the internal [PopupMenu] used for the context menu. The menu is lazily created on first "
+"access."
+msgstr "返回右键菜单使用的内部 [PopupMenu]。首次访问时创建。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the internal horizontal scroll bar, or [code]null[/code] if the control has not been "
+"created yet. Typically not useful since horizontal scrolling is disabled by default."
+msgstr "返回内部水平滚动条。控件尚未创建时返回 [code]null[/code]。水平滚动默认禁用。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the internal vertical scroll bar, or [code]null[/code] if the control has not been "
+"created yet."
+msgstr "返回内部垂直滚动条。控件尚未创建时返回 [code]null[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Returns the list of all heading anchor IDs in the document."
+msgstr "返回文档中所有标题的锚点 ID。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the maximum number of unstable lines used for incremental re-parsing. The default value "
+"is [code]32[/code]."
+msgstr "返回增量解析使用的最大未稳定行数。默认值为 [code]32[/code]。"
+
+#. doc_classes/MermaidRender.xml
+msgid "Returns the media type of the current output, such as [code]image/png[/code]."
+msgstr "返回当前输出的媒体类型，例如 [code]image/png[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the number of rendered top-level Markdown blocks, or [code]0[/code] if the canvas has not"
+" been created yet."
+msgstr "返回已渲染的顶层 Markdown 块数量。绘制节点尚未创建时返回 [code]0[/code]。"
+
+#. doc_classes/MermaidRender.xml
+msgid "Returns the raw output bytes of the last successful operation."
+msgstr "返回最近一次成功操作的原始输出字节。"
+
+#. doc_classes/MermaidLabel.xml
+msgid ""
+"Returns the texture of the current diagram. Returns [code]null[/code] until a diagram renders "
+"successfully. The texture has twice the logical display resolution."
+msgstr "返回当前图表的纹理。在图表成功渲染前返回 [code]null[/code]。纹理分辨率是逻辑显示分辨率的两倍。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Returns the total content height in pixels, or [code]1.0[/code] if the canvas has not been "
+"created yet."
+msgstr "返回内容总高度，单位为像素。绘制节点尚未创建时返回 [code]1.0[/code]。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the total layout height in pixels."
+msgstr "返回布局的总高度，单位为像素。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the total layout size in pixels."
+msgstr "返回布局总尺寸，单位为像素。"
+
+#. doc_classes/TeXRender.xml
+msgid "Returns the total layout width in pixels."
+msgstr "返回布局的总宽度，单位为像素。"
+
+#. doc_classes/MermaidRender.xml
+msgid "Returns whether the Merman backend is available in this build."
+msgstr "返回当前构建是否支持 Merman 后端。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Returns whether the specified draw flag is enabled."
+msgstr "返回指定的绘制标志是否已启用。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Sampling filter for the formula texture."
+msgstr "公式纹理的采样滤镜。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Scale of the transparency pattern in alpha hash mode."
+msgstr "Alpha 哈希模式中透明图案的缩放比例。"
+
+#. doc_classes/TeXRender.xml
+msgid "Scales the current formula to [param text_size] pixels. Insets keep their current pixel values."
+msgstr "将当前公式缩放至 [param text_size] 像素。内嵌距保留当前像素值。"
+
+#. doc_classes/TeXRender.xml
+msgid "Script math style."
+msgstr "上下标样式。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Scrolls to the current search result (set by a previous [method search] call). [param align] "
+"controls where the result appears in the viewport: [code]0.0[/code] (top) to [code]1.0[/code] "
+"(bottom). Returns [code]false[/code] if there is no active search result."
+msgstr ""
+"滚动到当前搜索结果，由先前的 [method search] 调用设置。[param align] 控制结果在视口中的位置，从 [code]0.0[/code]（顶部）到 "
+"[code]1.0[/code]（底部）。没有当前搜索结果时返回 [code]false[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Scrolls to the heading with the given anchor ID. [param align] controls where the anchor appears "
+"in the viewport: [code]0.0[/code] (top) to [code]1.0[/code] (bottom). Returns [code]false[/code] "
+"if the anchor does not exist."
+msgstr ""
+"滚动到指定锚点 ID 对应的标题。[param align] 控制锚点在视口中的位置，从 [code]0.0[/code]（顶部）到 [code]1.0[/code]（底部）。锚点不存在时返回 "
+"[code]false[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Searches the document for [param text] starting from ([param from_line], [param from_column]). "
+"[param flags] is a bitmask: [code]1[/code] = match case, [code]2[/code] = whole words, "
+"[code]4[/code] = search backwards. Returns the line and column of the match as a [Vector2i], or "
+"[code]Vector2i(-1, -1)[/code] if no match was found. The match is highlighted on screen."
+msgstr ""
+"从 ([param from_line], [param from_column]) 开始查找 [param text]。[param flags] 是位掩码：[code]1[/code] "
+"表示区分大小写，[code]2[/code] 表示匹配整个单词，[code]4[/code] 表示向后搜索。返回匹配位置的行列坐标 [Vector2i]，没有匹配时返回 "
+"[code]Vector2i(-1, -1)[/code]。匹配结果会在控件中高亮显示。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Selects all text in the document."
+msgstr "选中文档中的所有文本。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid ""
+"Set [member text] to a formula such as [code]\\"
+"frac{1}{\\sqrt{x^2+1}}[/code]. [TeXRender] lays "
+"out the formula and draws it to a transparent texture. The node displays the texture on a quad "
+"facing local [code]+Z[/code].\n"
+"[member font_size] sets the formula size in pixels and [member pixel_size] converts formula "
+"pixels into local 3D units. Texture resolution is capped at 4096 pixels on its longest edge. The "
+"node regenerates its mesh from the formula when entering the scene tree or when the text changes."
+msgstr ""
+"将 [member text] 设为公式，例如 [code]\\"
+"frac{1}{\\sqrt{x^2+1}}[/code]。[TeXRender] 将公式排版后绘制到透明纹理。节点在面向局部 "
+"[code]+Z[/code] 的四边形上显示该纹理。\n"
+"[member font_size] 设置公式的像素字号，[member pixel_size] 将公式像素换算为局部 3D 单位。纹理的最长边最多为 4096 "
+"像素。进入场景树或文本变化时，节点会按公式重新生成网格。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets an additional font size added to all text in the document. Clamped to the range [code][0, "
+"16][/code]. Emits [signal extra_font_size_changed]."
+msgstr "为文档中所有文本设置额外字号。取值限制在 [code][0, 16][/code]，并发出 [signal extra_font_size_changed]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets autowrap space trimming flags. Only trim flags are stored."
+msgstr "设置自动换行的空格裁剪标志。仅保存与空格裁剪相关的标志。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets how often deferred streaming layout updates are flushed. Clamped to the range [code][1, "
+"1000][/code]. The default value is [code]33[/code]."
+msgstr "设置执行延迟流式排版更新的间隔。取值限制在 [code][1, 1000][/code]。默认值为 [code]33[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets how rendered Markdown text wraps inside the control bounds."
+msgstr "设置渲染后的 Markdown 文本如何在控件范围内换行。"
+
+#. doc_classes/TeXRender.xml
+msgid ""
+"Sets insets in left, top, right, bottom order. When [param true_values] is [code]false[/code], "
+"MicroTeX adds its automatic padding to the specified values. Pass [code]Vector4i(0, 0, 0, 0), "
+"true[/code] for tight inline layout."
+msgstr ""
+"按左、上、右、下的顺序设置内嵌距。[param true_values] 为 [code]false[/code] 时，MicroTeX 会在指定值上加上自动留白。传入 "
+"[code]Vector4i(0, 0, 0, 0), true[/code] 可获得紧凑的行内布局。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets the Markdown text to render. Emits [signal text_changed]. Resets the current selection and "
+"search state."
+msgstr "设置要渲染的 Markdown 文本。发出 [signal text_changed]，并重置选区和搜索状态。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets the content margin in pixels. Clamped to the range [code][0, 128][/code]. The default value "
+"is [code]16[/code]."
+msgstr "设置内容边距，单位为像素。取值限制在 [code][0, 128][/code]。默认值为 [code]16[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets the maximum number of unstable lines for incremental re-parsing in streaming mode. Clamped "
+"to the range [code][1, 256][/code]. The default value is [code]32[/code]."
+msgstr "设置流式模式下增量解析使用的最大未稳定行数。取值限制在 [code][1, 256][/code]。默认值为 [code]32[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether drag-and-drop of selected text is enabled."
+msgstr "设置是否允许拖放选中的文本。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets whether external links (http/https) are automatically opened in the system default browser "
+"when clicked."
+msgstr "设置点击外部链接（http/https）时是否自动使用系统默认浏览器打开。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets whether internal vertical scrolling is active. When disabled, the internal vertical scroll "
+"mode is disabled."
+msgstr "设置是否启用内部垂直滚动。关闭后会禁用内部垂直滚动模式。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether keyboard shortcuts (Ctrl+C to copy, Ctrl+A to select all) are enabled."
+msgstr "设置是否启用键盘快捷键（Ctrl+C 复制，Ctrl+A 全选）。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets whether scroll following for visible-character reveals is enabled. MarkdownLabel currently "
+"exposes this for RichTextLabel API parity; it has no effect until visible-character clipping is "
+"implemented."
+msgstr "设置是否启用逐字显示时的滚动跟随。MarkdownLabel 提供此属性以兼容 RichTextLabel API。实现按可见字符数裁剪前，该属性没有效果。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets whether streaming layout updates are deferred and coalesced. This is useful for AI-style "
+"token streaming, especially when [member fit_content] is enabled."
+msgstr "设置是否延迟并合并流式排版更新。适用于 AI 聊天等逐段流式输出，尤其是在启用 [member fit_content] 时。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"Sets whether streaming mode is enabled. When [code]true[/code], [method append_text] performs "
+"incremental re-parsing for better performance with real-time text output."
+msgstr "设置是否启用流式模式。设为 [code]true[/code] 时，[method append_text] 会增量解析，以提升实时输出性能。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether text selection with the mouse is enabled."
+msgstr "设置是否允许用鼠标选择文本。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether the control reports its rendered content height as its minimum height."
+msgstr "设置控件是否将已渲染内容的高度作为最小高度。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether the right-click context menu is enabled."
+msgstr "设置是否启用右键菜单。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether the text selection is automatically cleared when the node loses focus."
+msgstr "设置节点失去焦点时是否自动清除选区。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "Sets whether the view follows newly appended content when the scroll bar is already at the bottom."
+msgstr "设置滚动条已在底部时视图是否跟随新追加的内容滚动。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Size of a formula pixel in local 3D units."
+msgstr "单个公式像素在局部 3D 空间中的尺寸。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Solid outline color of diagram nodes."
+msgstr "图表节点的纯色描边。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Sort priority of the formula's material."
+msgstr "公式材质的渲染排序优先级。"
+
+#. doc_classes/LatexLabel.xml
+#, python-brace-format
+msgid ""
+"The LaTeX expression to display. Supply the formula directly, for example [code]\\sum_{n=1}^{10} "
+"n^2[/code]."
+msgstr "要显示的 LaTeX 表达式。直接填写公式源码，例如 [code]\\sum_{n=1}^{10} n^2[/code]。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "The LaTeX expression to display. Use the formula source directly."
+msgstr "要显示的 LaTeX 表达式。直接填写公式源码。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid "The Markdown text to render. Setting this property resets the selection and search state."
+msgstr "要渲染的 Markdown 文本。设置此属性会重置选区和搜索状态。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "The Mermaid diagram source, for example [code]flowchart LR; A[Start] --> B[Done][/code]."
+msgstr "Mermaid 图表源码，例如 [code]flowchart LR; A[Start] --> B[Done][/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"The content margin in pixels. Controls the padding between the MarkdownLabel edges and the "
+"rendered content."
+msgstr "内容边距，单位为像素。控制 MarkdownLabel 边缘与渲染内容之间的留白。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "The default palette for the diagram."
+msgstr "图表的默认配色。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Tints the entire formula, including colors specified inside it."
+msgstr "为整个公式着色，包括公式内部指定了颜色的部分。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Uses a dither pattern for transparency."
+msgstr "使用抖动图案表现透明度。"
+
+#. doc_classes/LatexLabel3D.xml
+msgid "Uses display math style when enabled and the compact inline math style when disabled."
+msgstr "启用时使用独立公式样式，关闭时使用紧凑的行内公式样式。"
+
+#. doc_classes/LatexLabel.xml
+msgid "Uses display math style when enabled and the more compact inline math style when disabled."
+msgstr "启用时使用独立公式样式，关闭时使用更紧凑的行内公式样式。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Uses the dark palette."
+msgstr "使用深色配色。"
+
+#. doc_classes/MermaidLabel.xml
+msgid ""
+"Uses the light palette with a dark theme font color and the dark palette with a light theme font "
+"color."
+msgstr "主题字体颜色较深时使用浅色配色，颜色较浅时使用深色配色。"
+
+#. doc_classes/MermaidLabel.xml
+msgid "Uses the light palette."
+msgstr "使用浅色配色。"
+
+#. doc_classes/LatexLabel.xml
+msgid ""
+"Uses the resource's font size and font color in preference to the theme. Changes to a shared "
+"resource update the formula. The glyphs use the embedded math fonts."
+msgstr "优先使用该资源的字号和字体颜色。共享资源发生变化时会更新公式。公式字形来自内置数学字体。"

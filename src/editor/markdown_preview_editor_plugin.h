@@ -2,6 +2,7 @@
 
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/editor_plugin.hpp>
+#include <godot_cpp/classes/translation.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 
 class MarkdownLabel;
@@ -29,6 +30,7 @@ namespace godot {
 		};
 
 		HashMap<uint64_t, PreviewTab> previews;
+		HashMap<StringName, Ref<Translation>> translations;
 		uint64_t script_editor_id = 0;
 		uint64_t tab_container_id = 0;
 		uint64_t script_list_id = 0;
@@ -45,6 +47,8 @@ namespace godot {
 		bool scroll_from_preview = false;
 		bool syncing_scroll = false;
 
+		void load_translations();
+		void unload_translations();
 		void attach();
 		void queue_tab_sync();
 		void sync_current_tab();

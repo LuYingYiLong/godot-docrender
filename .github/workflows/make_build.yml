@@ -62,11 +62,12 @@ jobs:
       - name: Clean bundled binary outputs
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force -Path addons/docrender/bin | Out-Null
           $binary_patterns = @("*.dll", "*.so", "*.a", "*.wasm", "*.lib", "*.exp", "*.pdb")
           foreach ($pattern in $binary_patterns) {
-            Get-ChildItem addons/markdown_label/bin -File -Filter $pattern | Remove-Item -Force
+            Get-ChildItem addons/docrender/bin -File -Filter $pattern | Remove-Item -Force
           }
-          Get-ChildItem addons/markdown_label/bin -Directory -Filter "*.framework" | Remove-Item -Recurse -Force
+          Get-ChildItem addons/docrender/bin -Directory -Filter "*.framework" | Remove-Item -Recurse -Force
 
       # Build GDExtension (with caches)
 
@@ -94,7 +95,7 @@ jobs:
         if: ${{ matrix.target.platform == 'windows' }}
         shell: pwsh
         run: |
-          Remove-Item addons/markdown_label/bin/* -Include *.exp,*.lib,*.pdb -Force
+          Remove-Item addons/docrender/bin/* -Include *.exp,*.lib,*.pdb -Force
 
       # Keep binaries under bin/ in the uploaded artifact.
       - name: Stage Build Artifact
@@ -108,7 +109,7 @@ jobs:
           $stage_bin = Join-Path $stage "bin"
           New-Item -ItemType Directory -Force -Path $stage_bin | Out-Null
 
-          $build_outputs = @(Get-ChildItem addons/markdown_label/bin | Where-Object { $_.Name -like "*${{ matrix.target.platform }}*${{ matrix.target-type }}*" })
+          $build_outputs = @(Get-ChildItem addons/docrender/bin | Where-Object { $_.Name -like "*${{ matrix.target.platform }}*${{ matrix.target-type }}*" })
           if ($build_outputs.Count -eq 0) {
             throw "No build outputs found for ${{ matrix.target.platform }} ${{ matrix.target.arch }} ${{ matrix.target-type }}"
           }
@@ -142,11 +143,12 @@ jobs:
         with:
           name: godot-docrender-addon-files
           path: |
-            ${{ github.workspace }}/addons/markdown_label/markdown_label.gdextension
-            ${{ github.workspace }}/addons/markdown_label/MicroTeX-LICENSES.txt
-            ${{ github.workspace }}/addons/markdown_label/icons/**
-            ${{ github.workspace }}/addons/markdown_label/docs/**
-            ${{ github.workspace }}/addons/markdown_label/example/**
+            ${{ github.workspace }}/addons/docrender/docrender.gdextension
+            ${{ github.workspace }}/addons/docrender/MicroTeX-LICENSES.txt
+            ${{ github.workspace }}/addons/docrender/icons/**
+            ${{ github.workspace }}/addons/docrender/translations/**
+            ${{ github.workspace }}/addons/docrender/docs/**
+            ${{ github.workspace }}/addons/docrender/example/**
 
   # Merge the build and addon files into one Godot DocRender artifact.
   # If you comment out this step, all the builds will be uploaded individually.

@@ -11,7 +11,8 @@ using namespace godot;
 
 namespace {
 	constexpr int texture_padding = 2;
-	constexpr float max_texture_extent = 4096.0f;
+	constexpr int max_texture_extent = 4096;
+	constexpr float max_render_scale = 4.0f;
 	constexpr BaseMaterial3D::Transparency alpha_cut_modes[] = {
 		BaseMaterial3D::TRANSPARENCY_ALPHA,
 		BaseMaterial3D::TRANSPARENCY_ALPHA_SCISSOR,
@@ -70,6 +71,8 @@ void LatexLabel3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_alpha_scissor_threshold"), &LatexLabel3D::get_alpha_scissor_threshold);
 	ClassDB::bind_method(D_METHOD("set_alpha_hash_scale", "scale"), &LatexLabel3D::set_alpha_hash_scale);
 	ClassDB::bind_method(D_METHOD("get_alpha_hash_scale"), &LatexLabel3D::get_alpha_hash_scale);
+	ClassDB::bind_method(D_METHOD("set_render_scale", "scale"), &LatexLabel3D::set_render_scale);
+	ClassDB::bind_method(D_METHOD("get_render_scale"), &LatexLabel3D::get_render_scale);
 	ClassDB::bind_method(D_METHOD("set_texture_filter", "filter"), &LatexLabel3D::set_texture_filter);
 	ClassDB::bind_method(D_METHOD("get_texture_filter"), &LatexLabel3D::get_texture_filter);
 	ClassDB::bind_method(D_METHOD("set_render_priority", "priority"), &LatexLabel3D::set_render_priority);
@@ -94,6 +97,7 @@ void LatexLabel3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "alpha_cut", PROPERTY_HINT_ENUM, "Disabled,Discard,Opaque Pre-Pass,Alpha Hash"), "set_alpha_cut_mode", "get_alpha_cut_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "alpha_scissor_threshold", PROPERTY_HINT_RANGE, "0,1,0.001"), "set_alpha_scissor_threshold", "get_alpha_scissor_threshold");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "alpha_hash_scale", PROPERTY_HINT_RANGE, "0,2,0.01"), "set_alpha_hash_scale", "get_alpha_hash_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "render_scale", PROPERTY_HINT_RANGE, "1,4,0.1,suffix:x"), "set_render_scale", "get_render_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "texture_filter", PROPERTY_HINT_ENUM, "Nearest,Linear,Nearest Mipmap,Linear Mipmap,Nearest Mipmap Anisotropic,Linear Mipmap Anisotropic"), "set_texture_filter", "get_texture_filter");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "render_priority", PROPERTY_HINT_RANGE, "-128,127,1"), "set_render_priority", "get_render_priority");
 }
@@ -283,6 +287,22 @@ float LatexLabel3D::get_alpha_hash_scale() const {
 	return material->get_alpha_hash_scale();
 }
 
+void LatexLabel3D::set_render_scale(float p_scale) {
+	ERR_FAIL_COND_MSG(!std::isfinite(p_scale) || p_scale < 1.0f || p_scale > max_render_scale,
+		"Render scale must be between 1 and 4.");
+	if (render_scale == p_scale) {
+		return;
+	}
+	render_scale = p_scale;
+	if (is_inside_tree() && viewport != nullptr && render.is_valid() && render->is_valid()) {
+		update_texture();
+	}
+}
+
+float LatexLabel3D::get_render_scale() const {
+	return render_scale;
+}
+
 void LatexLabel3D::set_texture_filter(BaseMaterial3D::TextureFilter p_filter) {
 	material->set_texture_filter(p_filter);
 }
@@ -340,16 +360,9 @@ void LatexLabel3D::rebuild() {
 	}
 
 	ensure_viewport();
-	const Vector2i extent = render->get_size().max(Vector2i(1, 1)) + Vector2i(texture_padding * 2, texture_padding * 2);
-	// Limit the render target while preserving the formula's logical size and aspect ratio.
-	const float density = std::min(1.0f, max_texture_extent / std::max(extent.x, extent.y));
-	const Vector2i texture_size = Vector2i((Vector2(extent) * density).ceil()).max(Vector2i(2, 2));
-	viewport->set_size_2d_override(extent);
-	viewport->set_size(texture_size);
+	update_texture();
 	update_quad();
 	set_mesh(quad);
-	canvas->queue_redraw();
-	viewport->set_update_mode(SubViewport::UPDATE_ONCE);
 }
 
 void LatexLabel3D::ensure_viewport() {
@@ -370,6 +383,17 @@ void LatexLabel3D::ensure_viewport() {
 	viewport->add_child(canvas, false, INTERNAL_MODE_BACK);
 	canvas->connect("draw", callable_mp(this, &LatexLabel3D::draw_formula));
 	material->set_texture(BaseMaterial3D::TEXTURE_ALBEDO, viewport->get_texture());
+}
+
+void LatexLabel3D::update_texture() {
+	const Vector2i extent = render->get_size().max(Vector2i(1, 1)) + Vector2i(texture_padding * 2, texture_padding * 2);
+	const double density = std::min(double(render_scale), double(max_texture_extent) / std::max(extent.x, extent.y));
+	const Vector2i texture_limit(max_texture_extent, max_texture_extent);
+	const Vector2i texture_size = Vector2i((Vector2(extent) * density).ceil()).clamp(Vector2i(2, 2), texture_limit);
+	viewport->set_size_2d_override(extent);
+	viewport->set_size(texture_size);
+	canvas->queue_redraw();
+	viewport->set_update_mode(SubViewport::UPDATE_ONCE);
 }
 
 void LatexLabel3D::update_quad() {

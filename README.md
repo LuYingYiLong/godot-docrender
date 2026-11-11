@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="MarkdownLabel icon" src="addons/markdown_label/icons/markdown_label.svg" width="96" />
+  <img alt="MarkdownLabel icon" src="addons/docrender/icons/markdown_label.svg" width="96" />
 </p>
 
 <h1 align="center">Godot DocRender</h1>
@@ -129,12 +129,12 @@ All visual styling is read from the Godot theme system under the type name `Mark
 See the full theme reference:
 
 ```text
-addons/markdown_label/docs/markdown_label_theme_reference.md
+addons/docrender/docs/markdown_label_theme_reference.md
 ```
 
-Apply the example theme to a `LatexLabel` node to style standalone formulas. [LatexLabel example theme](addons/markdown_label/example/latex_label_theme.tres) · [LatexLabel theme reference](addons/markdown_label/docs/latex_label_theme_reference.md)
+Apply the example theme to a `LatexLabel` node to style standalone formulas. [LatexLabel example theme](addons/docrender/example/latex_label_theme.tres) · [LatexLabel theme reference](addons/docrender/docs/latex_label_theme_reference.md)
 
-Use the example `MermaidLabel` theme to edit diagram node fills, borders, text, and connections. [MermaidLabel example theme](addons/markdown_label/example/mermaid_label_theme.tres) · [MermaidLabel theme reference](addons/markdown_label/docs/mermaid_label_theme_reference.md)
+Use the example `MermaidLabel` theme to edit diagram node fills, borders, text, and connections. [MermaidLabel example theme](addons/docrender/example/mermaid_label_theme.tres) · [MermaidLabel theme reference](addons/docrender/docs/mermaid_label_theme_reference.md)
 
 ## Quick Start
 
@@ -143,13 +143,13 @@ Use the example `MermaidLabel` theme to edit diagram node fills, borders, text, 
 Copy the bundled addon folder into your Godot project. If you use the `godot-docrender` CI artifact, extract its contents into this folder.
 
 ```text
-addons/markdown_label
+addons/docrender
 ```
 
 Then make sure the GDExtension file is present:
 
 ```text
-addons/markdown_label/markdown_label.gdextension
+addons/docrender/docrender.gdextension
 ```
 
 ### 2. Add A MarkdownLabel Node
@@ -197,7 +197,7 @@ Image behavior:
 - Loading images reserve inline space but do not show the broken icon yet.
 - Broken image placeholders appear only after loading fails.
 - `file_broken` is themeable.
-- The default broken icon is `uid://cn51pvobw1gxd`, from `addons/markdown_label/icons/file_broken.svg`.
+- The default broken icon is `uid://cn51pvobw1gxd`, from `addons/docrender/icons/file_broken.svg`.
 
 GIF support is optional:
 
@@ -210,7 +210,7 @@ GIF support is optional:
 | Platform | Status | Notes |
 |----------|--------|-------|
 | Windows x86_64 | Supported | Main development and test target |
-| Linux | Build required | Add the compiled library path to `markdown_label.gdextension` |
+| Linux | Build required | Add the compiled library path to `docrender.gdextension` |
 | macOS | Build required | Not shipped in this repository by default |
 | Android | Build required | Network image behavior depends on export/network permissions |
 | Web | Experimental | Remote image requests may be limited by browser/CORS/runtime constraints |
@@ -218,11 +218,17 @@ GIF support is optional:
 The repository currently ships/configures Windows x86_64 library entries:
 
 ```ini
-windows.debug.x86_64 = "bin/markdown_label.windows.template_debug.x86_64.dll"
-windows.release.x86_64 = "bin/markdown_label.windows.template_release.x86_64.dll"
+windows.debug.x86_64 = "bin/docrender.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "bin/docrender.windows.template_release.x86_64.dll"
 ```
 
 Other platforms require building the GDExtension yourself.
+
+## Editor Localization
+
+Godot DocRender follows the Godot editor language. Select Simplified Chinese and restart the editor to see the translated Markdown preview menu and built-in class reference. Set the Inspector property name style to Localized to see translated property names. English is the source language for untranslated entries.
+
+See [Localization tools](tools/README.md) to update or validate the translation catalogs.
 
 ## Requirements
 
@@ -267,6 +273,4 @@ This repository is licensed under the MIT License. See [LICENSE.txt](LICENSE.txt
 
 ## Acknowledgments
 
-- [Godot Engine](https://godotengine.org)
-- [godot-cpp](https://github.com/godotengine/godot-cpp)
 - Optional GIF support via [godothub/godot-gif](https://github.com/godothub/godot-gif)

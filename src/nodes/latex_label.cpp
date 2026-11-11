@@ -194,7 +194,7 @@ void LatexLabel::draw_formula() {
 	else if (vertical_alignment == VERTICAL_ALIGNMENT_BOTTOM) {
 		position.y += remaining.y;
 	}
-	render->draw(this, position);
+	render->draw_oversampled(this, position);
 }
 
 void LatexLabel::rebuild() {

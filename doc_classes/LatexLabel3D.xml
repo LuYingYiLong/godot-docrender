@@ -73,6 +73,9 @@
 		<member name="render_priority" type="int" setter="set_render_priority" getter="get_render_priority" default="0">
 			Sort priority of the formula's material.
 		</member>
+		<member name="render_scale" type="float" setter="set_render_scale" getter="get_render_scale" default="1.0">
+			Resolution multiplier for the formula texture, from [code]1.0[/code] to [code]4.0[/code]. The formula's layout, alignment, and size in 3D stay the same. The longest texture edge is capped at 4096 pixels.
+		</member>
 		<member name="shaded" type="bool" setter="set_draw_flag" getter="get_draw_flag" default="false">
 			Allows 3D lights to affect the formula.
 		</member>

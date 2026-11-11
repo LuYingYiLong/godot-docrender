@@ -23,6 +23,7 @@
 #include <godot_cpp/classes/text_line.hpp>
 #include <godot_cpp/classes/text_server_manager.hpp>
 #include <godot_cpp/classes/theme_db.hpp>
+#include <godot_cpp/classes/viewport.hpp>
 
 using namespace godot;
 
@@ -114,8 +115,8 @@ namespace {
 
 	class GodotGraphics : public tex::Graphics2D {
 	public:
-		GodotGraphics(CanvasItem& p_canvas, const Vector2& p_position) :
-			canvas(p_canvas), transform(0.0f, p_position) {
+		GodotGraphics(CanvasItem& p_canvas, const Vector2& p_position, float p_oversampling) :
+			canvas(p_canvas), transform(0.0f, p_position), oversampling(p_oversampling) {
 		}
 
 		void setColor(tex::color p_color) override {
@@ -158,7 +159,7 @@ namespace {
 			const int64_t glyph = server->font_get_glyph_index(font->glyph_font, pixel_size, p_character, 0);
 			canvas.draw_set_transform_matrix(transform.translated_local(Vector2(p_x, p_y)).scaled_local(
 				Vector2(glyph_scale, glyph_scale)));
-			server->font_draw_glyph(font->glyph_font, canvas.get_canvas_item(), pixel_size, Vector2(), glyph, color);
+			server->font_draw_glyph(font->glyph_font, canvas.get_canvas_item(), pixel_size, Vector2(), glyph, color, oversampling);
 		}
 
 		void drawText(const std::wstring& p_text, float p_x, float p_y) override;
@@ -166,7 +167,7 @@ namespace {
 		void draw_text_line(const Ref<TextLine>& p_line, float p_scale, float p_x, float p_y) {
 			canvas.draw_set_transform_matrix(transform.translated_local(Vector2(p_x, p_y)).scaled_local(
 				Vector2(p_scale, p_scale)));
-			p_line->draw(canvas.get_canvas_item(), Vector2(0, -p_line->get_line_ascent()), color);
+			p_line->draw(canvas.get_canvas_item(), Vector2(0, -p_line->get_line_ascent()), color, oversampling);
 		}
 
 		void drawLine(float p_x1, float p_y1, float p_x2, float p_y2) override {
@@ -206,6 +207,7 @@ namespace {
 		tex::Stroke stroke;
 		const GodotTexFont* font = nullptr;
 		Transform2D transform;
+		float oversampling;
 
 		static PackedVector2Array rounded_rect(const Rect2& p_rect, const Vector2& p_radius) {
 			const Vector2 radius = p_radius.clamp(Vector2(), p_rect.size * 0.5);
@@ -494,10 +496,22 @@ Vector2 TeXRender::get_layout_offset() const {
 }
 
 void TeXRender::draw(CanvasItem* p_canvas, const Vector2& p_position) const {
+	draw_internal(p_canvas, p_position, 0.0f);
+}
+
+void TeXRender::draw_oversampled(CanvasItem* p_canvas, const Vector2& p_position) const {
+	ERR_FAIL_NULL(p_canvas);
+	// Sample glyphs at least twice as densely while keeping MicroTeX's layout units.
+	const Viewport* viewport = p_canvas->get_viewport();
+	const float oversampling = viewport ? std::max(2.0f, viewport->get_oversampling()) : 2.0f;
+	draw_internal(p_canvas, p_position, oversampling);
+}
+
+void TeXRender::draw_internal(CanvasItem* p_canvas, const Vector2& p_position, float p_oversampling) const {
 	ERR_FAIL_NULL(p_canvas);
 	if (render) {
 		try {
-			GodotGraphics graphics(*p_canvas, p_position + get_layout_offset());
+			GodotGraphics graphics(*p_canvas, p_position + get_layout_offset(), p_oversampling);
 			render->draw(graphics, 0, 0);
 		}
 		catch (const std::exception& error) {

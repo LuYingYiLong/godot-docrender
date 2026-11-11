@@ -54,6 +54,8 @@ public:
 
 	void draw(godot::CanvasItem* p_canvas, const godot::Vector2& p_position = godot::Vector2()) const;
 
+	void draw_oversampled(godot::CanvasItem* p_canvas, const godot::Vector2& p_position) const;
+
 	static void shutdown_renderer();
 
 protected:
@@ -67,6 +69,7 @@ private:
 	godot::HorizontalAlignment horizontal_alignment = godot::HORIZONTAL_ALIGNMENT_LEFT;
 	godot::VerticalAlignment vertical_alignment = godot::VERTICAL_ALIGNMENT_TOP;
 
+	void draw_internal(godot::CanvasItem* p_canvas, const godot::Vector2& p_position, float p_oversampling) const;
 	godot::Vector2 get_layout_offset() const;
 };
 

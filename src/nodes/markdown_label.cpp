@@ -2845,7 +2845,7 @@ void MarkdownLabelCanvas::draw_paragraph_objects(const Ref<TextParagraph>& p_par
 			const String object_name = objects[object_index];
 			if (const Ref<TeXRender>* formula = p_objects.formulas.getptr(object_name)) {
 				const Rect2 object_rect = p_paragraph->get_line_object_rect(line_index, object_name);
-				(*formula)->draw(this, p_text_rect.position + object_rect.position);
+				(*formula)->draw_oversampled(this, p_text_rect.position + object_rect.position);
 				continue;
 			}
 

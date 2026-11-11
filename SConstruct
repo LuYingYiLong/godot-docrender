@@ -90,7 +90,7 @@ if env["target"] in ["editor", "template_debug"]:
 
 if env["platform"] == "macos":
     library = env.SharedLibrary(
-        "addons/markdown_label/bin/libmarkdown_label.{}.{}.framework/libmarkdown_label.{}.{}".format(
+        "addons/docrender/bin/libdocrender.{}.{}.framework/libdocrender.{}.{}".format(
             env["platform"], env["target"], env["platform"], env["target"]
         ),
         source=sources,
@@ -98,17 +98,17 @@ if env["platform"] == "macos":
 elif env["platform"] == "ios":
     if env["ios_simulator"]:
         library = env.StaticLibrary(
-            "addons/markdown_label/bin/libmarkdown_label.{}.{}.simulator.a".format(env["platform"], env["target"]),
+            "addons/docrender/bin/libdocrender.{}.{}.simulator.a".format(env["platform"], env["target"]),
             source=sources,
         )
     else:
         library = env.StaticLibrary(
-            "addons/markdown_label/bin/libmarkdown_label.{}.{}.a".format(env["platform"], env["target"]),
+            "addons/docrender/bin/libdocrender.{}.{}.a".format(env["platform"], env["target"]),
             source=sources,
         )
 else:
     library = env.SharedLibrary(
-        "addons/markdown_label/bin/markdown_label{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
+        "addons/docrender/bin/docrender{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
         source=sources,
     )
 

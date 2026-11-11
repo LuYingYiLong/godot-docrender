@@ -59,6 +59,8 @@ public:
 	float get_alpha_scissor_threshold() const;
 	void set_alpha_hash_scale(float p_scale);
 	float get_alpha_hash_scale() const;
+	void set_render_scale(float p_scale);
+	float get_render_scale() const;
 	void set_texture_filter(godot::BaseMaterial3D::TextureFilter p_filter);
 	godot::BaseMaterial3D::TextureFilter get_texture_filter() const;
 	void set_render_priority(int p_priority);
@@ -79,6 +81,7 @@ private:
 	godot::HorizontalAlignment horizontal_alignment = godot::HORIZONTAL_ALIGNMENT_CENTER;
 	godot::VerticalAlignment vertical_alignment = godot::VERTICAL_ALIGNMENT_CENTER;
 	float pixel_size = 0.005f;
+	float render_scale = 1.0f;
 	godot::Vector2 offset;
 
 	godot::Ref<TeXRender> render;
@@ -91,6 +94,7 @@ private:
 	void queue_rebuild();
 	void rebuild();
 	void ensure_viewport();
+	void update_texture();
 	void update_quad();
 	void draw_formula();
 };

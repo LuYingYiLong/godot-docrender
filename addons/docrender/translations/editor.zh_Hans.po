@@ -1,0 +1,36 @@
+# Godot DocRender Simplified Chinese translations.
+# Distributed under the project license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Godot DocRender VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-11-11 22:15+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_Hans\n"
+"Language-Team: zh_Hans <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#. src/editor/markdown_preview_editor_plugin.cpp:179
+msgctxt "Godot DocRender"
+msgid "Open Preview to the Right"
+msgstr "右侧打开预览"
+
+#. src/editor/markdown_preview_editor_plugin.cpp:173
+msgctxt "Godot DocRender"
+msgid "Preview"
+msgstr "预览"
+
+#. src/editor/markdown_preview_editor_plugin.cpp:180
+msgctxt "Godot DocRender"
+msgid "Preview Only"
+msgstr "仅预览"
+
+#. src/editor/markdown_preview_editor_plugin.cpp:178
+msgctxt "Godot DocRender"
+msgid "View Source"
+msgstr "查看源文件"

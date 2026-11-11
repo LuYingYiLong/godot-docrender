@@ -1,0 +1,198 @@
+# Godot DocRender Simplified Chinese translations.
+# Distributed under the project license.
+msgid ""
+msgstr ""
+"Project-Id-Version: Godot DocRender VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-11-11 22:15+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_Hans\n"
+"Language-Team: zh_Hans <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Alpha Cut"
+msgstr "Alpha 切除"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Alpha Hash Scale"
+msgstr "Alpha 哈希比例"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Alpha Scissor Threshold"
+msgstr "Alpha 裁剪阈值"
+
+#. src/nodes/markdown_label.cpp
+msgid "Autowrap Mode"
+msgstr "自动换行模式"
+
+#. src/nodes/markdown_label.cpp
+msgid "Autowrap Trim Flags"
+msgstr "自动换行修剪标志"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Billboard"
+msgstr "公告板"
+
+#. src/nodes/latex_label.cpp
+msgid "Clip Text"
+msgstr "裁剪文本"
+
+#. src/nodes/markdown_label.cpp
+msgid "Content Margin"
+msgstr "内容边距"
+
+#. src/nodes/markdown_label.cpp
+msgid "Context Menu Enabled"
+msgstr "启用上下文菜单"
+
+#. src/nodes/markdown_label.cpp
+msgid "Deferred Layout Enabled"
+msgstr "启用延迟排版"
+
+#. src/nodes/markdown_label.cpp
+msgid "Deselect on Focus Loss Enabled"
+msgstr "失焦时取消选择"
+
+#. src/nodes/latex_label.cpp
+#. src/nodes/latex_label_3d.cpp
+msgid "Display Mode"
+msgstr "显示模式"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Double Sided"
+msgstr "双面"
+
+#. src/nodes/markdown_label.cpp
+msgid "Drag and Drop Selection Enabled"
+msgstr "允许拖放选区"
+
+#. src/nodes/markdown_label.cpp
+msgid "Extra Font Size"
+msgstr "额外字号"
+
+#. src/nodes/markdown_label.cpp
+msgid "Fit Content"
+msgstr "适配内容"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Fixed Size"
+msgstr "固定大小"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Font Size"
+msgstr "字体大小"
+
+#. src/nodes/latex_label.cpp
+#. src/nodes/latex_label_3d.cpp
+msgid "Horizontal Alignment"
+msgstr "水平对齐"
+
+#. src/nodes/latex_label.cpp
+msgid "Label Settings"
+msgstr "标签设置"
+
+#. src/nodes/markdown_label.cpp
+msgid "Layout Flush Interval Msec"
+msgstr "排版刷新间隔（毫秒）"
+
+#. src/nodes/markdown_label.cpp
+msgid "Max Unstable Lines"
+msgstr "最大未稳定行数"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Modulate"
+msgstr "调色"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "No Depth Test"
+msgstr "无深度测试"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Offset"
+msgstr "偏移"
+
+#. src/nodes/markdown_label.cpp
+msgid "Open External Links"
+msgstr "打开外部链接"
+
+#. src/nodes/markdown_label.cpp
+msgid "Parse Gfm"
+msgstr "解析 GFM"
+
+#. src/nodes/markdown_label.cpp
+msgid "Parse Latex"
+msgstr "解析 LaTeX"
+
+#. src/nodes/markdown_label.cpp
+msgid "Parse Mermaid"
+msgstr "解析 Mermaid"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Pixel Size"
+msgstr "像素大小"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Render Priority"
+msgstr "渲染优先级"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Render Scale"
+msgstr "渲染倍率"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Rendering"
+msgstr "渲染"
+
+#. src/nodes/markdown_label.cpp
+msgid "Scroll Active"
+msgstr "滚动激活"
+
+#. src/nodes/markdown_label.cpp
+msgid "Scroll Following"
+msgstr "滚动跟随"
+
+#. src/nodes/markdown_label.cpp
+msgid "Scroll Following Visible Characters"
+msgstr "滚动跟随可见字符"
+
+#. src/nodes/markdown_label.cpp
+msgid "Selection Enabled"
+msgstr "启用文本选择"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Shaded"
+msgstr "着色"
+
+#. src/nodes/markdown_label.cpp
+msgid "Shortcut Keys Enabled"
+msgstr "启用快捷键"
+
+#. src/nodes/markdown_label.cpp
+msgid "Streaming Enabled"
+msgstr "启用流式输出"
+
+#. src/nodes/latex_label.cpp
+#. src/nodes/latex_label_3d.cpp
+#. src/nodes/markdown_label.cpp
+#. src/nodes/mermaid_label.cpp
+msgid "Text"
+msgstr "文本"
+
+#. src/nodes/latex_label_3d.cpp
+msgid "Texture Filter"
+msgstr "纹理过滤"
+
+#. src/nodes/mermaid_label.cpp
+msgid "Theme Mode"
+msgstr "主题模式"
+
+#. src/nodes/latex_label.cpp
+#. src/nodes/latex_label_3d.cpp
+msgid "Vertical Alignment"
+msgstr "垂直对齐"
