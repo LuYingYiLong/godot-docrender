@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LatexLabel3D" inherits="MeshInstance3D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Displays a LaTeX formula in a 3D scene.
+	</brief_description>
+	<description>
+		Set [member text] to a formula such as [code]\frac{1}{\sqrt{x^2+1}}[/code]. [TeXRender] lays out the formula and draws it to a transparent texture. The node displays the texture on a quad facing local [code]+Z[/code].
+		[member font_size] sets the formula size in pixels and [member pixel_size] converts formula pixels into local 3D units. Texture resolution is capped at 4096 pixels on its longest edge. The node regenerates its mesh from the formula when entering the scene tree or when the text changes.
+	</description>
+	<methods>
+		<method name="get_draw_flag" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="flag" type="int" enum="LatexLabel3D.DrawFlags" />
+			<description>
+				Returns whether the specified draw flag is enabled.
+			</description>
+		</method>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the error from the last layout update, or an empty string on success. Formula changes are applied on a deferred update.
+			</description>
+		</method>
+		<method name="set_draw_flag">
+			<return type="void" />
+			<param index="0" name="flag" type="int" enum="LatexLabel3D.DrawFlags" />
+			<param index="1" name="enabled" type="bool" />
+			<description>
+				Enables or disables the specified draw flag.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="alpha_cut" type="int" setter="set_alpha_cut_mode" getter="get_alpha_cut_mode" enum="LatexLabel3D.AlphaCutMode" default="0">
+			Controls how the material handles transparent texels.
+		</member>
+		<member name="alpha_hash_scale" type="float" setter="set_alpha_hash_scale" getter="get_alpha_hash_scale" default="1.0">
+			Scale of the transparency pattern in alpha hash mode.
+		</member>
+		<member name="alpha_scissor_threshold" type="float" setter="set_alpha_scissor_threshold" getter="get_alpha_scissor_threshold" default="0.5">
+			Minimum opacity for a texel to appear in alpha discard mode.
+		</member>
+		<member name="billboard" type="int" setter="set_billboard_mode" getter="get_billboard_mode" enum="BaseMaterial3D.BillboardMode" default="0">
+			Controls how the formula faces the camera.
+		</member>
+		<member name="display_mode" type="bool" setter="set_display_mode" getter="is_display_mode" default="true">
+			Uses display math style when enabled and the compact inline math style when disabled.
+		</member>
+		<member name="double_sided" type="bool" setter="set_draw_flag" getter="get_draw_flag" default="true">
+			Draws both sides of the formula quad.
+		</member>
+		<member name="fixed_size" type="bool" setter="set_draw_flag" getter="get_draw_flag" default="false">
+			Maintains the formula's apparent size as camera distance changes.
+		</member>
+		<member name="font_size" type="int" setter="set_font_size" getter="get_font_size" default="32">
+			Font size used for formula layout, in pixels.
+		</member>
+		<member name="horizontal_alignment" type="int" setter="set_horizontal_alignment" getter="get_horizontal_alignment" enum="HorizontalAlignment" default="1">
+			Places the formula's left edge, center, or right edge at the node's origin. Fill uses the center for a single formula.
+		</member>
+		<member name="modulate" type="Color" setter="set_modulate" getter="get_modulate" default="Color(1, 1, 1, 1)">
+			Tints the entire formula, including colors specified inside it.
+		</member>
+		<member name="no_depth_test" type="bool" setter="set_draw_flag" getter="get_draw_flag" default="false">
+			Disables the depth test for the formula material.
+		</member>
+		<member name="offset" type="Vector2" setter="set_offset" getter="get_offset" default="Vector2(0, 0)">
+			Offset from the node's origin in formula pixels. Positive X moves right and positive Y moves up in local space.
+		</member>
+		<member name="pixel_size" type="float" setter="set_pixel_size" getter="get_pixel_size" default="0.005">
+			Size of a formula pixel in local 3D units.
+		</member>
+		<member name="render_priority" type="int" setter="set_render_priority" getter="get_render_priority" default="0">
+			Sort priority of the formula's material.
+		</member>
+		<member name="shaded" type="bool" setter="set_draw_flag" getter="get_draw_flag" default="false">
+			Allows 3D lights to affect the formula.
+		</member>
+		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
+			The LaTeX expression to display. Use the formula source directly.
+		</member>
+		<member name="texture_filter" type="int" setter="set_texture_filter" getter="get_texture_filter" enum="BaseMaterial3D.TextureFilter" default="1">
+			Sampling filter for the formula texture.
+		</member>
+		<member name="vertical_alignment" type="int" setter="set_vertical_alignment" getter="get_vertical_alignment" enum="VerticalAlignment" default="1">
+			Places the formula's top edge, center, or bottom edge at the node's origin.
+		</member>
+	</members>
+	<constants>
+		<constant name="FLAG_SHADED" value="0" enum="DrawFlags">Controls [member shaded].</constant>
+		<constant name="FLAG_DOUBLE_SIDED" value="1" enum="DrawFlags">Controls [member double_sided].</constant>
+		<constant name="FLAG_DISABLE_DEPTH_TEST" value="2" enum="DrawFlags">Controls [member no_depth_test].</constant>
+		<constant name="FLAG_FIXED_SIZE" value="3" enum="DrawFlags">Controls [member fixed_size].</constant>
+		<constant name="FLAG_MAX" value="4" enum="DrawFlags">Number of draw flags.</constant>
+		<constant name="ALPHA_CUT_DISABLED" value="0" enum="AlphaCutMode">Blends transparent texels.</constant>
+		<constant name="ALPHA_CUT_DISCARD" value="1" enum="AlphaCutMode">Discards texels below the opacity threshold.</constant>
+		<constant name="ALPHA_CUT_OPAQUE_PREPASS" value="2" enum="AlphaCutMode">Draws opaque portions in a depth prepass.</constant>
+		<constant name="ALPHA_CUT_HASH" value="3" enum="AlphaCutMode">Uses a dither pattern for transparency.</constant>
+	</constants>
+</class>

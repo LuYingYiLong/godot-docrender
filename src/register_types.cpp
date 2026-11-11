@@ -1,6 +1,7 @@
 #include "register_types.h"
 
 #include "nodes/latex_label.h"
+#include "nodes/latex_label_3d.h"
 #include "nodes/markdown_label.h"
 #include "editor/markdown_preview_editor_plugin.h"
 #include "tex_render.h"
@@ -22,6 +23,7 @@ void initialize_markdown_label_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_CLASS(MarkdownLabel);
 		GDREGISTER_CLASS(TeXRender);
 		GDREGISTER_CLASS(LatexLabel);
+		GDREGISTER_CLASS(LatexLabel3D);
 	}
 
 	else if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR && Engine::get_singleton()->is_editor_hint()) {

@@ -42,6 +42,9 @@
     <ClCompile Include="src\nodes\latex_label.cpp">
       <Filter>Source Files\nodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\nodes\latex_label_3d.cpp">
+      <Filter>Source Files\nodes</Filter>
+    </ClCompile>
     <ClCompile Include="src\nodes\markdown_label.cpp">
       <Filter>Source Files\nodes</Filter>
     </ClCompile>
@@ -63,6 +66,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\nodes\latex_label.h">
+      <Filter>Header Files\nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodes\latex_label_3d.h">
       <Filter>Header Files\nodes</Filter>
     </ClInclude>
     <ClInclude Include="src\nodes\markdown_label.h">

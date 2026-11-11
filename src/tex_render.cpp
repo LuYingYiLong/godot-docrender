@@ -115,7 +115,8 @@ namespace {
 	class GodotGraphics : public tex::Graphics2D {
 	public:
 		GodotGraphics(CanvasItem& p_canvas, const Vector2& p_position) :
-			canvas(p_canvas), transform(0.0f, p_position) {}
+			canvas(p_canvas), transform(0.0f, p_position) {
+		}
 
 		void setColor(tex::color p_color) override {
 			color = Color(tex::color_r(p_color) / 255.0f, tex::color_g(p_color) / 255.0f,
@@ -271,7 +272,6 @@ namespace {
 } // namespace
 
 namespace tex {
-
 	Font* Font::create(const std::string& p_path, float p_size) {
 		const std::string filename = p_path.substr(p_path.find_last_of("/\\") + 1);
 		auto cached = math_fonts.find(filename);

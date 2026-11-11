@@ -102,6 +102,7 @@
   <ItemGroup>
     <ClCompile Include="src\markdown_document.cpp" />
     <ClCompile Include="src\nodes\latex_label.cpp" />
+    <ClCompile Include="src\nodes\latex_label_3d.cpp" />
     <ClCompile Include="src\nodes\markdown_label.cpp" />
     <ClCompile Include="src\markdown_parser.cpp" />
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp" />
@@ -112,6 +113,7 @@
     <ClInclude Include="src\markdown_document.h" />
     <ClInclude Include="src\nodes\markdown_label.h" />
     <ClInclude Include="src\nodes\latex_label.h" />
+    <ClInclude Include="src\nodes\latex_label_3d.h" />
     <ClInclude Include="src\markdown_parser.h" />
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h" />
     <ClInclude Include="src\register_types.h" />

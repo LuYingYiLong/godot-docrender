@@ -5,7 +5,7 @@
 	</brief_description>
 	<description>
 		Enter an expression such as [code]\frac{1}{\sqrt{x}}[/code] in [member text]. [LatexLabel] uses embedded math fonts and draws the result on the Godot canvas. Its minimum size follows the dimensions of the formula.
-		To change the size or color, override the [code]font_size[/code] or [code]font_color[/code] theme item. The default values come from the [Label] theme.
+		Use [member label_settings] to share a font size and color between labels, or override the [code]font_size[/code] and [code]font_color[/code] theme items. Theme values fall back to the [Label] theme.
 	</description>
 	<methods>
 		<method name="get_render_error" qualifiers="const">
@@ -16,11 +16,37 @@
 		</method>
 	</methods>
 	<members>
+		<member name="clip_text" type="bool" setter="set_clip_text" getter="is_clipping_text" default="false">
+			Clips formula drawing to the control's rectangle. The formula can be laid out in a narrower control when enabled. Its height and the normal stylebox margins still contribute to the minimum size.
+		</member>
 		<member name="display_mode" type="bool" setter="set_display_mode" getter="is_display_mode" default="true">
 			Uses display math style when enabled and the more compact inline math style when disabled.
+		</member>
+		<member name="horizontal_alignment" type="int" setter="set_horizontal_alignment" getter="get_horizontal_alignment" enum="HorizontalAlignment" default="0">
+			Aligns the formula horizontally. Left and right mirror in right-to-left layouts. Fill places the formula at the left without stretching it.
+		</member>
+		<member name="label_settings" type="LabelSettings" setter="set_label_settings" getter="get_label_settings">
+			Uses the resource's font size and font color in preference to the theme. Changes to a shared resource update the formula. The glyphs use the embedded math fonts.
 		</member>
 		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
 			The LaTeX expression to display. Supply the formula directly, for example [code]\sum_{n=1}^{10} n^2[/code].
 		</member>
+		<member name="vertical_alignment" type="int" setter="set_vertical_alignment" getter="get_vertical_alignment" enum="VerticalAlignment" default="0">
+			Aligns the formula vertically inside the normal stylebox margins. Fill places the formula at the top.
+		</member>
 	</members>
+	<theme_items>
+		<theme_item name="font_color" data_type="color" type="Color">
+			Foreground color for the formula when [member label_settings] is unset.
+		</theme_item>
+		<theme_item name="font_size" data_type="font_size" type="int">
+			Formula size when [member label_settings] is unset.
+		</theme_item>
+		<theme_item name="focus" data_type="style" type="StyleBox">
+			Background drawn when the control has keyboard focus.
+		</theme_item>
+		<theme_item name="normal" data_type="style" type="StyleBox">
+			Default background and content margins for the formula.
+		</theme_item>
+	</theme_items>
 </class>
