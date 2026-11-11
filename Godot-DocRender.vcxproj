@@ -21,6 +21,7 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
     <ProjectGuid>{B0D66424-B9CC-70C8-BC48-7FC07B71DEB5}</ProjectGuid>
+    <ProjectName>Godot DocRender</ProjectName>
     <Keyword>MakeFileProj</Keyword>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -84,6 +85,10 @@
       <EnableSegmentHeap>true</EnableSegmentHeap>
     </Manifest>
   </ItemDefinitionGroup>
+  <PropertyGroup Condition="'$(Platform)'=='x64' And Exists('$(ProjectDir)src\thirdparty\merman-sdk\include\merman.h') And Exists('$(ProjectDir)src\thirdparty\merman-sdk\lib\merman_ffi.lib')">
+    <NMakeIncludeSearchPath>$(ProjectDir)src\thirdparty\merman-sdk\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakePreprocessorDefinitions>MARKDOWN_LABEL_MERMAN_ENABLED;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -100,24 +105,28 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\markdown_document.cpp" />
+    <ClCompile Include="src\core\markdown_document.cpp" />
     <ClCompile Include="src\nodes\latex_label.cpp" />
     <ClCompile Include="src\nodes\latex_label_3d.cpp" />
     <ClCompile Include="src\nodes\markdown_label.cpp" />
-    <ClCompile Include="src\markdown_parser.cpp" />
+    <ClCompile Include="src\nodes\mermaid_label.cpp" />
+    <ClCompile Include="src\core\markdown_parser.cpp" />
+    <ClCompile Include="src\core\mermaid_render.cpp" />
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp" />
-    <ClCompile Include="src\register_types.cpp" />
-    <ClCompile Include="src\tex_render.cpp" />
+    <ClCompile Include="src\core\register_types.cpp" />
+    <ClCompile Include="src\core\tex_render.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\markdown_document.h" />
+    <ClInclude Include="src\core\markdown_document.h" />
     <ClInclude Include="src\nodes\markdown_label.h" />
+    <ClInclude Include="src\nodes\mermaid_label.h" />
     <ClInclude Include="src\nodes\latex_label.h" />
     <ClInclude Include="src\nodes\latex_label_3d.h" />
-    <ClInclude Include="src\markdown_parser.h" />
+    <ClInclude Include="src\core\markdown_parser.h" />
+    <ClInclude Include="src\core\mermaid_render.h" />
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h" />
-    <ClInclude Include="src\register_types.h" />
-    <ClInclude Include="src\tex_render.h" />
+    <ClInclude Include="src\core\register_types.h" />
+    <ClInclude Include="src\core\tex_render.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

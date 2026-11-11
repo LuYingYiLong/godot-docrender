@@ -45,3 +45,4 @@ windows.release.x86_64 = "bin/markdown_label.windows.template_release.x86_64.dll
 MarkdownLabel = "icons/markdown_label.svg"
 LatexLabel = "icons/latex_label.svg"
 LatexLabel3D = "icons/latex_label_3d.svg"
+MermaidLabel = "icons/mermaid_label.svg"

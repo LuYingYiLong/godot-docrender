@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
+    <Filter Include="Header Files\core">
+      <UniqueIdentifier>{3fc4eb50-a349-46b3-a82b-930517c14263}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core">
+      <UniqueIdentifier>{5db42ea8-3244-4081-acd2-bd91bf0cf928}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\nodes">
       <UniqueIdentifier>{c962ed92-e2f0-4d9b-a8cf-ba2ab635fc8e}</UniqueIdentifier>
     </Filter>
@@ -27,17 +33,20 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\register_types.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\core\register_types.cpp">
+      <Filter>Source Files\core</Filter>
     </ClCompile>
-    <ClCompile Include="src\tex_render.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\core\tex_render.cpp">
+      <Filter>Source Files\core</Filter>
     </ClCompile>
-    <ClCompile Include="src\markdown_document.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\core\markdown_document.cpp">
+      <Filter>Source Files\core</Filter>
     </ClCompile>
-    <ClCompile Include="src\markdown_parser.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\core\markdown_parser.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\mermaid_render.cpp">
+      <Filter>Source Files\core</Filter>
     </ClCompile>
     <ClCompile Include="src\nodes\latex_label.cpp">
       <Filter>Source Files\nodes</Filter>
@@ -48,22 +57,28 @@
     <ClCompile Include="src\nodes\markdown_label.cpp">
       <Filter>Source Files\nodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\nodes\mermaid_label.cpp">
+      <Filter>Source Files\nodes</Filter>
+    </ClCompile>
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\register_types.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\core\register_types.h">
+      <Filter>Header Files\core</Filter>
     </ClInclude>
-    <ClInclude Include="src\tex_render.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\core\tex_render.h">
+      <Filter>Header Files\core</Filter>
     </ClInclude>
-    <ClInclude Include="src\markdown_parser.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\core\markdown_parser.h">
+      <Filter>Header Files\core</Filter>
     </ClInclude>
-    <ClInclude Include="src\markdown_document.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\core\mermaid_render.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\markdown_document.h">
+      <Filter>Header Files\core</Filter>
     </ClInclude>
     <ClInclude Include="src\nodes\latex_label.h">
       <Filter>Header Files\nodes</Filter>
@@ -72,6 +87,9 @@
       <Filter>Header Files\nodes</Filter>
     </ClInclude>
     <ClInclude Include="src\nodes\markdown_label.h">
+      <Filter>Header Files\nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodes\mermaid_label.h">
       <Filter>Header Files\nodes</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">

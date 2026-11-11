@@ -1,7 +1,7 @@
 # For syntax, see https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 # This workflow is triggered manually on the "Actions" tab on GitHub, and can be used to create releases.
 
-name: Make MarkdownLabel GDExtension builds
+name: Build Godot DocRender
 on:
   workflow_dispatch:
 
@@ -54,6 +54,10 @@ jobs:
           platform: ${{ matrix.target.platform }}
           em-version: 3.1.62
 
+      - name: Install Merman SDK
+        if: ${{ matrix.target.platform == 'windows' && matrix.target.arch == 'x86_64' }}
+        run: python scripts/fetch_merman_sdk.py
+
       # Remove committed/pre-existing binaries so each matrix artifact only contains its own build output.
       - name: Clean bundled binary outputs
         shell: pwsh
@@ -72,12 +76,12 @@ jobs:
           scons-cache: ${{ github.workspace }}/.scons-cache/
           cache-name: ${{ matrix.target.platform }}_${{ matrix.target.arch }}_${{ matrix.float-precision }}_${{ matrix.target-type }}
 
-      - name: Build MarkdownLabel GDExtension
+      - name: Build Godot DocRender GDExtension
         shell: sh
         env:
           SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
         run: |
-          scons target=${{ matrix.target-type }} platform=${{ matrix.target.platform }} arch=${{ matrix.target.arch }} precision=${{ matrix.float-precision }}
+          scons godot-docrender target=${{ matrix.target-type }} platform=${{ matrix.target.platform }} arch=${{ matrix.target.arch }} precision=${{ matrix.float-precision }}
 
       - name: Save .scons_cache
         uses: ./godot-cpp/.github/actions/godot-cache-save
@@ -113,11 +117,20 @@ jobs:
             Copy-Item -LiteralPath $item.FullName -Destination $stage_bin -Recurse -Force
           }
 
+          if ("${{ matrix.target.platform }}-${{ matrix.target.arch }}" -eq "windows-x86_64") {
+            $merman_licenses = Join-Path $stage "Merman-LICENSES"
+            New-Item -ItemType Directory -Path $merman_licenses | Out-Null
+            $sdk = Join-Path $env:GITHUB_WORKSPACE "src/thirdparty/merman-sdk"
+            foreach ($item in @("LICENSE-APACHE", "LICENSE-MIT", "SOURCE_AVAILABILITY.md", "THIRD_PARTY_NOTICES.md", "THIRD_PARTY_LICENSES")) {
+              Copy-Item -LiteralPath (Join-Path $sdk $item) -Destination $merman_licenses -Recurse
+            }
+          }
+
       # Upload the build
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: markdown-label-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.float-precision }}-${{ matrix.target-type }}
+          name: godot-docrender-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.float-precision }}-${{ matrix.target-type }}
           if-no-files-found: error
           path: |
             ${{ github.workspace }}/artifact/**
@@ -127,7 +140,7 @@ jobs:
         if: ${{ matrix.target.platform == 'linux' && matrix.target.arch == 'x86_64' && matrix.target-type == 'template_debug' }}
         uses: actions/upload-artifact@v4
         with:
-          name: markdown-label-addon-files
+          name: godot-docrender-addon-files
           path: |
             ${{ github.workspace }}/addons/markdown_label/markdown_label.gdextension
             ${{ github.workspace }}/addons/markdown_label/MicroTeX-LICENSES.txt
@@ -135,7 +148,7 @@ jobs:
             ${{ github.workspace }}/addons/markdown_label/docs/**
             ${{ github.workspace }}/addons/markdown_label/example/**
 
-  # Merges all the build artifacts together into a single MarkdownLabel artifact.
+  # Merge the build and addon files into one Godot DocRender artifact.
   # If you comment out this step, all the builds will be uploaded individually.
   merge:
     runs-on: ubuntu-22.04
@@ -144,6 +157,6 @@ jobs:
       - name: Merge Artifacts
         uses: actions/upload-artifact/merge@v4
         with:
-          name: markdown-label
-          pattern: markdown-label-*
+          name: godot-docrender
+          pattern: godot-docrender-*
           delete-merged: false

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="MermaidRender" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Renders Mermaid diagrams and exposes Merman's diagram data.
+	</brief_description>
+	<description>
+		Create a [MermaidRender] instance to configure a diagram, export it, or read its layout for custom drawing. Call [method render] on the main thread. The operation is synchronous and stores its result on the instance.
+		Use [method get_texture] for PNG or JPEG output, [method get_output_text] for SVG, ASCII, or JSON, and [method get_bytes] for binary data. The current SDK backend is available in Windows x64 MSVC builds with Merman enabled.
+	</description>
+	<methods>
+		<method name="clear">
+			<return type="void" />
+			<description>
+				Clears the output, metadata, and error.
+			</description>
+		</method>
+		<method name="get_bytes" qualifiers="const">
+			<return type="PackedByteArray" />
+			<description>
+				Returns the raw output bytes of the last successful operation.
+			</description>
+		</method>
+		<method name="get_image" qualifiers="const">
+			<return type="Image" />
+			<description>
+				Decodes the current PNG or JPEG output into a new [Image]. Returns [code]null[/code] for other output formats or an empty result.
+			</description>
+		</method>
+		<method name="get_media_type" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the media type of the current output, such as [code]image/png[/code].
+			</description>
+		</method>
+		<method name="get_metadata" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns a copy of Merman's metadata or structured error details for the last operation. For JSON operations, read the operation's data with [method get_output_text].
+			</description>
+		</method>
+		<method name="get_output_text" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns SVG, ASCII, or JSON output as a string. Returns an empty string for binary output.
+			</description>
+		</method>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the diagnostic message for the last failed operation. Returns an empty string after a successful operation.
+			</description>
+		</method>
+		<method name="get_runtime_catalog" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns Merman's runtime catalog, including supported operation IDs in [code]capabilities.operation_ids[/code]. Returns an empty dictionary when the backend is unavailable.
+			</description>
+		</method>
+		<method name="get_texture" qualifiers="const">
+			<return type="Texture2D" />
+			<description>
+				Creates a new [ImageTexture] from the current PNG or JPEG output. Keep the returned texture if you plan to draw it repeatedly.
+			</description>
+		</method>
+		<method name="is_available" qualifiers="static">
+			<return type="bool" />
+			<description>
+				Returns whether the Merman backend is available in this build.
+			</description>
+		</method>
+		<method name="render">
+			<return type="int" enum="Error" />
+			<param index="0" name="source" type="String" />
+			<param index="1" name="operation" type="StringName" default="&amp;&quot;png&quot;" />
+			<param index="2" name="options" type="Dictionary" default="{}" />
+			<param index="3" name="uri" type="String" default="&quot;&quot;" />
+			<param index="4" name="timeout_msec" type="int" default="2000" />
+			<description>
+				Executes a Merman operation and replaces the previous result. Example IDs include [code]png[/code], [code]svg[/code], [code]pdf[/code], [code]semantic-json[/code], [code]layout-json[/code], and [code]validation-json[/code]. Consult [method get_runtime_catalog] for the full list.
+				Pass Merman options as a dictionary with JSON-compatible values. Use [code]site_config[/code] for Mermaid settings, [code]raster[/code] for image export settings, and [code]presentation[/code] for Merman theme roles. Options depend on the operation. For document analysis, supply the document text and its [param uri].
+				[param timeout_msec] limits the operation in milliseconds. Use [code]0[/code] to run without a deadline. Returns [constant OK] when the operation produces a result. For validation and analysis operations, inspect the returned JSON for diagnostics.
+			</description>
+		</method>
+	</methods>
+</class>

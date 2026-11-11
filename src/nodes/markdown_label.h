@@ -1,6 +1,7 @@
 #pragma once
 
-#include "../markdown_parser.h"
+#include "core/markdown_parser.h"
+#include "core/mermaid_render.h"
 
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/font.hpp>
@@ -145,6 +146,7 @@ private:
 	HashMap<String, float> footnote_definition_offsets;
 
 	MarkdownThemeCache theme_cache;
+	MermaidRenderCache mermaid_cache;
 
 	MarkdownParserState parser_state;
 	std::vector<MarkdownBlock> cached_blocks;
@@ -261,6 +263,7 @@ private:
 	bool open_external_links = true;
 	bool parse_latex = false;
 	bool parse_gfm = true;
+	bool parse_mermaid = false;
 	bool selection_enabled = true;
 	bool deselect_on_focus_loss_enabled = true;
 	bool drag_and_drop_selection_enabled = true;
@@ -299,6 +302,8 @@ public:
 	bool is_parsing_latex() const;
 	void set_parse_gfm(bool p_enabled);
 	bool is_parsing_gfm() const;
+	void set_parse_mermaid(bool p_enabled);
+	bool is_parsing_mermaid() const;
 
 	void append_text(const String& p_delta);
 	void finish_stream();

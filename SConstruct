@@ -1,14 +1,31 @@
 #!/usr/bin/env python
 from pathlib import Path
 
+merman_sdk_option = ARGUMENTS.pop("merman_sdk", None)
 env = SConscript("godot-cpp/SConstruct")
 
 env.Append(CPPPATH=["src/"])
 if env.get("is_msvc", False):
     env.AppendUnique(CCFLAGS=["/utf-8", "/wd4828"])
 
-tex_render = "src/tex_render.cpp"
-sources = Glob("src/*.cpp", exclude=[tex_render]) + Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp")
+mermaid_env = env.Clone()
+if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc", False):
+    merman_sdk = Path(merman_sdk_option or "src/thirdparty/merman-sdk")
+    if (merman_sdk / "include/merman.h").is_file() and (merman_sdk / "lib/merman_ffi.lib").is_file():
+        mermaid_env.AppendUnique(CPPPATH=[str(merman_sdk / "include")], CPPDEFINES=["MARKDOWN_LABEL_MERMAN_ENABLED"])
+        env.AppendUnique(LIBS=[File(str(merman_sdk / "lib/merman_ffi.lib")),
+                               "advapi32", "bcrypt", "kernel32", "ntdll", "userenv", "ws2_32"])
+    elif merman_sdk_option:
+        print(f"Missing Merman headers or static library in {merman_sdk}.")
+        Exit(1)
+    else:
+        print("Mermaid rendering requires the Windows x64 SDK. Run python scripts/fetch_merman_sdk.py to install it.")
+
+tex_render = "src/core/tex_render.cpp"
+mermaid_render = "src/core/mermaid_render.cpp"
+sources = Glob("src/core/*.cpp", exclude=[tex_render, mermaid_render]) + Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp")
+mermaid_object = mermaid_env.StaticObject if env["platform"] == "ios" else mermaid_env.SharedObject
+sources += mermaid_object(mermaid_render)
 
 microtex = "src/thirdparty/microtex"
 tinyxml2 = "src/thirdparty/tinyxml2"
@@ -95,4 +112,5 @@ else:
         source=sources,
     )
 
-Default(library)
+# The GDExtension descriptor loads the packaged libraries by their existing paths.
+Default(Alias("godot-docrender", library))

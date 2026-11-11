@@ -1,6 +1,6 @@
 #include "markdown_preview_editor_plugin.h"
 
-#include "../nodes/markdown_label.h"
+#include "nodes/markdown_label.h"
 
 #include <godot_cpp/classes/code_edit.hpp>
 #include <godot_cpp/classes/editor_interface.hpp>
@@ -296,6 +296,7 @@ namespace godot {
 		MarkdownLabel* label = memnew(MarkdownLabel);
 		label->set_name("MarkdownPreview");
 		label->set_parse_latex(true);
+		label->set_parse_mermaid(true);
 		label->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 		label->set_custom_minimum_size(Vector2(80.0, 0.0));
 		split->add_child(label);

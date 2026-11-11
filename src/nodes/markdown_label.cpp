@@ -1,5 +1,4 @@
 #include "markdown_label.h"
-#include "../markdown_parser.h"
 
 #include <godot_cpp/classes/display_server.hpp>
 #include <godot_cpp/classes/engine.hpp>
@@ -762,6 +761,38 @@ namespace {
 		return Vector2(std::max<float>(1.0f, texture_width * scale), std::max<float>(1.0f, texture_height * scale));
 	}
 
+	static bool is_mermaid_block(const MarkdownBlock& p_block) {
+		return p_block.type == MARKDOWN_BLOCK_CODE && p_block.end_line > 0 &&
+			p_block.argument.to_lower() == "mermaid" && !p_block.text.is_empty();
+	}
+
+	static void collect_mermaid_sources(const std::vector<MarkdownBlock>& p_blocks, HashSet<String>& r_sources) {
+		for (const MarkdownBlock& block : p_blocks) {
+			if (is_mermaid_block(block)) {
+				r_sources.insert(block.text);
+			}
+			if (!block.children.empty()) {
+				collect_mermaid_sources(block.children, r_sources);
+			}
+		}
+	}
+
+	static bool add_mermaid_to_paragraph(const Ref<TextParagraph>& p_paragraph, const MermaidRenderCache& p_cache, const MarkdownBlock& p_block, float p_width, MarkdownParagraphObjects& r_objects) {
+		const MermaidRenderCache::Result* result = is_mermaid_block(p_block) ? p_cache.get_result(p_block.text) : nullptr;
+		if (result == nullptr || result->texture.is_null()) {
+			return false;
+		}
+		const String key = "mermaid";
+		const float render_scale = MermaidRenderCache::RASTER_SCALE;
+		const Vector2 size = fit_texture_size(result->texture, p_width * render_scale) / render_scale;
+		if (!p_paragraph->add_object(key, size, INLINE_ALIGNMENT_CENTER, p_block.text.length())) {
+			return false;
+		}
+		r_objects.images.insert(key, result->texture);
+		p_paragraph->set_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+		return true;
+	}
+
 	static BitField<TextServer::LineBreakFlag> get_autowrap_trim_mask() {
 		return TextServer::BREAK_TRIM_INDENT | TextServer::BREAK_TRIM_START_EDGE_SPACES | TextServer::BREAK_TRIM_END_EDGE_SPACES;
 	}
@@ -1202,6 +1233,7 @@ void MarkdownLabelCanvas::set_markdown_text(const String& p_text) {
 	layout_prefix_reuse_requested = false;
 	internal_processing_enabled = false;
 	set_process_internal(false);
+	update_internal_processing();
 	mark_layout_dirty();
 }
 
@@ -1265,6 +1297,7 @@ void MarkdownLabelCanvas::clear_document() {
 	lines.clear();
 	cached_blocks.clear();
 	parser_state.reset();
+	mermaid_cache.update({}, {});
 	pending_stream_parse = false;
 	pending_layout_elapsed_msec = 0.0;
 	layout_prefix_reuse_requested = false;
@@ -1284,6 +1317,7 @@ void MarkdownLabelCanvas::clear_document() {
 	set_custom_minimum_size(Vector2(1.0, content_height));
 	update_minimum_size();
 	queue_redraw();
+	update_internal_processing();
 }
 
 void MarkdownLabelCanvas::set_streaming_enabled(bool p_enabled) {
@@ -1510,7 +1544,7 @@ bool MarkdownLabelCanvas::update_gif_animations(double p_delta) {
 }
 
 void MarkdownLabelCanvas::update_internal_processing() {
-	const bool should_process = pending_stream_parse || !s_pending_local_image_uris.empty() || dragging_selection || update_gif_animations(0.0);
+	const bool should_process = pending_stream_parse || mermaid_cache.has_pending() || !s_pending_local_image_uris.empty() || dragging_selection || update_gif_animations(0.0);
 	if (internal_processing_enabled != should_process) {
 		internal_processing_enabled = should_process;
 		set_process_internal(should_process);
@@ -1935,6 +1969,14 @@ void MarkdownLabelCanvas::rebuild_layout() {
 		parser_state = result.state;
 	}
 
+	HashSet<String> mermaid_sources;
+	if (label != nullptr && label->is_parsing_mermaid() && MermaidRender::is_available()) {
+		collect_mermaid_sources(blocks, mermaid_sources);
+	}
+	MermaidRenderCache::Palette mermaid_palette;
+	mermaid_palette.light = theme_cache.color.text.get_luminance() < 0.5f;
+	mermaid_cache.update(mermaid_sources, mermaid_palette);
+
 	int32_t block_start_index = 0;
 	if (can_reuse_layout_prefix) {
 		const int32_t max_reuse = std::min<int32_t>(static_cast<int32_t>(blocks.size()), static_cast<int32_t>(previous_items.size()));
@@ -2269,7 +2311,9 @@ void MarkdownLabelCanvas::rebuild_layout() {
 				configure_paragraph_autowrap(quote_line.paragraph, label);
 				quote_line.paragraph->set_width(paragraph_width);
 				quote_line.paragraph->set_line_spacing(theme_cache.constant.line_separation);
-				add_spans_to_paragraph(quote_line.paragraph, quote_line.text, quote_line.spans, theme_cache, quote_font, quote_font_size, quote_line.text_color, quote_line.objects, paragraph_width, this);
+				if (!add_mermaid_to_paragraph(quote_line.paragraph, mermaid_cache, render_block, paragraph_width, quote_line.objects)) {
+					add_spans_to_paragraph(quote_line.paragraph, quote_line.text, quote_line.spans, theme_cache, quote_font, quote_font_size, quote_line.text_color, quote_line.objects, paragraph_width, this);
+				}
 				if (quote_line.type == MARKDOWN_BLOCK_LATEX && !quote_line.objects.formulas.is_empty()) {
 					quote_line.paragraph->set_alignment(HORIZONTAL_ALIGNMENT_CENTER);
 				}
@@ -2527,9 +2571,12 @@ void MarkdownLabelCanvas::rebuild_layout() {
 
 		item.paragraph.instantiate();
 		configure_paragraph_autowrap(item.paragraph, label);
-		item.paragraph->set_width(std::max<float>(1.0f, width - left_padding - right_padding));
+		const float paragraph_width = std::max<float>(1.0f, width - left_padding - right_padding);
+		item.paragraph->set_width(paragraph_width);
 		item.paragraph->set_line_spacing(item.type == MARKDOWN_BLOCK_FOOTNOTES ? theme_cache.constant.footnote_line_separation : theme_cache.constant.line_separation);
-		add_spans_to_paragraph(item.paragraph, item_text, item.spans, theme_cache, font, font_size, item.text_color, item.objects, std::max<float>(1.0f, width - left_padding - right_padding), this);
+		if (!add_mermaid_to_paragraph(item.paragraph, mermaid_cache, block, paragraph_width, item.objects)) {
+			add_spans_to_paragraph(item.paragraph, item_text, item.spans, theme_cache, font, font_size, item.text_color, item.objects, paragraph_width, this);
+		}
 		if (item.type == MARKDOWN_BLOCK_LATEX && !item.objects.formulas.is_empty()) {
 			item.paragraph->set_alignment(HORIZONTAL_ALIGNMENT_CENTER);
 		}
@@ -2793,7 +2840,6 @@ void MarkdownLabelCanvas::draw_paragraph_objects(const Ref<TextParagraph>& p_par
 	}
 
 	for (int32_t line_index = 0; line_index < p_paragraph->get_line_count(); line_index++) {
-		const float x_base = p_text_rect.position.x + get_alignment_offset(p_paragraph, line_index, p_text_rect.size.x);
 		const Array objects = p_paragraph->get_line_objects(line_index);
 		for (int32_t object_index = 0; object_index < objects.size(); object_index++) {
 			const String object_name = objects[object_index];
@@ -2809,7 +2855,7 @@ void MarkdownLabelCanvas::draw_paragraph_objects(const Ref<TextParagraph>& p_par
 			}
 
 			const Rect2 object_rect = p_paragraph->get_line_object_rect(line_index, object_name);
-			(*texture)->draw_rect(get_canvas_item(), Rect2(Vector2(x_base, p_text_rect.position.y) + object_rect.position, object_rect.size), false);
+			(*texture)->draw_rect(get_canvas_item(), Rect2(p_text_rect.position + object_rect.position, object_rect.size), false);
 		}
 	}
 }
@@ -2954,6 +3000,9 @@ bool MarkdownLabelCanvas::is_rect_visible(const Rect2& p_rect, const Rect2& p_vi
 }
 
 void MarkdownLabelCanvas::_notification(int p_what) {
+	if (p_what == NOTIFICATION_THEME_CHANGED) {
+		layout_prefix_reuse_requested = false;
+	}
 	if (p_what == NOTIFICATION_RESIZED || p_what == NOTIFICATION_THEME_CHANGED) {
 		mark_layout_dirty();
 	}
@@ -2977,6 +3026,10 @@ void MarkdownLabelCanvas::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_INTERNAL_PROCESS) {
 		const double delta = get_process_delta_time();
+		if (mermaid_cache.poll()) {
+			layout_prefix_reuse_requested = false;
+			mark_layout_dirty();
+		}
 		if (pending_stream_parse) {
 			pending_layout_elapsed_msec += delta * 1000.0;
 			if (pending_layout_elapsed_msec >= static_cast<double>(layout_flush_interval_msec)) {
@@ -2986,7 +3039,7 @@ void MarkdownLabelCanvas::_notification(int p_what) {
 
 		const bool has_pending_images = process_pending_local_images();
 		const bool has_animated_gifs = update_gif_animations(delta);
-		const bool should_keep_processing = pending_stream_parse || has_pending_images || has_animated_gifs;
+		const bool should_keep_processing = pending_stream_parse || mermaid_cache.has_pending() || has_pending_images || has_animated_gifs;
 		if (!dragging_selection || !selection_dragged || label == nullptr) {
 			internal_processing_enabled = should_keep_processing;
 			set_process_internal(internal_processing_enabled);
@@ -3586,6 +3639,8 @@ void MarkdownLabel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_parsing_latex"), &MarkdownLabel::is_parsing_latex);
 	ClassDB::bind_method(D_METHOD("set_parse_gfm", "enabled"), &MarkdownLabel::set_parse_gfm);
 	ClassDB::bind_method(D_METHOD("is_parsing_gfm"), &MarkdownLabel::is_parsing_gfm);
+	ClassDB::bind_method(D_METHOD("set_parse_mermaid", "enabled"), &MarkdownLabel::set_parse_mermaid);
+	ClassDB::bind_method(D_METHOD("is_parsing_mermaid"), &MarkdownLabel::is_parsing_mermaid);
 
 	ClassDB::bind_method(D_METHOD("append_text", "delta"), &MarkdownLabel::append_text);
 	ClassDB::bind_method(D_METHOD("finish_stream"), &MarkdownLabel::finish_stream);
@@ -3677,6 +3732,7 @@ void MarkdownLabel::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "text", PROPERTY_HINT_MULTILINE_TEXT), "set_markdown_text", "get_markdown_text");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "parse_latex"), "set_parse_latex", "is_parsing_latex");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "parse_gfm"), "set_parse_gfm", "is_parsing_gfm");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "parse_mermaid"), "set_parse_mermaid", "is_parsing_mermaid");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "content_margin", PROPERTY_HINT_RANGE, "0,128"), "set_content_margin", "get_content_margin");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "extra_font_size", PROPERTY_HINT_RANGE, "0,16"), "set_extra_font_size", "get_extra_font_size");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "open_external_links"), "set_open_external_links", "get_open_external_links");
@@ -3880,6 +3936,22 @@ void MarkdownLabel::set_parse_gfm(bool p_enabled) {
 
 bool MarkdownLabel::is_parsing_gfm() const {
 	return parse_gfm;
+}
+
+void MarkdownLabel::set_parse_mermaid(bool p_enabled) {
+	if (parse_mermaid == p_enabled) {
+		return;
+	}
+	parse_mermaid = p_enabled;
+	if (canvas != nullptr) {
+		canvas->layout_prefix_reuse_requested = false;
+		canvas->mark_layout_dirty();
+	}
+	notify_canvas_layout_changed();
+}
+
+bool MarkdownLabel::is_parsing_mermaid() const {
+	return parse_mermaid;
 }
 
 void MarkdownLabel::set_image_base_dir(const String& p_dir) {

@@ -506,6 +506,9 @@ uint64_t compute_block_hash(const MarkdownBlock& p_block) {
 	to_hash += String::num_int64(p_block.indent);
 	to_hash += "|";
 	to_hash += String::num_int64(p_block.list_start);
+	if (p_block.type == MARKDOWN_BLOCK_CODE) {
+		to_hash += p_block.end_line > 0 ? "|closed" : "|open";
+	}
 	for (int32_t i = 0; i < p_block.items.size(); i++) {
 		to_hash += "|i" + p_block.items[i];
 	}
@@ -1042,11 +1045,12 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 		}
 		};
 
-	auto flush_code = [&]() {
+	auto flush_code = [&](int32_t p_end_line = 0) {
 		if (!code_accumulator.is_empty() || state.in_fenced_code) {
 			MarkdownBlock block;
 			block.type = MARKDOWN_BLOCK_CODE;
 			block.line = code_line;
+			block.end_line = p_end_line;
 			block.text = strip_code_fence_indent(code_accumulator, state.fence_indent);
 			block.argument = state.fence_language;
 			block.indent = state.fence_indent;
@@ -1097,7 +1101,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 
 		// Fenced code - close
 		if (state.in_fenced_code && is_fenced_code_close(line, state.fence_marker, state.fence_count)) {
-			flush_code();
+			flush_code(index + 1);
 			state.in_fenced_code = false;
 			state.fence_marker = String();
 			state.fence_count = 0;

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="MermaidLabel" inherits="Control" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Displays a standalone Mermaid diagram using Merman.
+	</brief_description>
+	<description>
+		Enter Mermaid source directly in [member text]. The diagram renders in the background after the control enters the scene tree. When ready, the diagram is centered in the control and its logical size becomes the control's minimum size.
+		Use [member theme_mode] to select a default diagram palette. Set the [theme_item node_background_color], [theme_item node_border_color], [theme_item node_text_color], and [theme_item line_color] theme items to customize the diagram. Changing the theme rerenders the diagram.
+		[method get_texture] returns the rendered texture for use by other controls. The Merman backend is available in Windows x64 MSVC builds with the SDK installed.
+	</description>
+	<methods>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the current diagram's rendering error. Returns an empty string while rendering or when there is no error.
+			</description>
+		</method>
+		<method name="get_texture" qualifiers="const">
+			<return type="Texture2D" />
+			<description>
+				Returns the texture of the current diagram. Returns [code]null[/code] until a diagram renders successfully. The texture has twice the logical display resolution.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
+			The Mermaid diagram source, for example [code]flowchart LR; A[Start] --&gt; B[Done][/code].
+		</member>
+		<member name="theme_mode" type="int" setter="set_theme_mode" getter="get_theme_mode" enum="MermaidLabel.ThemeMode" default="0">
+			The default palette for the diagram.
+		</member>
+	</members>
+	<signals>
+		<signal name="render_finished">
+			<description>
+				Emitted when the current diagram finishes rendering. Inspect [method get_texture] and [method get_render_error] for the result.
+			</description>
+		</signal>
+	</signals>
+	<constants>
+		<constant name="THEME_AUTO" value="0" enum="ThemeMode">
+			Uses the light palette with a dark theme font color and the dark palette with a light theme font color.
+		</constant>
+		<constant name="THEME_LIGHT" value="1" enum="ThemeMode">
+			Uses the light palette.
+		</constant>
+		<constant name="THEME_DARK" value="2" enum="ThemeMode">
+			Uses the dark palette.
+		</constant>
+	</constants>
+	<theme_items>
+		<theme_item name="font_color" data_type="color" type="Color">
+			Controls palette selection in [constant THEME_AUTO]. Falls back to the [Label] theme's font color.
+		</theme_item>
+		<theme_item name="line_color" data_type="color" type="Color">
+			Color of connections and arrowheads for diagram types that support a shared line color.
+		</theme_item>
+		<theme_item name="node_background_color" data_type="color" type="Color">
+			Fill color of diagram nodes, such as flowchart boxes and sequence diagram participants.
+		</theme_item>
+		<theme_item name="node_border_color" data_type="color" type="Color">
+			Solid outline color of diagram nodes.
+		</theme_item>
+		<theme_item name="node_text_color" data_type="color" type="Color">
+			Color of node text and labels that use the diagram's shared text color.
+		</theme_item>
+	</theme_items>
+</class>

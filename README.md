@@ -2,10 +2,10 @@
   <img alt="MarkdownLabel icon" src="addons/markdown_label/icons/markdown_label.svg" width="96" />
 </p>
 
-<h1 align="center">Godot-MarkdownLabel</h1>
+<h1 align="center">Godot DocRender</h1>
 
 <p align="center">
-  <b>A Markdown rendering Control for Godot 4, built for UI text, documentation panels, and AI-style streaming output.</b>
+  <b>Markdown, LaTeX, and Mermaid rendering for Godot 4.</b>
 </p>
 
 <p align="center">
@@ -24,25 +24,17 @@
 </p>
 
 <p align="center">
-  MarkdownLabel is a Godot GDExtension node that renders a practical Markdown subset inside Godot UI.<br>
-  It focuses on interactive documents, selectable text, images, long text, and incremental streaming.
+  Render interactive documents with MarkdownLabel, standalone formulas with LatexLabel and LatexLabel3D, and diagrams with MermaidLabel.<br>
+  Use TeXRender and MermaidRender from scripts, or preview Markdown as you edit it in the Godot Script Editor.
 </p>
 
 ---
 
-## Why This Plugin?
+## What You Can Build
 
-Godot's built-in `RichTextLabel` is excellent for BBCode, but it does not directly target Markdown input or AI chat-style incremental text. MarkdownLabel fills that gap with a Godot-native `Control` node that parses Markdown and renders it through Godot text, theme, input, and scroll systems.
-
-Use it when you want:
-
-- Markdown text inside game UI, editor tools, documentation panels, or chat windows.
-- Streaming-friendly rendering with `append_text()` and `finish_stream()`.
-- Selectable and searchable rendered Markdown.
-- Clickable links, images, footnotes, tables, blockquotes, and code blocks.
-- Theme-driven styling instead of hard-coded UI colors.
-
-> MarkdownLabel is not a browser engine and does not aim to be a full CommonMark, GitHub Markdown, HTML, or LaTeX renderer.
+- Game UI, documentation panels, and chat windows with searchable and selectable Markdown.
+- Incremental output with `MarkdownLabel.append_text()` and `finish_stream()`.
+- In-game formulas and diagrams styled through Godot themes.
 
 ## Highlights
 
@@ -57,6 +49,54 @@ Use it when you want:
 - Footnotes
 - Inline bold, italic, bold-italic, code, strikethrough, and highlight
 - Links, images, and linked images
+
+### LaTeX Formulas
+
+Enable `parse_latex` on a `MarkdownLabel` to render inline formulas with `$...$` and display formulas with `$$...$$`. Use `LatexLabel` for standalone formulas in UI, `LatexLabel3D` for formulas in 3D scenes, and `TeXRender` for rendering from scripts. [TeXRender class reference](doc_classes/TeXRender.xml)
+
+### Mermaid Diagrams
+
+Enable `parse_mermaid` on a `MarkdownLabel` to render fenced `mermaid` blocks. The editor's Markdown preview enables it automatically. The diagram palette follows the theme's text color. Blocks show their source while rendering or when the backend cannot render them.
+
+```mermaid
+flowchart LR
+    A[开始] --> B[生成图表]
+    B --> C[完成]
+```
+
+Use a `MermaidLabel` node to display a standalone diagram. Enter raw Mermaid source in its `text` property and choose Auto, Light, or Dark in `theme_mode`. The node renders in the background and reports the result through `render_finished`, `get_texture()`, and `get_render_error()`.
+
+Use `MermaidRender` from scripts to export diagrams or inspect their semantic and layout data. Pass Merman options as a dictionary and use `MermaidRender.get_runtime_catalog()` to discover available operations. [Godot class reference](doc_classes/MermaidRender.xml) · [Merman options](https://github.com/Latias94/merman/blob/v0.9.3/docs/bindings/OPTIONS_JSON.md)
+
+```gdscript
+extends TextureRect
+
+
+func _ready() -> void:
+	var renderer: MermaidRender = MermaidRender.new()
+	var options: Dictionary = {
+		"site_config": {
+			"theme": "dark",
+			"themeVariables": {
+				"lineColor": "#70b9ff",
+			},
+		},
+		"raster": {
+			"scale": 2.0,
+		},
+	}
+	var status: Error = renderer.render("flowchart LR\nA[Start] --> B[Done]", &"png", options)
+	if status == OK:
+		texture = renderer.get_texture()
+	else:
+		push_error(renderer.get_render_error())
+```
+
+The Merman backend is available on Windows x64 MSVC builds. Install the pinned SDK before running SCons. [Merman](https://github.com/Latias94/merman)
+
+```powershell
+python scripts/fetch_merman_sdk.py
+```
 
 ### Images
 
@@ -94,11 +134,13 @@ addons/markdown_label/docs/markdown_label_theme_reference.md
 
 Apply the example theme to a `LatexLabel` node to style standalone formulas. [LatexLabel example theme](addons/markdown_label/example/latex_label_theme.tres) · [LatexLabel theme reference](addons/markdown_label/docs/latex_label_theme_reference.md)
 
+Use the example `MermaidLabel` theme to edit diagram node fills, borders, text, and connections. [MermaidLabel example theme](addons/markdown_label/example/mermaid_label_theme.tres) · [MermaidLabel theme reference](addons/markdown_label/docs/mermaid_label_theme_reference.md)
+
 ## Quick Start
 
 ### 1. Install The Addon
 
-Copy the addon folder into your Godot project:
+Copy the bundled addon folder into your Godot project. If you use the `godot-docrender` CI artifact, extract its contents into this folder.
 
 ```text
 addons/markdown_label
@@ -196,21 +238,22 @@ Initialize submodules before building:
 git submodule update --init --recursive
 ```
 
+Open `Godot-DocRender.sln` to browse the C++ project in Visual Studio. SCons builds the GDExtension.
+
 Build Windows debug:
 
 ```powershell
-scons platform=windows target=template_debug arch=x86_64
+scons godot-docrender platform=windows target=template_debug arch=x86_64
 ```
 
 Build Windows release:
 
 ```powershell
-scons platform=windows target=template_release arch=x86_64
+scons godot-docrender platform=windows target=template_release arch=x86_64
 ```
 
 ## Current Limitations
 
-- LaTeX and math rendering are not supported yet.
 - Full HTML rendering is not supported.
 - Markdown compatibility is practical but not fully CommonMark/GitHub Markdown compliant.
 - Network image cache is process-local only; there is no disk cache.
