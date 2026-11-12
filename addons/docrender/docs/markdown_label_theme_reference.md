@@ -1,40 +1,40 @@
-# MarkdownLabel 主题参考
+# MarkdownLabel Theme Reference
 
-`MarkdownLabel` 是一个 GDExtension 控件，通过 Godot 主题系统统一管理所有视觉样式。所有主题属性均使用 `MarkdownLabel` 作为主题类型名。
+`MarkdownLabel` is a GDExtension control that uses Godot's theme system for all visual styling. Its theme items belong to the `MarkdownLabel` theme type.
 
-## 设置主题类型变体
+## Set the Theme Type Variation
 
 ```gdscript
 var label: MarkdownLabel = MarkdownLabel.new()
 label.theme_type_variation = &"MarkdownLabel"
 ```
 
-之后即可通过编辑器主题面板或脚本设置以下主题属性。
+Then configure the theme items below in the editor's theme panel or in a script.
 
 ---
 
-## 支持的主题属性
+## Supported Theme Properties
 
-### 字体 Fonts
+### Fonts
 
-| 属性名 | 类型 | 说明 | 回退 |
+| Property | Type | Description | Fallback |
 |--------|------|------|------|
-| `text_font` | Font | 正文默认字体 | — |
-| `bold_font` | Font | 粗体字体 | — |
-| `bold_italic_font` | Font | 粗斜体字体（`***text***`） | `text_font` |
-| `italic_font` | Font | 斜体字体（`*text*`） | `text_font` |
-| `code_text_font` | Font | 行内代码字体 | `text_font` |
-| `code_block_font` | Font | 代码块字体 | `code_text_font` |
-| `list_marker_font` | Font | 列表标记字体 | `text_font` |
-| `table_header_font` | Font | 表格表头字体 | `text_font` |
-| `table_cell_font` | Font | 表格单元格字体 | `text_font` |
-| `h1_font` … `h6_font` | Font | 标题 1–6 级字体 | `text_font` |
-| `footnote_ref_font` | Font | 脚注引用标记字体（`[^id]`） | `text_font` |
-| `footnote_text_font` | Font | 脚注定义区域正文字体 | `text_font` |
+| `text_font` | Font | Default body font | — |
+| `bold_font` | Font | Bold font | — |
+| `bold_italic_font` | Font | Bold italic font (`***text***`) | `text_font` |
+| `italic_font` | Font | Italic font (`*text*`) | `text_font` |
+| `code_text_font` | Font | Inline code font | `text_font` |
+| `code_block_font` | Font | Code block font | `code_text_font` |
+| `list_marker_font` | Font | List marker font | `text_font` |
+| `table_header_font` | Font | Table header font | `text_font` |
+| `table_cell_font` | Font | Table cell font | `text_font` |
+| `h1_font` … `h6_font` | Font | Fonts for heading levels 1–6 | `text_font` |
+| `footnote_ref_font` | Font | Footnote reference marker font (`[^id]`) | `text_font` |
+| `footnote_text_font` | Font | Body font for the footnote definitions | `text_font` |
 
-### 字体大小 Font Sizes
+### Font Sizes
 
-| 属性名 | 类型 | 默认值 |
+| Property | Type | Default |
 |--------|------|--------|
 | `text_font_size` | int | 16 |
 | `code_text_font_size` | int | 16 |
@@ -43,14 +43,14 @@ label.theme_type_variation = &"MarkdownLabel"
 | `table_header_font_size` | int | 16 |
 | `table_cell_font_size` | int | 16 |
 | `h1_font_size` … `h6_font_size` | int | 28, 24, 21, 19, 17, 15 |
-| `footnote_ref_font_size` | int | `text_font_size` − 4（约 12） |
-| `footnote_text_font_size` | int | `text_font_size`（16） |
+| `footnote_ref_font_size` | int | `text_font_size` − 4 (about 12) |
+| `footnote_text_font_size` | int | `text_font_size` (16) |
 
-所有字号会额外加上 `MarkdownLabel.extra_font_size` 的值（默认为 0）。
+`MarkdownLabel.extra_font_size` is added to all font sizes. It defaults to 0.
 
-### 颜色 Colors
+### Colors
 
-| 属性名 | 类型 | 默认值 |
+| Property | Type | Default |
 |--------|------|--------|
 | `text_font_color` | Color | `Color.WHITE` |
 | `link_color` | Color | `Color(0.36, 0.62, 1.0)` |
@@ -67,153 +67,153 @@ label.theme_type_variation = &"MarkdownLabel"
 | `footnote_ref_font_color` | Color | `link_color` |
 | `footnote_text_font_color` | Color | `text_font_color` |
 
-### 样式盒 StyleBoxes
+### StyleBoxes
 
-| 属性名 | 类型 | 说明 |
+| Property | Type | Description |
 |--------|------|------|
-| `selection_stylebox` | StyleBox | 文本选区背景 |
-| `inline_code` | StyleBox | 行内代码背景 |
-| `code_block_panel` | StyleBox | 代码块整体背景和边框 |
-| `blockquote_panel` | StyleBox | 引用块面板，左侧有彩色边框 |
-| `blockquote_nested` | StyleBox | 嵌套引用面板，无额外背景色 |
-| `search_result` | StyleBox | 搜索高亮背景 |
-| `highlight` | StyleBox | 高亮文本的背景 |
-| `separator` | StyleBox | 水平分隔线样式 |
-| `table_panel` | StyleBox | 表格整体边框（无默认值） |
-| `table_header_panel` | StyleBox | 表头单元格背景和边框 |
-| `table_cell_panel` | StyleBox | 普通单元格背景和边框 |
-| `table_striped_panel` | StyleBox | 条纹行单元格背景和边框 |
-| `footnote_ref` | StyleBox | 脚注引用标记的上标背景（未设置时不绘制背景） |
+| `selection_stylebox` | StyleBox | Background of selected text |
+| `inline_code` | StyleBox | Inline code background |
+| `code_block_panel` | StyleBox | Code block background and border |
+| `blockquote_panel` | StyleBox | Blockquote panel with a colored left border |
+| `blockquote_nested` | StyleBox | Transparent panel for nested blockquotes |
+| `search_result` | StyleBox | Search match background |
+| `highlight` | StyleBox | Background of highlighted text |
+| `separator` | StyleBox | Horizontal separator style |
+| `table_panel` | StyleBox | Optional outer border of the table |
+| `table_header_panel` | StyleBox | Table header cell background and border |
+| `table_cell_panel` | StyleBox | Regular table cell background and border |
+| `table_striped_panel` | StyleBox | Striped row cell background and border |
+| `footnote_ref` | StyleBox | Optional superscript background for footnote reference markers |
 
-以上 StyleBox 如果未设置主题值，会使用代码内置的默认样式，确保开箱即用。`table_panel` 例外 — 未设置时不绘制表格外边框。
+Missing StyleBoxes use their built-in fallback styles where provided. Set `table_panel` to draw an outer border around the table.
 
-### 常量 Constants
+### Constants
 
-#### 基础布局
+#### Basic Layout
 
-| 属性名 | 类型 | 默认值 | 说明 |
+| Property | Type | Default | Description |
 |--------|------|--------|------|
-| `line_separation` | int | 2 | 行间距（像素） |
-| `paragraph_separation` | int | 10 | 段落间距（像素） |
+| `line_separation` | int | 2 | Line spacing in pixels |
+| `paragraph_separation` | int | 10 | Paragraph spacing in pixels |
 
-#### 列表
+#### Lists
 
-| 属性名 | 类型 | 默认值 | 说明 |
+| Property | Type | Default | Description |
 |--------|------|--------|------|
-| `list_indent` | int | 26 | 列表整体缩进 |
-| `list_marker_gap` | int | 6 | 标记与文本之间的间距 |
+| `list_indent` | int | 26 | List indentation |
+| `list_marker_gap` | int | 6 | Gap between the marker and the text |
 
-#### 引用块
+#### Blockquotes
 
-| 属性名 | 类型 | 默认值 | 说明 |
+| Property | Type | Default | Description |
 |--------|------|--------|------|
-| `blockquote_indent` | int | 25 | 引用块缩进 |
-| `blockquote_line_gap` | int | 14 | 引用块内各行之间的间距 |
+| `blockquote_indent` | int | 25 | Blockquote indentation |
+| `blockquote_line_gap` | int | 14 | Gap between lines within a blockquote |
 
-#### 表格
+#### Tables
 
-| 属性名 | 类型 | 默认值 | 说明 |
+| Property | Type | Default | Description |
 |--------|------|--------|------|
-| `table_striped` | int | 0 | 斑马条纹间隔（0 = 不启用。设为 2 表示每 2 行交替一次） |
+| `table_striped` | int | 0 | Row striping interval. `0` disables striping. `2` alternates styles every two rows. |
 
-#### 块间距
+#### Block Spacing
 
-每个块类型支持独立的段前 / 段后间距，命名规则为 `<块类型>_space_before` 和 `<块类型>_space_after`：
+Each block type has its own spacing before and after it. The properties are named `<block_type>_space_before` and `<block_type>_space_after`.
 
-| 属性名 | 类型 | 默认值 | 适用块类型 |
+| Property | Type | Default | Block Type |
 |--------|------|--------|------------|
-| `heading_space_before` | int | 0 | 标题（所有级别共用同一属性） |
-| `heading_space_after` | int | `paragraph_separation` | 标题 |
-| `code_block_space_before` | int | 0 | 代码块 |
-| `code_block_space_after` | int | `paragraph_separation` | 代码块 |
-| `table_space_before` | int | 0 | 表格 |
-| `table_space_after` | int | `paragraph_separation` | 表格 |
-| `blockquote_space_before` | int | 0 | 引用块 |
-| `blockquote_space_after` | int | `paragraph_separation` | 引用块 |
-| `list_space_before` | int | 0 | 列表（含有序、无序、任务列表） |
-| `list_space_after` | int | `paragraph_separation` | 列表 |
-| `text_space_before` | int | 0 | 普通段落 |
-| `text_space_after` | int | `paragraph_separation` | 普通段落 |
-| `footnotes_space_before` | int | 0 | 脚注定义区域 |
-| `footnotes_space_after` | int | `paragraph_separation` | 脚注定义区域 |
+| `heading_space_before` | int | 0 | Headings of all levels share this property |
+| `heading_space_after` | int | `paragraph_separation` | Headings |
+| `code_block_space_before` | int | 0 | Code blocks |
+| `code_block_space_after` | int | `paragraph_separation` | Code blocks |
+| `table_space_before` | int | 0 | Tables |
+| `table_space_after` | int | `paragraph_separation` | Tables |
+| `blockquote_space_before` | int | 0 | Blockquotes |
+| `blockquote_space_after` | int | `paragraph_separation` | Blockquotes |
+| `list_space_before` | int | 0 | Ordered, unordered, and task lists |
+| `list_space_after` | int | `paragraph_separation` | Lists |
+| `text_space_before` | int | 0 | Regular paragraphs |
+| `text_space_after` | int | `paragraph_separation` | Regular paragraphs |
+| `footnotes_space_before` | int | 0 | Footnote definitions |
+| `footnotes_space_after` | int | `paragraph_separation` | Footnote definitions |
 
-### 图标 Icons
+### Icons
 
-| 属性名 | 类型 | 说明 |
+| Property | Type | Description |
 |--------|------|------|
-| `task_checked` | Texture2D | 已完成任务复选框图标 |
-| `task_unchecked` | Texture2D | 未完成任务复选框图标 |
-| `file_broken` | Texture2D | 图片加载失败或不支持时显示的占位图标 |
+| `task_checked` | Texture2D | Checkbox icon for completed tasks |
+| `task_unchecked` | Texture2D | Checkbox icon for incomplete tasks |
+| `file_broken` | Texture2D | Placeholder for images that fail to load or use an unsupported format |
 
-未设置时使用插件内置的默认图标。
-
----
-
-## 行内格式字体选择规则
-
-对于解析后的行内 span，字体按以下优先级选择：
-
-1. 如果 span 是脚注引用（`[^id]`）→ 使用 `footnote_ref_font`，且字号使用 `footnote_ref_font_size`，并以上标偏移绘制
-2. 如果 span 是行内代码（`` `code` ``）→ 使用 `code_text_font`
-3. 如果 span 同时是粗体和斜体（`***text***`）→ 使用 `bold_italic_font`
-4. 如果 span 是粗体（`**text**`）→ 使用 `bold_font`
-5. 如果 span 是斜体（`*text*`）→ 使用 `italic_font`
-6. 否则 → 使用当前块类型的默认字体（如正文用 `text_font`，标题用 `h1_font` 等）
-
-> 脚注引用标记会以上标形式渲染（垂直偏移 = `footnote_ref_font_size × 0.35`），颜色使用 `footnote_ref_font_color`，并可选择通过 `footnote_ref` StyleBox 添加背景。脚注定义区域（文档末尾的 `[^id]: text` 列表）使用 `footnote_text_font`、`footnote_text_font_size` 和 `footnote_text_font_color`。
+Unset icons fall back to the addon's built-in icons.
 
 ---
 
-## 主题配置示例
+## Inline Font Selection
 
-以下示例展示了如何在脚本中为 `MarkdownLabel` 设置完整的自定义主题。此代码可放在任意 Control 节点的 `_ready()` 中执行。
+For each parsed inline span, the control selects a font in this order.
+
+1. Footnote references (`[^id]`) use `footnote_ref_font` and `footnote_ref_font_size`, with a superscript offset.
+2. Inline code (`` `code` ``) uses `code_text_font`.
+3. Bold italic text (`***text***`) uses `bold_italic_font`.
+4. Bold text (`**text**`) uses `bold_font`.
+5. Italic text (`*text*`) uses `italic_font`.
+6. Other spans use the current block's default font, such as `text_font` for body text or `h1_font` for a level-one heading.
+
+> Footnote reference markers use `footnote_ref_font_color` and are drawn as superscripts with a vertical offset of `footnote_ref_font_size × 0.35`. Set the `footnote_ref` StyleBox to add a background. The footnote definitions at the end of the document (the `[^id]: text` list) use `footnote_text_font`, `footnote_text_font_size`, and `footnote_text_font_color`.
+
+---
+
+## Example Theme Configuration
+
+This example configures a custom theme for a `MarkdownLabel`. You can use it in the `_ready()` method of a `Control` node.
 
 ```gdscript
 func _ready() -> void:
-    var label: MarkdownLabel = %MarkdownLabel
-    label.theme_type_variation = &"MarkdownLabel"
+	var label: MarkdownLabel = %MarkdownLabel
+	label.theme_type_variation = &"MarkdownLabel"
 
-    # 字体
-    var default_font: FontFile = load("res://fonts/NotoSansSC-Regular.ttf")
-    var bold_font: FontFile = load("res://fonts/NotoSansSC-Bold.ttf")
-    var italic_font: FontFile = load("res://fonts/NotoSansSC-Italic.ttf")
-    var bold_italic_font: FontFile = load("res://fonts/NotoSansSC-BoldItalic.ttf")
-    var mono_font: FontFile = load("res://fonts/JetBrainsMono-Regular.ttf")
+	# Fonts
+	var default_font: FontFile = load("res://fonts/NotoSansSC-Regular.ttf")
+	var bold_font: FontFile = load("res://fonts/NotoSansSC-Bold.ttf")
+	var italic_font: FontFile = load("res://fonts/NotoSansSC-Italic.ttf")
+	var bold_italic_font: FontFile = load("res://fonts/NotoSansSC-BoldItalic.ttf")
+	var mono_font: FontFile = load("res://fonts/JetBrainsMono-Regular.ttf")
 
-    label.add_theme_font_override("text_font", default_font)
-    label.add_theme_font_override("bold_font", bold_font)
-    label.add_theme_font_override("italic_font", italic_font)
-    label.add_theme_font_override("bold_italic_font", bold_italic_font)
-    label.add_theme_font_override("code_text_font", mono_font)
-    label.add_theme_font_override("code_block_font", mono_font)
+	label.add_theme_font_override("text_font", default_font)
+	label.add_theme_font_override("bold_font", bold_font)
+	label.add_theme_font_override("italic_font", italic_font)
+	label.add_theme_font_override("bold_italic_font", bold_italic_font)
+	label.add_theme_font_override("code_text_font", mono_font)
+	label.add_theme_font_override("code_block_font", mono_font)
 
-    # 字号
-    label.add_theme_font_size_override("text_font_size", 15)
-    label.add_theme_font_size_override("code_text_font_size", 14)
-    label.add_theme_font_size_override("code_block_font_size", 14)
-    label.add_theme_font_size_override("footnote_ref_font_size", 11)
-    label.add_theme_font_size_override("footnote_text_font_size", 13)
+	# Font sizes
+	label.add_theme_font_size_override("text_font_size", 15)
+	label.add_theme_font_size_override("code_text_font_size", 14)
+	label.add_theme_font_size_override("code_block_font_size", 14)
+	label.add_theme_font_size_override("footnote_ref_font_size", 11)
+	label.add_theme_font_size_override("footnote_text_font_size", 13)
 
-    # 颜色
-    label.add_theme_color_override("text_font_color", Color(0.9, 0.9, 0.9))
-    label.add_theme_color_override("link_color", Color(0.3, 0.6, 1.0))
-    label.add_theme_color_override("code_text_font_color", Color(0.9, 0.88, 0.5))
-    label.add_theme_color_override("code_block_font_color", Color(0.85, 0.86, 0.9))
-    label.add_theme_color_override("footnote_ref_font_color", Color(0.4, 0.65, 1.0))
-    label.add_theme_color_override("footnote_text_font_color", Color(0.75, 0.75, 0.75))
+	# Colors
+	label.add_theme_color_override("text_font_color", Color(0.9, 0.9, 0.9))
+	label.add_theme_color_override("link_color", Color(0.3, 0.6, 1.0))
+	label.add_theme_color_override("code_text_font_color", Color(0.9, 0.88, 0.5))
+	label.add_theme_color_override("code_block_font_color", Color(0.85, 0.86, 0.9))
+	label.add_theme_color_override("footnote_ref_font_color", Color(0.4, 0.65, 1.0))
+	label.add_theme_color_override("footnote_text_font_color", Color(0.75, 0.75, 0.75))
 
-    # 间距
-    label.add_theme_constant_override("line_separation", 2)
-    label.add_theme_constant_override("paragraph_separation", 12)
-    label.add_theme_constant_override("blockquote_border_width", 4)
-    label.add_theme_constant_override("list_indent", 24)
+	# Spacing
+	label.add_theme_constant_override("line_separation", 2)
+	label.add_theme_constant_override("paragraph_separation", 12)
+	label.add_theme_constant_override("blockquote_border_width", 4)
+	label.add_theme_constant_override("list_indent", 24)
 ```
 
 ---
 
-## 注意事项
+## Notes
 
-- 所有主题属性均绑定在 `"MarkdownLabel"` 类型上。如果未设置 `theme_type_variation`，主题查找会失败，控件将使用代码内置的默认值。
-- 未显式设置的字体和颜色会自动回退到合理的默认值（参见各表"回退"列），无需逐项配置即可正常显示。
-- 字体大小和颜色按块类型粒度控制，行内格式（粗体、斜体、粗斜体、代码）共用当前块的字体大小，仅切换字体。
-- 由于 GDExtension 的限制，主题属性必须通过 `add_theme_*_override()` 在运行时设置，或通过编辑器主题面板配置。无法像 GDScript 插件那样通过 `Theme` 资源直接注册。
+- Set `theme_type_variation` to `"MarkdownLabel"` for theme lookups. The control uses its built-in defaults when the variation is unset.
+- Unset fonts and colors fall back to the defaults shown in the tables.
+- Font sizes and colors are set by block type. Inline formatting such as bold, italic, bold italic, and code switches fonts while sharing the current block's font size.
+- Configure GDExtension theme items in the editor's theme panel or at runtime with `add_theme_*_override()`.

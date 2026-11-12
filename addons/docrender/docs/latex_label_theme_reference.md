@@ -1,27 +1,27 @@
-# LatexLabel 主题参考
+# LatexLabel Theme Reference
 
-示例主题使用深色背景、24 px 的浅色公式和蓝色焦点边框，可在 Godot 主题编辑器中修改。[`latex_label_theme.tres`](../example/latex_label_theme.tres)
+The example theme uses a dark background, light-colored formulas at 24 px, and a blue focus border. You can edit it in Godot's theme editor. [`latex_label_theme.tres`](../example/latex_label_theme.tres)
 
-## 应用主题
+## Apply the Theme
 
-1. 在场景中添加 `LatexLabel` 节点，在检查器的 `Text` 中填写 LaTeX，例如 `\frac{1}{\sqrt{x^2+1}}`。
-2. 将文件系统中的 `latex_label_theme.tres` 拖入节点检查器的 **Theme → Theme** 属性。多个公式共用一套样式时，也可以把主题赋给它们的父 `Control`。
-3. 打开主题资源，在主题编辑器中选择 `LatexLabel` 类型，就可以修改公式颜色、字号和样式盒。
+1. Add a `LatexLabel` node to your scene and enter a LaTeX expression such as `\frac{1}{\sqrt{x^2+1}}` in **Text** in the Inspector.
+2. Drag `latex_label_theme.tres` from the FileSystem dock to **Theme → Theme** in the Inspector. To share the theme across several formulas, assign it to their parent `Control`.
+3. Open the theme resource and select the `LatexLabel` type in the theme editor to adjust the formula color, font size, and StyleBoxes.
 
-## 主题属性
+## Theme Properties
 
-| 类型 | 属性 | 示例主题 | 作用 |
+| Type | Property | Example Theme | Purpose |
 | --- | --- | --- | --- |
-| Font Size | `font_size` | `24` | 公式渲染的基准字号，单位为像素。 |
-| Color | `font_color` | 浅色 | 公式的前景色。 |
-| StyleBox | `normal` | 深色圆角背景 | 绘制常态背景。其内容边距参与最小尺寸和公式对齐计算。 |
-| StyleBox | `focus` | 深色背景和蓝色边框 | 获得焦点时替换 `normal` 的背景绘制。公式布局沿用 `normal` 的内容边距。 |
+| Font Size | `font_size` | `24` | Base font size for formulas in pixels. |
+| Color | `font_color` | Light color | Foreground color of the formula. |
+| StyleBox | `normal` | Dark rounded background | Draws the default background. Its content margins affect the minimum size and formula alignment. |
+| StyleBox | `focus` | Dark background with a blue border | Draws the focused background in place of `normal`. Formula layout still uses the content margins of `normal`. |
 
-如需显示焦点样式，将节点的 `Focus Mode` 设为 `All` 后用 Tab 键聚焦。公式字形由内置的数学字体绘制。`LabelSettings` 中的 `font_size` 和 `font_color` 优先于主题及节点的主题覆盖项。主题缺少某个样式项时，控件会查询 `Label` 的同名主题项。
+To see the focus style, set **Focus Mode** to **All** and press Tab to focus the node. Formulas use the bundled math fonts. The `font_size` and `font_color` in `LabelSettings` take precedence over the theme and the node's theme overrides. The control falls back to the corresponding `Label` theme item for each missing item.
 
-## 覆盖单个节点的主题项
+## Override Theme Items on One Node
 
-将下面的脚本挂在 `LatexLabel` 上，可以加载示例主题，并单独设置这个节点的字号和颜色。
+Attach this script to a `LatexLabel` to load the example theme and set the font size and color for that node.
 
 ```gdscript
 extends LatexLabel
