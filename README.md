@@ -1,12 +1,20 @@
-# Godot DocRender
+<img src="assets/banner.png" />
 
-Render Markdown, LaTeX formulas, Mermaid diagrams, and PDF pages in Godot 4.5+.
+<p align="center">Render Markdown, LaTeX formulas, Mermaid diagrams, and PDF pages in Godot 4.5+.</p>
 
 ## Features
 
-- **Interactive Markdown.** Add a `MarkdownLabel` to a scene and set its `text` property. It supports selection, search, links, and streaming text. [MarkdownLabel](doc_classes/MarkdownLabel.xml)
-- **LaTeX formulas and Mermaid diagrams.** Display them in Markdown or in standalone nodes. Use `LatexLabel` in UI, `LatexLabel3D` in 3D scenes, and `MermaidLabel` for diagrams on Windows x64 with the Merman backend. [LatexLabel](doc_classes/LatexLabel.xml) · [MermaidLabel](doc_classes/MermaidLabel.xml)
-- **PDF textures and scripting.** On Windows x64, import a PDF page as a `PDFTexture` or read and edit PDFs from GDScript. Add `docrender_pdf_reader` to a Windows x64 export preset to include PDFium for runtime reading and writing. [PDFTexture](doc_classes/PDFTexture.xml) · [PDFReader](doc_classes/PDFReader.xml) · [PDFWriter](doc_classes/PDFWriter.xml)
+### <img src="addons/docrender/icons/markdown_label.svg" width=18/> Interactive Markdown
+
+Add a `MarkdownLabel` to a scene and set its `text` property. It supports selection, search, links, and streaming text. [MarkdownLabel](doc_classes/MarkdownLabel.xml)
+
+### <img src="addons/docrender/icons/latex_label.svg" width=18/> <img src="addons/docrender/icons/latex_label_3d.svg" width=18/> <img src="addons/docrender/icons/mermaid_label.svg" width=18/> LaTeX formulas and Mermaid diagrams
+
+Display them in Markdown or in standalone nodes. Use `LatexLabel` in UI, `LatexLabel3D` in 3D scenes, and `MermaidLabel` for diagrams on Windows x64 with the Merman backend. [LatexLabel](doc_classes/LatexLabel.xml) · [MermaidLabel](doc_classes/MermaidLabel.xml)
+
+### <img src="addons/docrender/icons/pdf_texture.svg" width=18/> PDF textures and scripting
+
+On Windows x64, import a PDF page as a `PDFTexture` or read and edit PDFs from GDScript. Add `docrender_pdf_reader` to a Windows x64 export preset to include PDFium for runtime reading and writing. [PDFTexture](doc_classes/PDFTexture.xml) · [PDFReader](doc_classes/PDFReader.xml) · [PDFWriter](doc_classes/PDFWriter.xml)
 
 ## Install
 
