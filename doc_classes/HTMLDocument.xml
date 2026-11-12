@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="HTMLDocument" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Parses and lays out a static HTML document for drawing on a [CanvasItem].
+	</brief_description>
+	<description>
+		Use [method parse] to load an HTML document or fragment and [method layout] to set its viewport size. Call [method draw] from the target [CanvasItem]'s [method CanvasItem._draw] callback. Call [method CanvasItem.queue_redraw] after changing the document, viewport size, or drawing position.
+		Supports block and inline layout, lists, tables, text, solid backgrounds and borders, local images, and rectangular overflow clipping. Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.
+	</description>
+	<methods>
+		<method name="clear">
+			<return type="void" />
+			<description>
+				Releases the document, layout, and drawing resources, and clears the last error.
+			</description>
+		</method>
+		<method name="draw">
+			<return type="void" />
+			<param index="0" name="canvas" type="CanvasItem" />
+			<param index="1" name="position" type="Vector2" default="Vector2(0, 0)" />
+			<param index="2" name="clip" type="Rect2" default="Rect2(0, 0, 0, 0)" />
+			<description>
+				Draws the current layout during [method CanvasItem._draw]. Both the top-left drawing position and the optional axis-aligned clip rectangle are in the canvas item's local coordinates. The default clip applies only the document's clipping rules. Before a successful layout, this method draws nothing.
+			</description>
+		</method>
+		<method name="get_content_size" qualifiers="const">
+			<return type="Vector2i" />
+			<description>
+				Returns the content size in pixels from the most recent successful layout of the current document. Returns [constant Vector2i.ZERO] before layout and for an empty document.
+			</description>
+		</method>
+		<method name="get_link_at" qualifiers="const">
+			<return type="String" />
+			<param index="0" name="position" type="Vector2" />
+			<description>
+				Returns the original [code]href[/code] of the link at a point in document coordinates, or an empty string. Subtract the drawing position from the canvas-local point and apply any caller-supplied clip before querying. The caller handles navigation.
+			</description>
+		</method>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the diagnostic message from the last failed parse or layout. A successful parse or layout clears the message.
+			</description>
+		</method>
+		<method name="layout">
+			<return type="int" enum="Error" />
+			<param index="0" name="viewport_size" type="Vector2i" />
+			<description>
+				Updates media queries and lays out the current document using the viewport width and height in pixels. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for nonpositive dimensions, [constant ERR_UNCONFIGURED] before a successful parse, or [constant ERR_INVALID_DATA] if the layout cannot be represented.
+			</description>
+		</method>
+		<method name="parse">
+			<return type="int" enum="Error" />
+			<param index="0" name="html" type="String" />
+			<param index="1" name="base_dir" type="String" default="&quot;res://&quot;" />
+			<param index="2" name="stylesheet" type="String" default="&quot;&quot;" />
+			<description>
+				Replaces the document and resets its layout. An empty string creates an empty document. Styles come from inline attributes, [code]&lt;style&gt;[/code] elements, and the optional stylesheet text. Images can be imported PNG, JPEG, or WebP textures addressed by a relative path within the base directory or by an absolute [code]res://[/code] path. A missing or unsupported image is skipped. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside [code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed.
+			</description>
+		</method>
+	</methods>
+</class>

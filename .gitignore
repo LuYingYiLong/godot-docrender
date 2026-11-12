@@ -365,6 +365,7 @@ FodyWeavers.xsd
 .sconsign.dblite
 /src/gen/microtex_fonts.gen.h
 /src/gen/math/
+/src/gen/html/
 /src/thirdparty/merman-sdk/
 /src/thirdparty/pdfium-sdk/
 AGENTS.md

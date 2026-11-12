@@ -9,6 +9,18 @@ env.Append(CPPPATH=["src/"])
 if env.get("is_msvc", False):
     env.AppendUnique(CCFLAGS=["/utf-8", "/wd4828"])
 
+
+def enable_cpp_exceptions(build_env):
+    if build_env.get("is_msvc", False):
+        build_env["CPPDEFINES"] = [define for define in build_env["CPPDEFINES"] if define != ("_HAS_EXCEPTIONS", 0)]
+        build_env.AppendUnique(CXXFLAGS=["/EHsc"])
+    else:
+        build_env["CXXFLAGS"] = [flag for flag in build_env["CXXFLAGS"] if flag != "-fno-exceptions"]
+        build_env.AppendUnique(CXXFLAGS=["-fexceptions"])
+        if env["platform"] == "web":
+            env.AppendUnique(LINKFLAGS=["-fexceptions"])
+
+
 mermaid_env = env.Clone()
 if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc", False):
     merman_sdk = Path(merman_sdk_option or "src/thirdparty/merman-sdk")
@@ -24,10 +36,12 @@ if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc
 
 tex_render = File("src/formats/latex/tex_render.cpp")
 mermaid_render = File("src/formats/mermaid/mermaid_render.cpp")
+html_sources = Glob("src/formats/html/*.cpp")
 pdfium_sources = (Glob("src/formats/pdf/reader/*.cpp") + Glob("src/formats/pdf/writer/*.cpp")
                   + Glob("src/formats/pdf/pdfium/*.cpp"))
 format_sources = Glob("src/formats/*.cpp") + Glob("src/formats/*/*.cpp")
-sources = Glob("src/*.cpp") + [source for source in format_sources if source not in (tex_render, mermaid_render)]
+special_format_sources = [tex_render, mermaid_render] + html_sources
+sources = Glob("src/*.cpp") + [source for source in format_sources if source not in special_format_sources]
 sources += Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp") + Glob("src/editor/importers/*.cpp")
 mermaid_object = mermaid_env.StaticObject if env["platform"] == "ios" else mermaid_env.SharedObject
 sources += mermaid_object(mermaid_render)
@@ -47,6 +61,36 @@ if env["platform"] == "windows" and env["arch"] == "x86_64":
         print("PDFium support requires the Windows x64 SDK. Run python scripts/fetch_pdfium_sdk.py to install it.")
 pdfium_object = pdfium_env.StaticObject if env["platform"] == "ios" else pdfium_env.SharedObject
 sources += pdfium_object(pdfium_sources)
+
+litehtml = "src/thirdparty/litehtml"
+gumbo = f"{litehtml}/src/gumbo"
+if not Path(litehtml, "include", "litehtml.h").is_file() or not Path(gumbo, "include", "gumbo.h").is_file():
+    print("Missing litehtml or its bundled Gumbo. Run git submodule update --init --recursive.")
+    Exit(1)
+
+html_env = env.Clone()
+html_env.Append(CPPPATH=[f"{litehtml}/include", f"{litehtml}/include/litehtml", f"{gumbo}/include"])
+# litehtml uses C++ exceptions during HTML encoding detection.
+enable_cpp_exceptions(html_env)
+if html_env.get("is_msvc", False):
+    html_env.AppendUnique(CXXFLAGS=["/permissive-"])
+html_object = html_env.StaticObject if env["platform"] == "ios" else html_env.SharedObject
+sources += html_object(html_sources)
+
+gumbo_env = env.Clone()
+gumbo_env.Append(CPPPATH=[f"{gumbo}/include", f"{gumbo}/include/gumbo"])
+if gumbo_env.get("is_msvc", False):
+    gumbo_env.Append(CPPPATH=[f"{gumbo}/visualc/include"])
+    gumbo_env.AppendUnique(CCFLAGS=["/wd4244", "/wd4267"])
+else:
+    gumbo_env.AppendUnique(CFLAGS=["-std=c99"])
+gumbo_object = gumbo_env.StaticObject if env["platform"] == "ios" else gumbo_env.SharedObject
+
+for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp")),
+                                     (gumbo_object, Glob(f"{gumbo}/*.c"))):
+    for source in library_sources:
+        source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
+        sources += build_object(f"src/gen/html/{source_path.as_posix()}{env['OBJSUFFIX']}", source)
 
 microtex = "src/thirdparty/microtex"
 tinyxml2 = "src/thirdparty/tinyxml2"
@@ -85,14 +129,7 @@ font_header = env.Command(
 math_env = env.Clone()
 math_env.Append(CPPPATH=[f"{microtex}/src", tinyxml2])
 # MicroTeX reports parser errors using C++ exceptions.
-if math_env.get("is_msvc", False):
-    math_env["CPPDEFINES"] = [define for define in math_env["CPPDEFINES"] if define != ("_HAS_EXCEPTIONS", 0)]
-    math_env.AppendUnique(CXXFLAGS=["/EHsc"])
-else:
-    math_env["CXXFLAGS"] = [flag for flag in math_env["CXXFLAGS"] if flag != "-fno-exceptions"]
-    math_env.AppendUnique(CXXFLAGS=["-fexceptions"])
-    if env["platform"] == "web":
-        env.AppendUnique(LINKFLAGS=["-fexceptions"])
+enable_cpp_exceptions(math_env)
 
 math_object = math_env.StaticObject if env["platform"] == "ios" else math_env.SharedObject
 render_object = math_object(tex_render)

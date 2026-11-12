@@ -22,6 +22,9 @@
     <Filter Include="Header Files\formats\latex">
       <UniqueIdentifier>{85908c06-a8d2-5e29-96b8-294f478ca0ca}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\formats\html">
+      <UniqueIdentifier>{458d247b-1727-407d-8723-386218d28393}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\formats\markdown">
       <UniqueIdentifier>{6376da64-0698-50fe-92ed-a1f1170fef65}</UniqueIdentifier>
     </Filter>
@@ -48,6 +51,9 @@
     </Filter>
     <Filter Include="Source Files\formats\latex">
       <UniqueIdentifier>{3073cf9d-b70f-5475-a972-e4b25d2d9632}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\html">
+      <UniqueIdentifier>{ce13e574-6124-4bc6-bca6-240a08c6d482}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\formats\markdown">
       <UniqueIdentifier>{a9d832f5-0f7a-5022-a2f1-c40282ed6581}</UniqueIdentifier>
@@ -83,6 +89,12 @@
   <ItemGroup>
     <ClCompile Include="src\formats\docrender_source.cpp">
       <Filter>Source Files\formats</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\html_document.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\litehtml_container.cpp">
+      <Filter>Source Files\formats\html</Filter>
     </ClCompile>
     <ClCompile Include="src\register_types.cpp">
       <Filter>Source Files</Filter>
@@ -199,6 +211,12 @@
     </ClInclude>
     <ClInclude Include="src\formats\mermaid\mermaid_render.h">
       <Filter>Header Files\formats\mermaid</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_document.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\litehtml_container.h">
+      <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\markdown\markdown_document.h">
       <Filter>Header Files\formats\markdown</Filter>

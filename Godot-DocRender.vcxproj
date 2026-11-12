@@ -76,7 +76,7 @@
     <NMakePreprocessorDefinitions>NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup>
-    <NMakeIncludeSearchPath>$(ProjectDir)src;$(ProjectDir)src\thirdparty\microtex\src;$(ProjectDir)src\thirdparty\tinyxml2;$(ProjectDir)godot-cpp\gdextension;$(ProjectDir)godot-cpp\include;$(ProjectDir)godot-cpp\gen\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakeIncludeSearchPath>$(ProjectDir)src;$(ProjectDir)src\thirdparty\microtex\src;$(ProjectDir)src\thirdparty\tinyxml2;$(ProjectDir)src\thirdparty\litehtml\include;$(ProjectDir)godot-cpp\gdextension;$(ProjectDir)godot-cpp\include;$(ProjectDir)godot-cpp\gen\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <NMakePreprocessorDefinitions>NOMINMAX;TYPED_METHOD_BIND;WINDOWS_ENABLED;GDEXTENSION;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <AdditionalOptions>$(AdditionalOptions) /std:c++17 /utf-8</AdditionalOptions>
   </PropertyGroup>
@@ -132,6 +132,8 @@
     <ClCompile Include="src\nodes\mermaid_label.cpp" />
     <ClCompile Include="src\formats\markdown\markdown_parser.cpp" />
     <ClCompile Include="src\formats\mermaid\mermaid_render.cpp" />
+    <ClCompile Include="src\formats\html\html_document.cpp" />
+    <ClCompile Include="src\formats\html\litehtml_container.cpp" />
     <ClCompile Include="src\editor\docrender_editor_translations.cpp" />
     <ClCompile Include="src\editor\docrender_source_editor.cpp" />
     <ClCompile Include="src\editor\importers\latex_document_importer.cpp" />
@@ -162,6 +164,8 @@
     <ClInclude Include="src\nodes\latex_label_3d.h" />
     <ClInclude Include="src\formats\markdown\markdown_parser.h" />
     <ClInclude Include="src\formats\mermaid\mermaid_render.h" />
+    <ClInclude Include="src\formats\html\html_document.h" />
+    <ClInclude Include="src\formats\html\litehtml_container.h" />
     <ClInclude Include="src\editor\docrender_editor_translations.h" />
     <ClInclude Include="src\editor\docrender_source_editor.h" />
     <ClInclude Include="src\editor\importers\latex_document_importer.h" />

@@ -2294,3 +2294,77 @@ msgstr "写入原始输入字节，再追加修改。需要已打开的 PDF、�
 #. doc_classes/PDFWriter.xml
 msgid "Writes a full PDF copy and preserves existing encryption."
 msgstr "写入完整 PDF 副本并保留已有加密。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Draws the current layout during [method CanvasItem._draw]. Both the top-left drawing position and"
+" the optional axis-aligned clip rectangle are in the canvas item's local coordinates. The default"
+" clip applies only the document's clipping rules. Before a successful layout, this method draws "
+"nothing."
+msgstr ""
+"在 [method CanvasItem._draw] "
+"中绘制当前布局。绘制起点为左上角，与可选的轴对齐裁剪矩形均使用画布项的局部坐标。默认裁剪仅应用文档的裁剪规则。首次成功布局前，此方法不绘制内容。"
+
+#. doc_classes/HTMLDocument.xml
+msgid "Parses and lays out a static HTML document for drawing on a [CanvasItem]."
+msgstr "解析并排版静态 HTML 文档，以便在 [CanvasItem] 上绘制。"
+
+#. doc_classes/HTMLDocument.xml
+msgid "Releases the document, layout, and drawing resources, and clears the last error."
+msgstr "释放文档、布局及绘制资源，并清除上次错误。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Replaces the document and resets its layout. An empty string creates an empty document. Styles "
+"come from inline attributes, [code]<style>[/code] elements, and the optional stylesheet text. "
+"Images can be imported PNG, JPEG, or WebP textures addressed by a relative path within the base "
+"directory or by an absolute [code]res://[/code] path. A missing or unsupported image is skipped. "
+"Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside "
+"[code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed."
+msgstr ""
+"替换文档并重置布局。空字符串会创建空文档。样式来自内联属性、[code]<style>[/code] 元素及可选的样式表文本。图片可使用已导入的 PNG、JPEG 或 WebP "
+"纹理，相对路径必须位于基目录内，也可使用绝对 [code]res://[/code] 路径。缺失或不受支持的图片会被跳过。成功时返回 [constant OK]，基目录不在 "
+"[code]res://[/code] 中时返回 [constant ERR_INVALID_PARAMETER]，无法解析文档时返回 [constant ERR_PARSE_ERROR]。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Returns the content size in pixels from the most recent successful layout of the current "
+"document. Returns [constant Vector2i.ZERO] before layout and for an empty document."
+msgstr "返回当前文档最近一次成功布局的内容尺寸，单位为像素。布局前或文档为空时返回 [constant Vector2i.ZERO]。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Returns the diagnostic message from the last failed parse or layout. A successful parse or layout"
+" clears the message."
+msgstr "返回最近一次解析或布局失败的诊断消息。成功解析或布局后清除该消息。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Returns the original [code]href[/code] of the link at a point in document coordinates, or an "
+"empty string. Subtract the drawing position from the canvas-local point and apply any caller-"
+"supplied clip before querying. The caller handles navigation."
+msgstr "返回文档坐标中指定点命中的链接的原始 [code]href[/code]，没有链接时返回空字符串。查询前，从画布局部坐标中减去绘制起点，并检查调用方指定的裁剪区域。导航由调用方处理。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Updates media queries and lays out the current document using the viewport width and height in "
+"pixels. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for nonpositive "
+"dimensions, [constant ERR_UNCONFIGURED] before a successful parse, or [constant ERR_INVALID_DATA] "
+"if the layout cannot be represented."
+msgstr ""
+"更新媒体查询并按视口的像素宽高布局当前文档。成功时返回 [constant OK]，尺寸非正数时返回 [constant ERR_INVALID_PARAMETER]，尚未成功解析时返回 "
+"[constant ERR_UNCONFIGURED]，布局结果无法表示时返回 [constant ERR_INVALID_DATA]。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Use [method parse] to load an HTML document or fragment and [method layout] to set its viewport "
+"size. Call [method draw] from the target [CanvasItem]'s [method CanvasItem._draw] callback. Call "
+"[method CanvasItem.queue_redraw] after changing the document, viewport size, or drawing position."
+"\n"
+"Supports block and inline layout, lists, tables, text, solid backgrounds and borders, local "
+"images, and rectangular overflow clipping. Text uses the project theme's default font or Godot's "
+"fallback font. Run the renderer on the main thread."
+msgstr ""
+"使用 [method parse] 加载 HTML 文档或片段，再用 [method layout] 设置视口尺寸。在目标 [CanvasItem] 的 [method "
+"CanvasItem._draw] 回调中调用 [method draw]。文档、视口尺寸或绘制位置发生变化后，调用 [method CanvasItem.queue_redraw]。\n"
+"支持块布局和行内布局、列表、表格、文字、纯色背景和边框、本地图片及矩形溢出裁剪。文字使用项目主题的默认字体或 Godot 的回退字体。请在主线程中使用渲染器。"

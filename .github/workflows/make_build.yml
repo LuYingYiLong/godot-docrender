@@ -159,6 +159,7 @@ jobs:
             ${{ github.workspace }}/addons/docrender/THIRD-PARTY-NOTICES.md
             ${{ github.workspace }}/addons/docrender/godot-cpp-LICENSE.md
             ${{ github.workspace }}/addons/docrender/MicroTeX-LICENSES.txt
+            ${{ github.workspace }}/addons/docrender/LiteHTML-LICENSES/**
             ${{ github.workspace }}/addons/docrender/icons/**
             ${{ github.workspace }}/addons/docrender/translations/**
             ${{ github.workspace }}/addons/docrender/docs/**

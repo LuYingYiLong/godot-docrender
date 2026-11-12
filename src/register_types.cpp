@@ -7,6 +7,7 @@
 #include "editor/markdown_preview_editor_plugin.h"
 #include "editor/mermaid_preview_editor_plugin.h"
 #include "editor/script_editor_preview_plugin.h"
+#include "formats/html/html_document.h"
 #include "formats/latex/latex_document.h"
 #include "formats/latex/latex_document_loader.h"
 #include "formats/mermaid/mermaid_document.h"
@@ -44,6 +45,7 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_CLASS(PDFTexture);
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
+		GDREGISTER_CLASS(HTMLDocument);
 		GDREGISTER_CLASS(TeXRender);
 		GDREGISTER_CLASS(LatexLabel);
 		GDREGISTER_CLASS(LatexLabel3D);

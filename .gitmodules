@@ -8,3 +8,6 @@
 [submodule "src/thirdparty/tinyxml2"]
 	path = src/thirdparty/tinyxml2
 	url = https://github.com/leethomason/tinyxml2.git
+[submodule "src/thirdparty/litehtml"]
+	path = src/thirdparty/litehtml
+	url = https://github.com/litehtml/litehtml.git
