@@ -72,6 +72,9 @@
     <ClCompile Include="src\nodes\mermaid_label.cpp">
       <Filter>Source Files\nodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\editor\docrender_editor_translations.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
     <ClCompile Include="src\editor\docrender_source_editor.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
@@ -124,6 +127,9 @@
     </ClInclude>
     <ClInclude Include="src\nodes\mermaid_label.h">
       <Filter>Header Files\nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\docrender_editor_translations.h">
+      <Filter>Header Files\editor</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\docrender_source_editor.h">
       <Filter>Header Files\editor</Filter>

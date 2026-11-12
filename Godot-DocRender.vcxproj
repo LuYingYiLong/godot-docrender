@@ -115,6 +115,7 @@
     <ClCompile Include="src\nodes\mermaid_label.cpp" />
     <ClCompile Include="src\core\markdown_parser.cpp" />
     <ClCompile Include="src\core\mermaid_render.cpp" />
+    <ClCompile Include="src\editor\docrender_editor_translations.cpp" />
     <ClCompile Include="src\editor\docrender_source_editor.cpp" />
     <ClCompile Include="src\editor\latex_document_importer.cpp" />
     <ClCompile Include="src\editor\mermaid_document_importer.cpp" />
@@ -134,6 +135,7 @@
     <ClInclude Include="src\nodes\latex_label_3d.h" />
     <ClInclude Include="src\core\markdown_parser.h" />
     <ClInclude Include="src\core\mermaid_render.h" />
+    <ClInclude Include="src\editor\docrender_editor_translations.h" />
     <ClInclude Include="src\editor\docrender_source_editor.h" />
     <ClInclude Include="src\editor\latex_document_importer.h" />
     <ClInclude Include="src\editor\mermaid_document_importer.h" />

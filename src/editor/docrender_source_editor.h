@@ -1,5 +1,6 @@
 #pragma once
 
+#include "docrender_editor_translations.h"
 #include "latex_document_importer.h"
 #include "mermaid_document_importer.h"
 
@@ -29,6 +30,7 @@ namespace godot {
 			Callable callback;
 		};
 
+		DocRenderEditorTranslations editor_translations;
 		Ref<LatexDocumentImporter> latex_importer;
 		Ref<MermaidDocumentImporter> mermaid_importer;
 		NativeConnection tree_activation;

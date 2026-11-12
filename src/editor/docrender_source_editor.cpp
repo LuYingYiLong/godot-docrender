@@ -113,6 +113,7 @@ namespace godot {
 	}
 
 	void DocRenderSourceEditorPlugin::_enter_tree() {
+		editor_translations.load();
 		if (startup_latex_importer.is_valid()) {
 			latex_importer = startup_latex_importer;
 			mermaid_importer = startup_mermaid_importer;
@@ -162,6 +163,7 @@ namespace godot {
 		remove_import_plugin(latex_importer);
 		mermaid_importer.unref();
 		latex_importer.unref();
+		editor_translations.unload();
 	}
 
 	void DocRenderSourceEditorPlugin::_set_window_layout(const Ref<ConfigFile>& p_configuration) {
