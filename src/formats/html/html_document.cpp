@@ -18,7 +18,6 @@ using namespace godot;
 using docrender::LiteHTMLContainer;
 
 namespace {
-
 	struct CanvasDrawing {
 		Callable redraw;
 		Callable exiting;
@@ -212,6 +211,10 @@ void HTMLDocument::draw(CanvasItem* p_canvas, const Vector2& p_position, const R
 }
 
 String HTMLDocument::get_link_at(const Vector2& p_position) const {
+	return find_link_at(p_position).uri;
+}
+
+HTMLDocument::LinkHit HTMLDocument::find_link_at(const Vector2& p_position) const {
 	if (!state->has_layout || !state->document) {
 		return {};
 	}
@@ -223,7 +226,7 @@ String HTMLDocument::get_link_at(const Vector2& p_position) const {
 	while (element) {
 		if (element->tag() == litehtml::_a_) {
 			const char* href = element->get_attr("href");
-			return href ? String::utf8(href) : String();
+			return href && *href ? LinkHit{ String::utf8(href), reinterpret_cast<uintptr_t>(element.get()) } : LinkHit{};
 		}
 		element = element->parent();
 	}

@@ -15,6 +15,7 @@
 #include "formats/pdf/pdf_texture.h"
 #include "formats/pdf/writer/pdf_writer.h"
 
+#include "nodes/html_label.h"
 #include "nodes/latex_label.h"
 #include "nodes/latex_label_3d.h"
 #include "nodes/markdown_label.h"
@@ -46,6 +47,8 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
 		GDREGISTER_CLASS(HTMLDocument);
+		GDREGISTER_INTERNAL_CLASS(HTMLLabelCanvas);
+		GDREGISTER_CLASS(HTMLLabel);
 		GDREGISTER_CLASS(TeXRender);
 		GDREGISTER_CLASS(LatexLabel);
 		GDREGISTER_CLASS(LatexLabel3D);

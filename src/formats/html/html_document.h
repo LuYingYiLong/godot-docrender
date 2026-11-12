@@ -15,7 +15,7 @@ namespace godot {
 class HTMLDocument : public godot::RefCounted {
 	GDCLASS(HTMLDocument, godot::RefCounted)
 
-		struct State;
+	struct State;
 	std::unique_ptr<State> state;
 
 	void _on_canvas_redraw(uint64_t p_id);
@@ -25,6 +25,11 @@ protected:
 	static void _bind_methods();
 
 public:
+	struct LinkHit {
+		godot::String uri;
+		uintptr_t id = 0;
+	};
+
 	HTMLDocument();
 	~HTMLDocument() override;
 
@@ -35,6 +40,7 @@ public:
 	void draw(godot::CanvasItem* p_canvas, const godot::Vector2& p_position = {},
 		const godot::Rect2& p_clip = {});
 	godot::String get_link_at(const godot::Vector2& p_position) const;
+	LinkHit find_link_at(const godot::Vector2& p_position) const;
 	godot::String get_render_error() const;
 	void clear();
 };

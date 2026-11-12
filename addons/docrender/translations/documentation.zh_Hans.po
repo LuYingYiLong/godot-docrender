@@ -2368,3 +2368,63 @@ msgstr ""
 "使用 [method parse] 加载 HTML 文档或片段，再用 [method layout] 设置视口尺寸。在目标 [CanvasItem] 的 [method "
 "CanvasItem._draw] 回调中调用 [method draw]。文档、视口尺寸或绘制位置发生变化后，调用 [method CanvasItem.queue_redraw]。\n"
 "支持块布局和行内布局、列表、表格、文字、纯色背景和边框、本地图片及矩形溢出裁剪。文字使用项目主题的默认字体或 Godot 的回退字体。请在主线程中使用渲染器。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Additional CSS passed to [method HTMLDocument.parse] alongside inline styles and "
+"[code]<style>[/code] elements."
+msgstr "与内联样式及 [code]<style>[/code] 元素一起传给 [method HTMLDocument.parse] 的附加 CSS。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Displays [member text] using [HTMLDocument]. Give the control a size with anchors, offsets, or a "
+"parent [Container]. The document wraps to the available width, and scrollbars appear as needed to"
+" reach overflowing content.\n"
+"Source changes are applied on a deferred update and reset the scroll position. Resizing "
+"recalculates the layout and clamps the current scroll offset. Connect [signal link_pressed] to "
+"handle navigation."
+msgstr ""
+"使用 [HTMLDocument] 显示 [member text]。通过锚点、偏移或父级 [Container] 为控件分配尺寸。文档按可用宽度换行，滚动条按需出现，以便查看溢出的内容。\n"
+"源内容变更会延迟应用并重置滚动位置。调整尺寸会重新布局，并将当前滚动偏移限制在可滚动范围内。连接 [signal link_pressed] 以处理导航。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Displays a scrollable HTML document."
+msgstr "显示可滚动的 HTML 文档。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Emitted when the left mouse button is pressed and released over the same visible link without "
+"dragging or scrolling. [param uri] is the link's original [code]href[/code]."
+msgstr "左键在同一可见链接上按下和松开，且期间没有拖动或滚动时发出。[param uri] 为链接原始的 [code]href[/code]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Project resource directory used to resolve relative image paths. See [method HTMLDocument.parse] "
+"for the supported paths and image formats."
+msgstr "用于解析相对图片路径的项目资源目录。支持的路径和图片格式见 [method HTMLDocument.parse]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Returns the horizontal and vertical scroll offset in pixels from the start of the document."
+msgstr "返回相对于文档起点的水平和垂直滚动偏移，单位为像素。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Returns the laid-out document size in pixels. Returns [constant Vector2i.ZERO] when there is no "
+"valid layout or the document is empty."
+msgstr "返回排版后的文档尺寸，单位为像素。布局无效或文档为空时返回 [constant Vector2i.ZERO]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Returns the latest parsing or layout error, or an empty string on success. Errors are also shown "
+"in the editor as node configuration warnings."
+msgstr "返回最近一次解析或布局错误，成功时返回空字符串。编辑器也会以节点配置警告显示错误。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Sets the horizontal and vertical scroll offset in pixels, clamped to the scrollable range. If a "
+"layout is pending, the offset is applied after that layout."
+msgstr "设置水平和垂直滚动偏移，单位为像素，取值限制在可滚动范围内。如果正在等待布局，则在该次布局后应用偏移。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "The HTML document or fragment to display."
+msgstr "要显示的 HTML 文档或片段。"

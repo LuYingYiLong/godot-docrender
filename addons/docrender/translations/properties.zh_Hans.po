@@ -35,6 +35,10 @@ msgstr "自动换行模式"
 msgid "Autowrap Trim Flags"
 msgstr "自动换行修剪标志"
 
+#. src/nodes/html_label.cpp
+msgid "Base Dir"
+msgstr "基目录"
+
 #. src/nodes/latex_label_3d.cpp
 msgid "Billboard"
 msgstr "公告板"
@@ -177,6 +181,11 @@ msgstr "启用快捷键"
 msgid "Streaming Enabled"
 msgstr "启用流式输出"
 
+#. src/nodes/html_label.cpp
+msgid "Stylesheet"
+msgstr "样式表"
+
+#. src/nodes/html_label.cpp
 #. src/nodes/latex_label.cpp
 #. src/nodes/latex_label_3d.cpp
 #. src/nodes/markdown_label.cpp

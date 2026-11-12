@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="HTMLLabel" inherits="Control" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Displays a scrollable HTML document.
+	</brief_description>
+	<description>
+		Displays [member text] using [HTMLDocument]. Give the control a size with anchors, offsets, or a parent [Container]. The document wraps to the available width, and scrollbars appear as needed to reach overflowing content.
+		Source changes are applied on a deferred update and reset the scroll position. Resizing recalculates the layout and clamps the current scroll offset. Connect [signal link_pressed] to handle navigation.
+	</description>
+	<methods>
+		<method name="get_content_size" qualifiers="const">
+			<return type="Vector2i" />
+			<description>
+				Returns the laid-out document size in pixels. Returns [constant Vector2i.ZERO] when there is no valid layout or the document is empty.
+			</description>
+		</method>
+		<method name="get_render_error" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the latest parsing or layout error, or an empty string on success. Errors are also shown in the editor as node configuration warnings.
+			</description>
+		</method>
+		<method name="get_scroll_offset" qualifiers="const">
+			<return type="Vector2i" />
+			<description>
+				Returns the horizontal and vertical scroll offset in pixels from the start of the document.
+			</description>
+		</method>
+		<method name="set_scroll_offset">
+			<return type="void" />
+			<param index="0" name="offset" type="Vector2i" />
+			<description>
+				Sets the horizontal and vertical scroll offset in pixels, clamped to the scrollable range. If a layout is pending, the offset is applied after that layout.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="base_dir" type="String" setter="set_base_dir" getter="get_base_dir" default="&quot;res://&quot;">
+			Project resource directory used to resolve relative image paths. See [method HTMLDocument.parse] for the supported paths and image formats.
+		</member>
+		<member name="stylesheet" type="String" setter="set_stylesheet" getter="get_stylesheet" default="&quot;&quot;">
+			Additional CSS passed to [method HTMLDocument.parse] alongside inline styles and [code]&lt;style&gt;[/code] elements.
+		</member>
+		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
+			The HTML document or fragment to display.
+		</member>
+	</members>
+	<signals>
+		<signal name="link_pressed">
+			<param index="0" name="uri" type="String" />
+			<description>
+				Emitted when the left mouse button is pressed and released over the same visible link without dragging or scrolling. [param uri] is the link's original [code]href[/code].
+			</description>
+		</signal>
+	</signals>
+</class>

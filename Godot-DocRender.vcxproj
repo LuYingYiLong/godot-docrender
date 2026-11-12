@@ -130,6 +130,7 @@
     <ClCompile Include="src\nodes\latex_label_3d.cpp" />
     <ClCompile Include="src\nodes\markdown_label.cpp" />
     <ClCompile Include="src\nodes\mermaid_label.cpp" />
+    <ClCompile Include="src\nodes\html_label.cpp" />
     <ClCompile Include="src\formats\markdown\markdown_parser.cpp" />
     <ClCompile Include="src\formats\mermaid\mermaid_render.cpp" />
     <ClCompile Include="src\formats\html\html_document.cpp" />
@@ -160,6 +161,7 @@
     <ClInclude Include="src\formats\pdf\pdf_texture.h" />
     <ClInclude Include="src\nodes\markdown_label.h" />
     <ClInclude Include="src\nodes\mermaid_label.h" />
+    <ClInclude Include="src\nodes\html_label.h" />
     <ClInclude Include="src\nodes\latex_label.h" />
     <ClInclude Include="src\nodes\latex_label_3d.h" />
     <ClInclude Include="src\formats\markdown\markdown_parser.h" />
