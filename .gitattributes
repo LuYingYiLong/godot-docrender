@@ -1,6 +1,10 @@
 # Normalize line endings for all files that Git considers text files.
 * text=auto eol=lf
 
+# Preserve the notice files as supplied in the upstream SDK archives.
+/addons/docrender/PDFium-LICENSES/** -text
+/addons/docrender/Merman-LICENSES/** -text
+
 # Only include the addons folder when downloading from the Asset Library.
 /**        export-ignore
 /addons    !export-ignore

@@ -1,0 +1,116 @@
+#include "pdf_writer_internal.h"
+
+#ifndef DOCRENDER_PDFIUM_ENABLED
+
+namespace godot {
+#define WRITER_UNAVAILABLE_ERROR(name, args) \
+	Error PDFWriter::name args { \
+		std::lock_guard guard(pdfium::mutex()); \
+		return state->unavailable(); \
+	}
+#define WRITER_UNAVAILABLE_VALUE(type, name, args, result) \
+	type PDFWriter::name args { \
+		std::lock_guard guard(pdfium::mutex()); \
+		state->unavailable(); \
+		return result; \
+	}
+	WRITER_UNAVAILABLE_ERROR(create_document, ())
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_page_count, (), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, insert_page, (const Vector2&, int64_t), -1)
+	WRITER_UNAVAILABLE_ERROR(delete_page, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(move_pages, (const PackedInt32Array&, int64_t))
+	WRITER_UNAVAILABLE_ERROR(import_pages, (const Ref<PDFReader>&, const PackedInt32Array&, int64_t))
+	WRITER_UNAVAILABLE_ERROR(import_page_range, (const Ref<PDFReader>&, const String&, int64_t))
+	WRITER_UNAVAILABLE_ERROR(create_n_up, (const Ref<PDFReader>&, const Vector2&, int64_t, int64_t))
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_page_stamp, (const Ref<PDFReader>&, int64_t), 0)
+	WRITER_UNAVAILABLE_ERROR(set_page_box, (int64_t, int64_t, const Rect2&))
+	WRITER_UNAVAILABLE_ERROR(set_page_rotation, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(transform_page, (int64_t, const Transform2D&, const Variant&))
+	WRITER_UNAVAILABLE_ERROR(clip_page, (int64_t, const Rect2&))
+	WRITER_UNAVAILABLE_ERROR(transform_page_annotations, (int64_t, const Transform2D&))
+	WRITER_UNAVAILABLE_ERROR(generate_page_content, (int64_t))
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_object_id, (int64_t, const PackedInt32Array&), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_object_child_count, (int64_t), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_object_child_id, (int64_t, int64_t), 0)
+	WRITER_UNAVAILABLE_ERROR(insert_object, (int64_t, int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(detach_object, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(remove_object, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_object_matrix, (int64_t, const Transform2D&))
+	WRITER_UNAVAILABLE_ERROR(transform_object, (int64_t, const Transform2D&))
+	WRITER_UNAVAILABLE_ERROR(transform_object_clip, (int64_t, const Transform2D&))
+	WRITER_UNAVAILABLE_ERROR(set_object_active, (int64_t, bool))
+	WRITER_UNAVAILABLE_ERROR(set_object_blend_mode, (int64_t, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_object_fill_color, (int64_t, const Color&))
+	WRITER_UNAVAILABLE_ERROR(set_object_stroke_color, (int64_t, const Color&))
+	WRITER_UNAVAILABLE_ERROR(set_object_stroke_width, (int64_t, float))
+	WRITER_UNAVAILABLE_ERROR(set_object_line_cap, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_object_line_join, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_object_dash, (int64_t, const PackedFloat32Array&, float))
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_path, (const Vector2&), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_rectangle, (const Rect2&), 0)
+	WRITER_UNAVAILABLE_ERROR(path_move_to, (int64_t, const Vector2&))
+	WRITER_UNAVAILABLE_ERROR(path_line_to, (int64_t, const Vector2&))
+	WRITER_UNAVAILABLE_ERROR(path_bezier_to, (int64_t, const Vector2&, const Vector2&, const Vector2&))
+	WRITER_UNAVAILABLE_ERROR(path_close, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_path_draw_mode, (int64_t, int64_t, bool))
+	WRITER_UNAVAILABLE_VALUE(int64_t, add_object_mark, (int64_t, const String&), -1)
+	WRITER_UNAVAILABLE_ERROR(share_object_mark, (int64_t, int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(remove_object_mark, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_object_mark_param, (int64_t, int64_t, const String&, const Variant&))
+	WRITER_UNAVAILABLE_ERROR(remove_object_mark_param, (int64_t, int64_t, const String&))
+	WRITER_UNAVAILABLE_VALUE(int64_t, load_standard_font, (const String&), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, load_font, (const PackedByteArray&, int64_t, bool), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, load_cid_type2_font, (const PackedByteArray&, const String&, const PackedByteArray&), 0)
+	WRITER_UNAVAILABLE_ERROR(close_font, (int64_t))
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_text, (int64_t, float, const String&), 0)
+	WRITER_UNAVAILABLE_ERROR(set_text, (int64_t, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_text_charcodes, (int64_t, const PackedInt64Array&))
+	WRITER_UNAVAILABLE_ERROR(set_text_positions, (int64_t, const PackedFloat32Array&))
+	WRITER_UNAVAILABLE_ERROR(set_text_font_size, (int64_t, float))
+	WRITER_UNAVAILABLE_ERROR(set_text_render_mode, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_image, (const Ref<Image>&), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_jpeg, (const PackedByteArray&), 0)
+	WRITER_UNAVAILABLE_ERROR(set_image, (int64_t, const Ref<Image>&))
+	WRITER_UNAVAILABLE_ERROR(set_jpeg, (int64_t, const PackedByteArray&))
+	WRITER_UNAVAILABLE_VALUE(PackedInt32Array, get_supported_annotation_subtypes, (), {})
+	WRITER_UNAVAILABLE_VALUE(int64_t, create_annotation, (int64_t, int64_t), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_annotation_id, (int64_t, int64_t), 0)
+	WRITER_UNAVAILABLE_ERROR(remove_annotation, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_rect, (int64_t, const Rect2&))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_color, (int64_t, const Color&, bool))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_border, (int64_t, const Vector2&, float))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_flags, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_string, (int64_t, const String&, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_quad, (int64_t, int64_t, const PackedVector2Array&))
+	WRITER_UNAVAILABLE_ERROR(append_annotation_quad, (int64_t, const PackedVector2Array&))
+	WRITER_UNAVAILABLE_VALUE(int64_t, add_annotation_ink_stroke, (int64_t, const PackedVector2Array&), -1)
+	WRITER_UNAVAILABLE_ERROR(clear_annotation_ink, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_uri, (int64_t, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_file_attachment, (int64_t, const String&, const PackedByteArray&))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_appearance, (int64_t, int64_t, const Variant&))
+	WRITER_UNAVAILABLE_ERROR(set_annotation_font_color, (int64_t, const Color&))
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_annotation_object_count, (int64_t), 0)
+	WRITER_UNAVAILABLE_VALUE(int64_t, get_annotation_object_id, (int64_t, int64_t), 0)
+	WRITER_UNAVAILABLE_ERROR(append_annotation_object, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(remove_annotation_object, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_form_text, (int64_t, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_form_option_selected, (int64_t, int64_t, bool))
+	WRITER_UNAVAILABLE_ERROR(set_form_checked, (int64_t, bool))
+	WRITER_UNAVAILABLE_ERROR(select_form_radio, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_form_field_flags, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_ERROR(flatten_page, (int64_t, int64_t))
+	WRITER_UNAVAILABLE_VALUE(int64_t, add_attachment, (const String&, const PackedByteArray&), -1)
+	WRITER_UNAVAILABLE_ERROR(delete_attachment, (int64_t))
+	WRITER_UNAVAILABLE_ERROR(set_attachment_data, (int64_t, const PackedByteArray&))
+	WRITER_UNAVAILABLE_ERROR(set_attachment_description, (int64_t, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_attachment_string, (int64_t, const String&, const String&))
+	WRITER_UNAVAILABLE_ERROR(set_document_language, (const String&))
+	WRITER_UNAVAILABLE_ERROR(copy_viewer_preferences, (const Ref<PDFReader>&))
+	WRITER_UNAVAILABLE_VALUE(PackedByteArray, save_to_buffer, (int64_t, int64_t), {})
+	WRITER_UNAVAILABLE_ERROR(save_to_file, (const String&, int64_t, int64_t))
+
+#undef WRITER_UNAVAILABLE_VALUE
+#undef WRITER_UNAVAILABLE_ERROR
+} // namespace godot
+
+#endif

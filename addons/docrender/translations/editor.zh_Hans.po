@@ -30,7 +30,7 @@ msgctxt "Godot DocRender"
 msgid "Open Preview to the Right"
 msgstr "右侧打开预览"
 
-#. src/editor/pdf_texture_importer.cpp:103
+#. src/editor/pdf_texture_importer.cpp:20
 msgctxt "Godot DocRender"
 msgid "PDF Texture"
 msgstr "PDF 纹理"

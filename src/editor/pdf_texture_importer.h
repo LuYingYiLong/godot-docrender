@@ -2,16 +2,11 @@
 
 #include <godot_cpp/classes/editor_import_plugin.hpp>
 
-#include <memory>
-
 namespace godot {
 	class PDFTextureImporter : public EditorImportPlugin {
 		GDCLASS(PDFTextureImporter, EditorImportPlugin)
 
 	public:
-		PDFTextureImporter();
-		~PDFTextureImporter() override;
-
 		static bool is_supported();
 		String _get_importer_name() const override;
 		String _get_visible_name() const override;
@@ -25,9 +20,5 @@ namespace godot {
 
 	protected:
 		static void _bind_methods() {}
-
-	private:
-		struct Backend;
-		mutable std::unique_ptr<Backend> backend;
 	};
 } // namespace godot

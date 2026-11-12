@@ -156,6 +156,8 @@ jobs:
           name: godot-docrender-addon-files
           path: |
             ${{ github.workspace }}/addons/docrender/docrender.gdextension
+            ${{ github.workspace }}/addons/docrender/THIRD-PARTY-NOTICES.md
+            ${{ github.workspace }}/addons/docrender/godot-cpp-LICENSE.md
             ${{ github.workspace }}/addons/docrender/MicroTeX-LICENSES.txt
             ${{ github.workspace }}/addons/docrender/icons/**
             ${{ github.workspace }}/addons/docrender/translations/**

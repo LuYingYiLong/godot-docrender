@@ -1190,3 +1190,1107 @@ msgstr "渲染导入页面时使用的分辨率，单位为每英寸点数。"
 #. doc_classes/PDFTexture.xml
 msgid "The imported page number, starting at 1."
 msgstr "导入的页码，从 1 开始。"
+
+#. doc_classes/PDFReader.xml
+msgid "Allows consecutive search matches to overlap."
+msgstr "允许连续搜索结果相互重叠。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]annotations[/code]. Reads the string or name at PDF dictionary [param key] on "
+"annotation [param annotation_index] of [param page_index]. Returns an empty string when the value"
+" is absent."
+msgstr ""
+"能力 [code]annotations[/code]。读取 [param page_index] 上索引为 [param annotation_index] 的注释字典中 [param "
+"key] 对应的字符串或名称。缺少该值时返回空字符串。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]annotations[/code]. Returns annotations on [param page_index] with available "
+"fields [code]index, subtype, flags, author, contents, subject, modified, rect, color, "
+"interior_color, quads, vertices, ink_paths, line, border[/code]. Border components are horizontal"
+" radius, vertical radius and width."
+msgstr ""
+"能力 [code]annotations[/code]。返回 [param page_index] 上的注释及可用字段 [code]index, subtype, flags, author, "
+"contents, subject, modified, rect, color, interior_color, quads, vertices, ink_paths, line, "
+"border[/code]。边框分量依次为水平半径、垂直半径和宽度。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]attachments[/code]. Returns attachment metadata with available fields "
+"[code]index, name, description, mime_type, relationship, size, CreationDate, ModDate, "
+"CheckSum[/code]. The size is in bytes."
+msgstr ""
+"能力 [code]attachments[/code]。返回附件元数据及可用字段 [code]index, name, description, mime_type, relationship,"
+" size, CreationDate, ModDate, CheckSum[/code]。大小以字节为单位。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]attachments[/code]. Returns the decoded contents of attachment [param index] as "
+"bytes."
+msgstr "能力 [code]attachments[/code]。返回附件 [param index] 解码后的内容字节。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]core[/code]. Converts [param position] from the full bitmap at [param dpi] and "
+"additional [param rotation] to a PDF point on [param page_index]."
+msgstr ""
+"能力 [code]core[/code]。将指定 [param dpi] 和额外 [param rotation] 下的整页位图像素坐标 [param position] 转换为 [param "
+"page_index] 上的 PDF 点坐标。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]core[/code]. Converts a PDF point [param position] on [param page_index] to an "
+"integer pixel position in the full bitmap at [param dpi] and additional [param rotation]."
+msgstr ""
+"能力 [code]core[/code]。将 [param page_index] 上的 PDF 点坐标 [param position] 转换为指定 [param dpi] 和额外 "
+"[param rotation] 下的整页位图整数像素坐标。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]core[/code]. Renders [param page_index] at [param dpi] to an RGBA8 image over "
+"[param background]. Use [param flags] from [enum RenderFlags]. Additional clockwise [param "
+"rotation] must be 0, 90, 180, or 270 degrees. Output is limited to 8192 pixels per side and 64 "
+"MiB. Form widgets require [code]forms[/code]."
+msgstr ""
+"能力 [code]core[/code]。以 [param dpi] 将 [param page_index] 渲染为 RGBA8 图像，底色为 [param "
+"background]。[param flags] 使用 [enum RenderFlags] 中的标志。额外顺时针旋转 [param rotation] 可以是 0、90、180 或 270 "
+"度。输出单边最长为 8192 像素，大小上限为 64 MiB。绘制表单控件需要 [code]forms[/code] 能力。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]core[/code]. Renders only [param region] of [param page_index]. Measure the "
+"region from the top-left of the full bitmap at [param dpi] and additional [param rotation]. The "
+"region must be inside the full page. The bitmap limits, [param flags] and [param background] work"
+" as in [method render_page]."
+msgstr ""
+"能力 [code]core[/code]。只渲染 [param page_index] 的 [param region]。区域以指定 [param dpi] 和额外 [param "
+"rotation] 下的整页位图左上角为原点，且必须位于整页范围内。位图限制、[param flags] 和 [param background] 与 [method render_page] "
+"相同。"
+
+#. doc_classes/PDFReader.xml
+msgid "Capability [code]core[/code]. Returns the number of pages in the open document."
+msgstr "能力 [code]core[/code]。返回当前文档的页数。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]document[/code]. Returns [code]page_index, size_pt, rotation, has_transparency, "
+"label, boxes[/code] for [param page_index]. Rotation is in clockwise degrees. The "
+"[code]boxes[/code] dictionary contains any available PDF point rectangles [code]media, crop, "
+"bleed, trim, art, bounds[/code]."
+msgstr ""
+"能力 [code]document[/code]。返回 [param page_index] 对应的 [code]page_index, size_pt, rotation, "
+"has_transparency, label, boxes[/code]。旋转角度以顺时针为正。[code]boxes[/code] 字典包含可用的 PDF 点坐标矩形 "
+"[code]media, crop, bleed, trim, art, bounds[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]document[/code]. Returns [code]version[/code] (e.g. 17 for PDF 1.7), "
+"[code]page_count[/code], [code]valid_cross_reference_table[/code], [code]permissions[/code], "
+"[code]user_permissions[/code], [code]security_handler_revision[/code], [code]form_type[/code], "
+"[code]tagged[/code], [code]language[/code], [code]permanent_id[/code], [code]changing_id[/code], "
+"[code]trailer_ends[/code] and [code]viewer_preferences[/code]. Viewer preferences contain "
+"[code]print_scaling[/code], [code]copies[/code], [code]duplex[/code] and "
+"[code]print_page_range[/code]. File identifiers are raw bytes."
+msgstr ""
+"能力 [code]document[/code]。返回 [code]version[/code]（例如 PDF 1.7 的值为 "
+"17）、[code]page_count[/code]、[code]valid_cross_reference_table[/code]、[code]permissions[/code]、[code]user_permissions[/code]、[code]security_handler_revision[/code]、[code]form_type[/code]、[code]tagged[/code]、[code]language[/code]、[code]permanent_id[/code]、[code]changing_id[/code]、[code]trailer_ends[/code]"
+" 和 [code]viewer_preferences[/code]。查看器偏好包括 "
+"[code]print_scaling[/code]、[code]copies[/code]、[code]duplex[/code] 和 "
+"[code]print_page_range[/code]。文件标识为原始字节。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]document[/code]. Returns the available PDF information dictionary strings "
+"[code]Title, Author, Subject, Keywords, Creator, Producer, CreationDate, ModDate[/code]."
+msgstr ""
+"能力 [code]document[/code]。返回 PDF 信息字典中可用的字符串 [code]Title, Author, Subject, Keywords, Creator, "
+"Producer, CreationDate, ModDate[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]forms[/code]. Returns AcroForm widgets on [param page_index] with "
+"[code]annotation_index, name, alternate_name, value, export_value, type, flags, checked, rect, "
+"options[/code]. Each option contains [code]index, label, selected[/code]."
+msgstr ""
+"能力 [code]forms[/code]。返回 [param page_index] 上的 AcroForm 控件，字段为 [code]annotation_index, name, "
+"alternate_name, value, export_value, type, flags, checked, rect, options[/code]。每个选项包含 "
+"[code]index, label, selected[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]javascript[/code]. Returns document JavaScript actions with [code]index, name, "
+"script[/code]. The script is returned as text."
+msgstr "能力 [code]javascript[/code]。返回文档 JavaScript 动作的 [code]index, name, script[/code]，其中脚本以文本形式返回。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]navigation[/code]. Returns a bookmark tree. Each entry contains [code]title, "
+"count, style, destination, action, children[/code] and optional [code]color[/code]. Destinations "
+"and actions use the fields described in [method get_page_links]."
+msgstr ""
+"能力 [code]navigation[/code]。返回书签树。每个条目包含 [code]title, count, style, destination, action, "
+"children[/code] 及可选的 [code]color[/code]。目标和动作字段参见 [method get_page_links]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]navigation[/code]. Returns destination dictionaries with [code]name[/code] and "
+"the fields described in [method get_page_links]."
+msgstr "能力 [code]navigation[/code]。返回目标字典数组，包含 [code]name[/code] 及 [method get_page_links] 所述字段。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]navigation[/code]. Returns explicit links on [param page_index] with [code]rect,"
+" quads, destination, action[/code]. A destination can contain [code]page_index, view, parameters,"
+" x, y, zoom[/code]. An action can contain [code]type, uri, file_path, destination[/code]. The "
+"type and view are PDFium numeric codes. A remote destination may lack a resolvable page index."
+msgstr ""
+"能力 [code]navigation[/code]。返回 [param page_index] 上的显式链接，字段为 [code]rect, quads, destination, "
+"action[/code]。目标可包含 [code]page_index, view, parameters, x, y, zoom[/code]。动作可包含 [code]type, uri, "
+"file_path, destination[/code]。类型和视图采用 PDFium 数值代码。远程目标可能没有可解析的页索引。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]page_objects[/code]. Returns a tree of objects on [param page_index]. Common "
+"fields are [code]path, type, marked_content_id, has_transparency, active, bounds, rotated_bounds,"
+" transform, fill_color, stroke_color, stroke_width, line_join, line_cap, dash_phase, "
+"dash_array[/code]. Text adds [code]text, font_size, text_render_mode, font[/code]. Font fields "
+"are [code]family, base_name, embedded, flags, weight[/code]. Paths add [code]segments, fill_mode,"
+" stroke[/code] and each segment has [code]type, point, close[/code]. Images add [code]pixel_size,"
+" dpi, bits_per_pixel, color_space, filters[/code]. Form objects add [code]children[/code]. Use "
+"[code]path[/code] for follow-up extraction."
+msgstr ""
+"能力 [code]page_objects[/code]。返回 [param page_index] 的对象树。通用字段为 [code]path, type, "
+"marked_content_id, has_transparency, active, bounds, rotated_bounds, transform, fill_color, "
+"stroke_color, stroke_width, line_join, line_cap, dash_phase, dash_array[/code]。文本还包括 [code]text, "
+"font_size, text_render_mode, font[/code]，字体字段为 [code]family, base_name, embedded, flags, "
+"weight[/code]。路径还包括 [code]segments, fill_mode, stroke[/code]，各线段包含 [code]type, point, "
+"close[/code]。图像还包括 [code]pixel_size, dpi, bits_per_pixel, color_space, filters[/code]。表单对象还包括 "
+"[code]children[/code]。可使用 [code]path[/code] 进一步提取对象数据。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]page_objects[/code]. Returns an RGBA8 image for the image object at [param "
+"object_path] on [param page_index]. Enable [param rendered] to include the image matrix and mask."
+" The bitmap limits from [method render_page] apply."
+msgstr ""
+"能力 [code]page_objects[/code]。返回 [param page_index] 上 [param object_path] 对应图像对象的 RGBA8 图像。启用 "
+"[param rendered] 时应用图像矩阵和遮罩。位图限制与 [method render_page] 相同。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]page_objects[/code]. Returns stream bytes for the image object at [param "
+"object_path] on [param page_index]. Enable [param decoded] to apply the PDF stream filters that "
+"PDFium supports for this API."
+msgstr ""
+"能力 [code]page_objects[/code]。返回 [param page_index] 上 [param object_path] 对应图像对象的流字节。启用 [param "
+"decoded] 时应用 PDFium 在此接口中支持的 PDF 流过滤器。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]page_objects[/code]. Returns the font program bytes PDFium uses for the text "
+"object at [param object_path] on [param page_index]."
+msgstr "能力 [code]page_objects[/code]。返回 PDFium 为 [param page_index] 上 [param object_path] 对应文本对象使用的字体程序字节。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]signatures[/code]. Returns [code]index, subfilter, time, reason, "
+"doc_mdp_permission, byte_range[/code] for each signature. The byte range contains alternating "
+"offsets and lengths."
+msgstr ""
+"能力 [code]signatures[/code]。返回各签名的 [code]index, subfilter, time, reason, doc_mdp_permission, "
+"byte_range[/code]。字节范围由偏移量和长度交替组成。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]signatures[/code]. Returns the raw PDF signature contents at [param index] for "
+"inspection."
+msgstr "能力 [code]signatures[/code]。返回签名 [param index] 的 PDF 原始内容，供调用方检查。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]structure[/code]. Returns the tagged structure tree for [param page_index]. "
+"Element fields are [code]type, title, alt_text, actual_text, language, id, expansion, "
+"marked_content_id, marked_content_ids, attributes, children[/code]. Marked-content children may "
+"contain just [code]marked_content_id[/code]. Attribute dictionaries map names to a "
+"[code]type[/code] code and an optional [code]value[/code]."
+msgstr ""
+"能力 [code]structure[/code]。返回 [param page_index] 的标签结构树。元素字段为 [code]type, title, alt_text, "
+"actual_text, language, id, expansion, marked_content_id, marked_content_ids, attributes, "
+"children[/code]。标记内容子项可能仅含 [code]marked_content_id[/code]。属性字典以名称为键，每项包含 [code]type[/code] 代码和可选的"
+" [code]value[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Counts PDFium character indices on [param page_index], including "
+"generated separators."
+msgstr "能力 [code]text[/code]。统计 [param page_index] 的 PDFium 字符索引数量，包含生成的分隔符。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Finds Unicode [param query] on [param page_index] using [param "
+"flags] from [enum FindFlags]. Each match contains [code]start[/code] and [code]count[/code] in "
+"PDFium characters and [code]rects[/code] in PDF points."
+msgstr ""
+"能力 [code]text[/code]。使用 [enum FindFlags] 中的 [param flags] 在 [param page_index] 搜索 Unicode [param "
+"query]。每项结果包含 PDFium 字符索引 [code]start[/code]、数量 [code]count[/code] 及 PDF 点坐标矩形 "
+"[code]rects[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Finds the character index near [param position] on [param "
+"page_index] within the horizontal and vertical [param tolerance] in points. Returns -1 on a miss "
+"or error."
+msgstr ""
+"能力 [code]text[/code]。按 [param tolerance] 给出的水平和垂直点坐标容差，查找 [param page_index] 上接近 [param position]"
+" 的字符索引。未命中或出错时返回 -1。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Returns PDF point rectangles for [param count] characters starting "
+"at [param start] on [param page_index]. A count of -1 selects to the end."
+msgstr ""
+"能力 [code]text[/code]。返回 [param page_index] 上从 [param start] 开始的 [param count] 个字符所对应的 PDF "
+"点坐标矩形。数量为 -1 时选择到末尾。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Returns Unicode text on [param page_index] from [param start] for "
+"[param count] PDFium characters. A count of -1 reads to the end. Unmapped characters can be "
+"omitted from the resulting string."
+msgstr ""
+"能力 [code]text[/code]。读取 [param page_index] 上从 [param start] 开始的 [param count] 个 PDFium 字符，返回 "
+"Unicode 文本。数量为 -1 时读取到末尾。返回字符串中可能省略无映射字符。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Returns Unicode text within the PDF point [param rect] on [param "
+"page_index]."
+msgstr "能力 [code]text[/code]。返回 [param page_index] 上 PDF 点坐标矩形 [param rect] 内的 Unicode 文本。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]text[/code]. Returns character data for [param char_index] on [param "
+"page_index]. Fields include [code]index, unicode, generated, hyphen, unicode_map_error, angle, "
+"font_size, font_weight, font_name, font_flags, bounds, loose_bounds, origin, transform, "
+"fill_color, stroke_color[/code]. The angle is in radians."
+msgstr ""
+"能力 [code]text[/code]。返回 [param page_index] 上 [param char_index] 对应的字符数据。字段包括 [code]index, "
+"unicode, generated, hyphen, unicode_map_error, angle, font_size, font_weight, font_name, "
+"font_flags, bounds, loose_bounds, origin, transform, fill_color, stroke_color[/code]。角度以弧度为单位。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]thumbnail[/code]. Returns the embedded thumbnail for [param page_index] as "
+"RGBA8, or [code]null[/code] if the page has none."
+msgstr "能力 [code]thumbnail[/code]。返回 [param page_index] 的 RGBA8 内嵌缩略图。页面没有缩略图时返回 [code]null[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]web_links[/code]. Returns URLs detected in the text on [param page_index]. "
+"Entries contain [code]uri, rects, start, count[/code]."
+msgstr ""
+"能力 [code]web_links[/code]。返回从 [param page_index] 文本中识别出的 URL。每项包含 [code]uri, rects, start, "
+"count[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Capability [code]xfa[/code]. Returns embedded XFA packets with [code]index, name, data[/code]. "
+"Packet data is returned as bytes."
+msgstr "能力 [code]xfa[/code]。返回内嵌 XFA 数据包的 [code]index, name, data[/code]，其中数据以字节形式返回。"
+
+#. doc_classes/PDFReader.xml
+msgid "Closes the current document and clears the last error. Safe to call repeatedly."
+msgstr "关闭当前文档并清除错误。可重复调用。"
+
+#. doc_classes/PDFReader.xml
+msgid "Disables native text output."
+msgstr "禁用原生文字输出。"
+
+#. doc_classes/PDFReader.xml
+msgid "Disables smoothing for images."
+msgstr "禁用图像平滑。"
+
+#. doc_classes/PDFReader.xml
+msgid "Disables smoothing for paths."
+msgstr "禁用路径平滑。"
+
+#. doc_classes/PDFReader.xml
+msgid "Disables smoothing for text."
+msgstr "禁用文字平滑。"
+
+#. doc_classes/PDFReader.xml
+msgid "Draws AcroForm widget appearances."
+msgstr "绘制 AcroForm 控件外观。"
+
+#. doc_classes/PDFReader.xml
+msgid "Draws ordinary page annotations."
+msgstr "绘制普通页面注释。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Each reader holds one document. Pages, characters, attachments, signatures and object paths use "
+"zero-based indices. Geometry uses native PDF point coordinates with Y increasing upward. Pixel "
+"coordinates use the top-left of the full rendered page. Results are Godot values and remain "
+"usable after [method close].\n"
+"Check [method get_capabilities] to discover available groups. A missing capability sets [constant"
+" ERR_UNAVAILABLE]. If the document has no matching content, the method returns an empty result "
+"with [constant OK]. Use [method get_last_error] to distinguish these cases. Fields for absent "
+"optional data may be omitted.\n"
+"PDF enum values in result dictionaries use the codes in the PDFium public headers. Embedded "
+"scripts, XFA data and signature contents are returned for inspection."
+msgstr ""
+"每个读取器持有一份文档。页面、字符、附件、签名和对象路径均从 0 开始索引。几何数据使用原生 PDF 点坐标，Y 轴向上。像素坐标以完整渲染页面的左上角为原点。返回的 Godot 值在 "
+"[method close] 之后仍可使用。\n"
+"通过 [method get_capabilities] 查看可用能力。缺少对应能力时设为 [constant ERR_UNAVAILABLE]。文档中没有匹配内容时返回空结果并设为 "
+"[constant OK]。用 [method get_last_error] 区分两种情况。缺少可选数据时可能省略对应字段。\n"
+"返回字典中的 PDF 枚举值采用 PDFium 公开头文件中的代码。内嵌脚本、XFA 数据和签名内容供调用方检查。"
+
+#. doc_classes/PDFReader.xml
+msgid "Enables LCD text rendering."
+msgstr "启用 LCD 文字渲染。"
+
+#. doc_classes/PDFReader.xml
+msgid "Forces halftone image scaling."
+msgstr "强制使用半色调图像缩放。"
+
+#. doc_classes/PDFReader.xml
+msgid "Limits the PDFium image cache."
+msgstr "限制 PDFium 图像缓存。"
+
+#. doc_classes/PDFReader.xml
+msgid "Matches letter case."
+msgstr "匹配大小写。"
+
+#. doc_classes/PDFReader.xml
+msgid "Matches whole words."
+msgstr "匹配完整单词。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Opens [param path] through [FileAccess]. Supply [param password] for an encrypted document. A "
+"failed attempt preserves the open document. Returns [constant OK] on success."
+msgstr "通过 [FileAccess] 打开 [param path]。加密文档需要提供 [param password]。打开失败时保留当前文档。成功时返回 [constant OK]。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Opens a PDF from [param bytes] with an optional [param password]. The reader retains the bytes "
+"until the document closes. A failed attempt preserves the open document. Returns [constant OK] on"
+" success."
+msgstr "从 [param bytes] 打开 PDF，可以传入 [param password]。读取器保留字节直到关闭文档。打开失败时保留当前文档。成功时返回 [constant OK]。"
+
+#. doc_classes/PDFReader.xml
+msgid "Reads and renders PDF documents through PDFium."
+msgstr "使用 PDFium 读取和渲染 PDF 文档。"
+
+#. doc_classes/PDFReader.xml
+msgid "Renders page content in grayscale."
+msgstr "以灰度渲染页面内容。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Returns available PDFium capability identifiers. The identifiers are [code]core, document, "
+"thumbnail, text, navigation, web_links, annotations, forms, attachments, signatures, structure, "
+"page_objects, javascript, xfa[/code]."
+msgstr ""
+"返回可用的 PDFium 能力标识。标识包括 [code]core, document, thumbnail, text, navigation, web_links, annotations,"
+" forms, attachments, signatures, structure, page_objects, javascript, xfa[/code]。"
+
+#. doc_classes/PDFReader.xml
+msgid "Returns the last operation's diagnostic message, or an empty string on success."
+msgstr "返回上一次操作的错误说明。成功时返回空字符串。"
+
+#. doc_classes/PDFReader.xml
+msgid ""
+"Returns the last operation's error on this instance. A successful query clears the error, "
+"including a query that finds no content."
+msgstr "返回此实例上一次操作的错误码。查询成功时清除错误，即使结果为空。"
+
+#. doc_classes/PDFReader.xml
+msgid "Returns whether the core PDFium library can be loaded."
+msgstr "返回 PDFium 核心库是否可以加载。"
+
+#. doc_classes/PDFReader.xml
+msgid "Returns whether this reader holds an open document."
+msgstr "返回此读取器是否已打开文档。"
+
+#. doc_classes/PDFReader.xml
+msgid "Uses PDFium's print rendering mode."
+msgstr "使用 PDFium 的打印渲染模式。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"A writer holds one document and keeps edits in memory until saved. Page and list indices are "
+"zero-based, except the ranges in [method import_page_range]. Geometry uses PDF points with the Y "
+"axis increasing upward. Object, annotation and font IDs belong to the current writer. Saving and "
+"changing the page order close all open edit pages and invalidate their IDs. Clipping, "
+"transforming page content, or flattening closes the affected page. Changing an appearance stream "
+"can invalidate its object IDs. Detached objects and fonts are released when the document closes. "
+"PDFium supports detaching or removing direct children of a top-level Form. Detach a child before "
+"editing its properties. Its transform is still relative to its previous Form, so adjust it before"
+" placing the object on a page.\n"
+"Capability identifiers are [code]document, save, pages, page_import, page_templates, "
+"page_geometry, objects, paths, content_marks, fonts, text, images, annotations, "
+"annotation_appearance, forms, flatten, attachments, catalog[/code]. A missing capability sets "
+"[constant ERR_UNAVAILABLE]. Query [method get_last_error] and [method get_last_error_message] "
+"after an operation fails. Mutations return [constant OK] on success unless otherwise documented. "
+"New object, font, and annotation IDs are positive and return 0 on failure.\n"
+"Full saves can invalidate existing signatures. Incremental saves retain the original bytes and "
+"append an edited revision. Signature validity and permissions for a modified revision depend on "
+"the original signature and must be checked separately. Form editing uses existing AcroForm "
+"widgets."
+msgstr ""
+"每个写入器持有一份文档，编辑在保存前保留在内存中。页面和列表索引从零开始，[method import_page_range] 使用从一开始的范围。几何使用 PDF 点坐标，Y "
+"轴向上。对象、注释和字体 ID 归当前写入器所有。保存和改变页面顺序会关闭所有打开的编辑页面，并使对应 ID 失效。裁剪、变换页面内容或压平会关闭受影响的页面。更改外观流可能使其对象 ID "
+"失效。文档关闭时释放分离对象和字体。PDFium 支持分离或移除顶层 Form 的直接子对象。编辑属性前需先分离子对象。分离后其变换仍相对于原 Form，放入页面前请调整。\n"
+"能力标识为 [code]document, save, pages, page_import, page_templates, page_geometry, objects, paths, "
+"content_marks, fonts, text, images, annotations, annotation_appearance, forms, flatten, "
+"attachments, catalog[/code]。能力缺失时设为 [constant ERR_UNAVAILABLE]。操作失败后可查询 [method get_last_error] 和"
+" [method get_last_error_message]。除非另有说明，修改操作成功时返回 [constant OK]。新对象、字体和注释的 ID 为正数，失败时返回 0。\n"
+"完整保存可能使现有签名失效。增量保存保留原始字节并追加编辑后的修订版。修改后的修订版是否符合签名及其权限取决于原签名，需要另行检查。表单编辑使用已有的 AcroForm 控件。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotation_appearance[/code]. Appends detached path, text, or image [param "
+"object_id] to the appearance of [param annotation_id]."
+msgstr ""
+"能力 [code]annotation_appearance[/code]。将分离的路径、文本或图像对象 [param object_id] 追加到 [param annotation_id] "
+"的外观。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotation_appearance[/code]. Removes and destroys appearance object [param "
+"index] from [param annotation_id]."
+msgstr "能力 [code]annotation_appearance[/code]。移除并销毁 [param annotation_id] 中索引为 [param index] 的外观对象。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotation_appearance[/code]. Returns appearance object [param index] of [param "
+"annotation_id]. PDFium supports Ink and Stamp appearance objects."
+msgstr ""
+"能力 [code]annotation_appearance[/code]。返回 [param annotation_id] 中索引为 [param index] 的外观对象 ID。PDFium"
+" 支持墨迹和图章外观对象。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotation_appearance[/code]. Returns the appearance object count of [param "
+"annotation_id]."
+msgstr "能力 [code]annotation_appearance[/code]。返回 [param annotation_id] 的外观对象数量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotation_appearance[/code]. Sets the PDF appearance stream of [param "
+"annotation_id] in [param mode] using a string. Pass [code]null[/code] in [param appearance] to "
+"clear it. Use [enum AppearanceMode] constants."
+msgstr ""
+"能力 [code]annotation_appearance[/code]。用字符串设置 [param annotation_id] 在 [param mode] 下的 PDF 外观流。可在 "
+"[param appearance] 传入 [code]null[/code] 清除外观。使用 [enum AppearanceMode] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotation_appearance[/code]. Sets the font [param color] of a FreeText [param "
+"annotation_id]."
+msgstr "能力 [code]annotation_appearance[/code]。设置 FreeText 注释 [param annotation_id] 的字体颜色 [param color]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Adds an embedded file with [param name] and [param bytes] to"
+" [param annotation_id]. An existing file attachment is replaced with the given bytes and retains "
+"its name."
+msgstr ""
+"能力 [code]annotations[/code]。将名为 [param name]、内容为 [param bytes] 的文件嵌入 [param "
+"annotation_id]。已有附件时替换其字节并保留文件名。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Adds an ink stroke from [param points] to [param "
+"annotation_id]. Returns its index or -1 on failure."
+msgstr "能力 [code]annotations[/code]。向 [param annotation_id] 添加由 [param points] 构成的墨迹笔画。返回索引，失败时返回 -1。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Appends a quad of four [param points] to [param "
+"annotation_id]."
+msgstr "能力 [code]annotations[/code]。向 [param annotation_id] 追加由四个 [param points] 构成的四边形。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Creates an annotation of [param subtype] on [param "
+"page_index]. Use a code from [method get_supported_annotation_subtypes]."
+msgstr ""
+"能力 [code]annotations[/code]。在 [param page_index] 创建类型为 [param subtype] 的注释。使用 [method "
+"get_supported_annotation_subtypes] 返回的代码。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Removes [param annotation_id] and invalidates its appearance"
+" object IDs."
+msgstr "能力 [code]annotations[/code]。移除 [param annotation_id]，并使其外观对象 ID 失效。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]annotations[/code]. Removes the ink list of [param annotation_id]."
+msgstr "能力 [code]annotations[/code]。移除 [param annotation_id] 的墨迹列表。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Replaces attachment quad [param index] on [param "
+"annotation_id] with four [param points] in PDFium order."
+msgstr ""
+"能力 [code]annotations[/code]。用 PDFium 顺序的四个 [param points] 替换 [param annotation_id] 中索引为 [param "
+"index] 的附着四边形。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Returns [enum AnnotationSubtype] codes that the active "
+"backend supports for creation."
+msgstr "能力 [code]annotations[/code]。返回当前后端支持创建的 [enum AnnotationSubtype] 代码。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Returns the ID of annotation [param annotation_index] on "
+"[param page_index]."
+msgstr "能力 [code]annotations[/code]。返回 [param page_index] 上索引为 [param annotation_index] 的注释 ID。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Sets [param color] on [param annotation_id]. Enable [param "
+"interior] for the interior color. For an existing appearance stream, edit its objects instead."
+msgstr ""
+"能力 [code]annotations[/code]。设置 [param annotation_id] 的颜色 [param color]。启用 [param interior] "
+"可设置内部颜色。已有外观流时可编辑其中的对象。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]annotations[/code]. Sets the PDF point [param rect] of [param annotation_id]."
+msgstr "能力 [code]annotations[/code]。设置 [param annotation_id] 的 PDF 点坐标矩形 [param rect]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Sets the [param radii] and [param width] of the border of "
+"[param annotation_id] in points. PDFium may remove an existing appearance stream that overrides "
+"the border."
+msgstr ""
+"能力 [code]annotations[/code]。以点为单位设置 [param annotation_id] 的边框半径 [param radii] 和宽度 [param "
+"width]。PDFium 可能移除覆盖边框设置的已有外观流。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Sets the annotation [param flags] of [param annotation_id]. "
+"Use [enum AnnotationFlags] constants."
+msgstr ""
+"能力 [code]annotations[/code]。设置 [param annotation_id] 的注释标志 [param flags]。使用 [enum "
+"AnnotationFlags] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Sets the link action of [param annotation_id] to the ASCII "
+"[param uri]."
+msgstr "能力 [code]annotations[/code]。将 [param annotation_id] 的链接动作设为 ASCII [param uri]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]annotations[/code]. Writes [param value] to a string entry [param key] on [param"
+" annotation_id]. Use the dedicated methods for typed PDF entries."
+msgstr ""
+"能力 [code]annotations[/code]。将 [param value] 写入 [param annotation_id] 的字符串项 [param key]。有专用类型的 PDF"
+" 项请使用对应方法。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]attachments[/code]. Adds a document attachment with [param name] and [param "
+"bytes]. Returns its index or -1 on failure. Attachment indices can shift when entries change."
+msgstr ""
+"能力 [code]attachments[/code]。添加名为 [param name]、内容为 [param bytes] 的文档附件。返回其索引，失败时返回 "
+"-1。条目变化时附件索引可能移动。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]attachments[/code]. Deletes document attachment [param index]."
+msgstr "能力 [code]attachments[/code]。删除文档附件 [param index]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]attachments[/code]. Replaces document attachment [param index] with [param "
+"bytes]."
+msgstr "能力 [code]attachments[/code]。用 [param bytes] 替换文档附件 [param index] 的内容。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]attachments[/code]. Sets a supported PDFium string property [param key] on "
+"document attachment [param index] to [param value]."
+msgstr "能力 [code]attachments[/code]。将文档附件 [param index] 上 PDFium 支持的字符串属性 [param key] 设为 [param value]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]attachments[/code]. Sets the [param description] of document attachment [param "
+"index]."
+msgstr "能力 [code]attachments[/code]。设置文档附件 [param index] 的描述 [param description]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]catalog[/code]. Copies the viewer preferences from the open [param reader]."
+msgstr "能力 [code]catalog[/code]。从已打开的 [param reader] 复制查看器偏好。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]catalog[/code]. Sets the document catalog [param language], for example [code"
+"]zh-Hans[/code]."
+msgstr "能力 [code]catalog[/code]。设置文档目录语言 [param language]，例如 [code]zh-Hans[/code]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]content_marks[/code]. Adds a content mark named [param name] to [param "
+"object_id]. Returns its index or -1 on failure."
+msgstr "能力 [code]content_marks[/code]。向 [param object_id] 添加名为 [param name] 的内容标记。返回标记索引，失败时返回 -1。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]content_marks[/code]. Adds the mark at [param mark_index] of [param "
+"source_object_id] to [param object_id]. Consecutive objects can share one content mark in the "
+"output."
+msgstr ""
+"能力 [code]content_marks[/code]。将 [param source_object_id] 中 [param mark_index] 对应的标记添加到 [param "
+"object_id]。输出中连续的对象可共用一个内容标记。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]content_marks[/code]. Removes [param key] from mark [param mark_index] of [param"
+" object_id]."
+msgstr "能力 [code]content_marks[/code]。移除 [param object_id] 的标记 [param mark_index] 中的 [param key]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]content_marks[/code]. Removes [param mark_index] from [param object_id]. Later "
+"mark indices can shift."
+msgstr "能力 [code]content_marks[/code]。移除 [param object_id] 中索引为 [param mark_index] 的标记。后续标记索引可能移动。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]content_marks[/code]. Writes [param key] on mark [param mark_index] of [param "
+"object_id]. [param value] accepts an integer, float, string, or byte array."
+msgstr ""
+"能力 [code]content_marks[/code]。写入 [param object_id] 的标记 [param mark_index] 中的 [param key]。[param "
+"value] 接受整数、浮点数、字符串或字节数组。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]document[/code]. Creates an empty PDF and makes it the current document on "
+"success."
+msgstr "能力 [code]document[/code]。创建空白 PDF，成功后将其设为当前文档。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]flatten[/code]. Flattens supported annotation and form appearances on [param "
+"page_index] into page content. Use a [enum FlattenMode] constant for [param mode]."
+msgstr ""
+"能力 [code]flatten[/code]。将 [param page_index] 上受支持的注释和表单外观压平到页面内容。为 [param mode] 使用 [enum "
+"FlattenMode] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]fonts[/code]. Loads a CID Type 2 font from [param data], a ToUnicode CMap [param"
+" to_unicode], and the [param cid_to_gid] mapping bytes."
+msgstr ""
+"能力 [code]fonts[/code]。从 [param data]、ToUnicode CMap [param to_unicode] 和映射字节 [param cid_to_gid] "
+"加载 CID Type 2 字体。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]fonts[/code]. Loads a standard PDF font by [param name], such as "
+"[code]Helvetica[/code]."
+msgstr "能力 [code]fonts[/code]。按 [param name] 加载标准 PDF 字体，例如 [code]Helvetica[/code]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]fonts[/code]. Loads font [param data] with [param type] from [enum FontType]. "
+"Use [param cid] to create a composite CID font."
+msgstr ""
+"能力 [code]fonts[/code]。按 [enum FontType] 中的 [param type] 加载字体 [param data]。使用 [param cid] 可创建复合 "
+"CID 字体。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]fonts[/code]. Releases [param font_id]. Existing text objects retain their fonts."
+msgstr "能力 [code]fonts[/code]。释放 [param font_id]。现有文本对象保留其字体。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]forms[/code]. Replaces the text of existing AcroForm field [param annotation_id]"
+" with [param text], then commits the change."
+msgstr "能力 [code]forms[/code]。将现有 AcroForm 字段 [param annotation_id] 的文本替换为 [param text]，并提交修改。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]forms[/code]. Selects the existing AcroForm radio widget [param annotation_id]."
+msgstr "能力 [code]forms[/code]。选中现有 AcroForm 单选控件 [param annotation_id]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]forms[/code]. Sets the field [param flags] of the AcroForm widget [param "
+"annotation_id]. These are PDF field flags, independent of annotation flags."
+msgstr "能力 [code]forms[/code]。设置 AcroForm 控件 [param annotation_id] 的字段标志 [param flags]。这些标志属于 PDF 表单字段。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]forms[/code]. Sets whether choice [param option_index] is [param selected] on "
+"the AcroForm field [param annotation_id]."
+msgstr ""
+"能力 [code]forms[/code]。通过 [param selected] 设置 AcroForm 字段 [param annotation_id] 中的选项 [param "
+"option_index] 是否选中。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]forms[/code]. Sets whether the existing AcroForm checkbox [param annotation_id] "
+"is [param checked]."
+msgstr "能力 [code]forms[/code]。通过 [param checked] 设置现有 AcroForm 复选框 [param annotation_id] 是否勾选。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]images[/code]. Creates a detached image object from JPEG [param bytes]."
+msgstr "能力 [code]images[/code]。从 JPEG [param bytes] 创建分离的图像对象。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]images[/code]. Creates a detached image object from [param image]. Set its page "
+"size and placement with [method set_object_matrix]."
+msgstr "能力 [code]images[/code]。从 [param image] 创建分离的图像对象。用 [method set_object_matrix] 设置其页面大小和位置。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]images[/code]. Replaces [param object_id] pixels with [param image], preserving "
+"its transform. The RGBA8 bitmap is limited to 8192 pixels per edge and 64 MiB."
+msgstr ""
+"能力 [code]images[/code]。用 [param image] 替换 [param object_id] 的像素并保留变换。RGBA8 位图单边最多 8192 像素，大小上限为 "
+"64 MiB。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]images[/code]. Replaces [param object_id] with inline JPEG [param bytes], "
+"preserving its transform."
+msgstr "能力 [code]images[/code]。用内联 JPEG [param bytes] 替换 [param object_id]，并保留变换。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Applies [param transform] to [param object_id]."
+msgstr "能力 [code]objects[/code]。对 [param object_id] 应用 [param transform]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Applies [param transform] to the clip path of [param object_id]."
+msgstr "能力 [code]objects[/code]。对 [param object_id] 的裁剪路径应用 [param transform]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Detaches [param object_id] from its page or parent Form. The "
+"object ID can be inserted again. Reacquire any descendant IDs. For a deeply nested object, detach"
+" the containing Form first."
+msgstr ""
+"能力 [code]objects[/code]。从页面或父 Form 对象分离 [param object_id]。可用该 ID 重新插入对象。后代对象的 ID "
+"需重新获取。对于多层嵌套的对象，先分离其所属的 Form。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Generates the PDF content stream for [param page_index]. Saving "
+"also generates dirty pages automatically."
+msgstr "能力 [code]objects[/code]。生成 [param page_index] 的 PDF 内容流。保存时也会自动生成已修改页面的内容流。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Inserts detached [param object_id] into [param page_index] at "
+"[param at]. Pass -1 to append."
+msgstr "能力 [code]objects[/code]。将分离对象 [param object_id] 插入 [param page_index] 的 [param at]。传入 -1 可追加。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Removes and destroys [param object_id], including a detached "
+"object. Use [method remove_annotation_object] for an annotation appearance object."
+msgstr ""
+"能力 [code]objects[/code]。移除并销毁 [param object_id]，包括已分离的对象。注释外观对象使用 [method "
+"remove_annotation_object]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Replaces the matrix of [param object_id] with [param transform]."
+msgstr "能力 [code]objects[/code]。将 [param object_id] 的矩阵替换为 [param transform]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Returns child [param index] of the Form object [param object_id]."
+msgstr "能力 [code]objects[/code]。返回 Form 对象 [param object_id] 中索引为 [param index] 的子对象 ID。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Returns the child count of the Form object [param object_id]."
+msgstr "能力 [code]objects[/code]。返回 Form 对象 [param object_id] 的子对象数量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Returns the object ID at [param object_path] on [param "
+"page_index]. Path components are zero-based indices into the page and nested Form objects."
+msgstr ""
+"能力 [code]objects[/code]。返回 [param page_index] 上 [param object_path] 对应的对象 ID。路径分量是页面和嵌套 Form 对象中从"
+" 0 开始的索引。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Sets [param object_id] blend mode to the PDF name [param mode], "
+"such as [code]Multiply[/code]."
+msgstr "能力 [code]objects[/code]。将 [param object_id] 的混合模式设置为 PDF 名称 [param mode]，例如 [code]Multiply[/code]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Sets dash [param lengths] and [param phase] in points on [param "
+"object_id]. An empty array makes a solid stroke."
+msgstr "能力 [code]objects[/code]。设置 [param object_id] 的虚线长度 [param lengths] 和相位 [param phase]，单位为点。空数组表示实线。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Sets the fill [param color] of [param object_id]."
+msgstr "能力 [code]objects[/code]。设置 [param object_id] 的填充颜色 [param color]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Sets the line [param cap] of [param object_id]. Use a [enum "
+"LineCap] constant."
+msgstr "能力 [code]objects[/code]。设置 [param object_id] 的线端 [param cap]。使用 [enum LineCap] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Sets the line [param join] of [param object_id]. Use a [enum "
+"LineJoin] constant."
+msgstr "能力 [code]objects[/code]。设置 [param object_id] 的线连接 [param join]。使用 [enum LineJoin] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Sets the stroke [param color] of [param object_id]."
+msgstr "能力 [code]objects[/code]。设置 [param object_id] 的描边颜色 [param color]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]objects[/code]. Sets the stroke [param width] of [param object_id] in points."
+msgstr "能力 [code]objects[/code]。设置 [param object_id] 的描边宽度 [param width]，单位为点。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]objects[/code]. Sets whether [param object_id] is included when [param active] "
+"is true."
+msgstr "能力 [code]objects[/code]。通过 [param active] 设置是否包含 [param object_id]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_geometry[/code]. Applies [param transform] to all annotations on [param "
+"page_index]."
+msgstr "能力 [code]page_geometry[/code]。对 [param page_index] 上的所有注释应用 [param transform]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]page_geometry[/code]. Clips [param page_index] to [param rect]."
+msgstr "能力 [code]page_geometry[/code]。将 [param page_index] 裁剪到 [param rect]。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_geometry[/code]. Sets [param box] of [param page_index] to [param rect]. "
+"Use a [enum PageBox] constant."
+msgstr ""
+"能力 [code]page_geometry[/code]。将 [param page_index] 的 [param box] 设置为 [param rect]。使用 [enum "
+"PageBox] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_geometry[/code]. Sets [param page_index] rotation to [param degrees] "
+"clockwise. Accepts 0, 90, 180, and 270."
+msgstr "能力 [code]page_geometry[/code]。将 [param page_index] 设为顺时针旋转 [param degrees] 度。可用值为 0、90、180 和 270。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_geometry[/code]. Transforms the contents of [param page_index] with [param "
+"transform]. Pass a [Rect2] in [param clip] to also clip the page."
+msgstr ""
+"能力 [code]page_geometry[/code]。用 [param transform] 变换 [param page_index] 的内容。可向 [param clip] 传入 "
+"[Rect2] 以裁剪页面。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_import[/code]. Copies pages from [param reader] at [param at]. [param "
+"range] uses the one-based PDFium syntax, for example [code]1,3,5-7[/code]. An empty string "
+"selects all pages. Pass -1 to append."
+msgstr ""
+"能力 [code]page_import[/code]。在 [param at] 从 [param reader] 复制页面。[param range] 使用从 1 开始的 PDFium "
+"范围语法，例如 [code]1,3,5-7[/code]。空字符串选择全部页面。传入 -1 可追加。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_import[/code]. Copies pages from [param reader] in the order of [param "
+"indices]. An empty array selects all pages. Pass -1 for [param at] to append."
+msgstr ""
+"能力 [code]page_import[/code]。从 [param reader] 按 [param indices] 顺序复制页面。空数组选择全部页面。[param at] 传入 -1 "
+"可追加。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_templates[/code]. Creates a detached vector Form object from [param "
+"page_index] in [param reader]. Call again to place multiple copies."
+msgstr "能力 [code]page_templates[/code]。从 [param reader] 的 [param page_index] 创建分离的矢量 Form 对象。再次调用可放置多个副本。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]page_templates[/code]. Creates a new document by arranging pages from [param "
+"reader] in a grid of [param columns] by [param rows] on pages of [param size_pt] points. Replaces"
+" the current document on success."
+msgstr ""
+"能力 [code]page_templates[/code]。将 [param reader] 的页面按 [param columns] 列、[param rows] 行排列在大小为 "
+"[param size_pt] 点的页面上。成功后替换当前文档。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]pages[/code]. Deletes the page at [param page_index]."
+msgstr "能力 [code]pages[/code]。删除 [param page_index] 对应的页面。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]pages[/code]. Inserts a page of [param size_pt] points at [param at] and returns"
+" its index. Pass -1 to append. Returns -1 on failure."
+msgstr "能力 [code]pages[/code]。在 [param at] 插入大小为 [param size_pt] 点的页面，返回其索引。传入 -1 可追加。失败时返回 -1。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]pages[/code]. Moves [param indices] in the given order to position [param at] in"
+" the remaining pages. Duplicate indices are invalid."
+msgstr "能力 [code]pages[/code]。按给定顺序将 [param indices] 移动到剩余页面中的 [param at]。索引不得重复。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]paths[/code]. Adds a cubic Bézier segment to [param object_id] with controls "
+"[param control_a] and [param control_b], ending at [param end]."
+msgstr ""
+"能力 [code]paths[/code]。向 [param object_id] 添加三次 Bézier 线段，控制点为 [param control_a] 和 [param "
+"control_b]，终点为 [param end]。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]paths[/code]. Adds a line to [param point] in [param object_id]."
+msgstr "能力 [code]paths[/code]。在 [param object_id] 中添加到 [param point] 的直线。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]paths[/code]. Closes the current subpath in [param object_id]."
+msgstr "能力 [code]paths[/code]。闭合 [param object_id] 的当前子路径。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]paths[/code]. Creates a detached path beginning at [param start]."
+msgstr "能力 [code]paths[/code]。创建从 [param start] 开始的分离路径。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]paths[/code]. Creates a detached rectangular path with bounds [param rect]."
+msgstr "能力 [code]paths[/code]。创建范围为 [param rect] 的分离矩形路径。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]paths[/code]. Sets [param object_id] to [param fill_mode] and enables its stroke"
+" with [param stroke]. Use a [enum FillMode] constant."
+msgstr ""
+"能力 [code]paths[/code]。为 [param object_id] 设置 [param fill_mode]，并用 [param stroke] 启用描边。使用 [enum "
+"FillMode] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]paths[/code]. Starts a new subpath in [param object_id] at [param point]."
+msgstr "能力 [code]paths[/code]。在 [param object_id] 的 [param point] 开始新的子路径。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]save[/code]. Saves the current document to a byte array. Use [enum SaveFlags] "
+"for [param flags]. [param version] is zero for the SDK default or 10 through 17 for PDF 1.0 "
+"through 1.7. Returns an empty array on failure."
+msgstr ""
+"能力 [code]save[/code]。将当前文档保存为字节数组。[param flags] 使用 [enum SaveFlags]。[param version] 为零时使用 SDK "
+"默认值，10 至 17 对应 PDF 1.0 至 1.7。失败时返回空数组。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]save[/code]. Saves to [param path], replacing the destination after a successful"
+" write. Use [param flags] and [param version] as in [method save_to_buffer]. The writer remains "
+"open for further edits."
+msgstr ""
+"能力 [code]save[/code]。保存到 [param path]，写入成功后替换目标文件。[param flags] 和 [param version] 与 [method "
+"save_to_buffer] 相同。写入器保持打开，可以继续编辑。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]text[/code]. Creates a detached text object using [param font_id], [param "
+"font_size] in points, and [param text]. The caller can set the text position with [method "
+"set_object_matrix]."
+msgstr ""
+"能力 [code]text[/code]。用 [param font_id]、以点为单位的 [param font_size] 和 [param text] 创建分离的文本对象。可通过 "
+"[method set_object_matrix] 设置文本位置。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]text[/code]. Replaces [param object_id] text using font-specific unsigned 32-bit"
+" [param charcodes]."
+msgstr "能力 [code]text[/code]。用字体对应的无符号 32 位 [param charcodes] 替换 [param object_id] 的文本。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]text[/code]. Replaces the text in [param object_id] with [param text]. PDFium "
+"requires a non-empty string."
+msgstr "能力 [code]text[/code]。将 [param object_id] 的文本替换为 [param text]。PDFium 要求非空字符串。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Capability [code]text[/code]. Sets [param object_id] font [param size] in points."
+msgstr "能力 [code]text[/code]。设置 [param object_id] 的字体大小 [param size]，单位为点。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]text[/code]. Sets relative [param positions] in points for the characters of "
+"[param object_id], excluding the first character at position zero."
+msgstr "能力 [code]text[/code]。以点为单位设置 [param object_id] 中文字的相对 [param positions]，首字符固定在零位置。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Capability [code]text[/code]. Sets the text render [param mode] of [param object_id]. Use a [enum"
+" TextRenderMode] constant."
+msgstr "能力 [code]text[/code]。设置 [param object_id] 的文本渲染模式 [param mode]。使用 [enum TextRenderMode] 常量。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Closes the document and discards unsaved edits. May be called repeatedly."
+msgstr "关闭文档并丢弃未保存的编辑。可重复调用。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Creates and edits PDF documents through PDFium."
+msgstr "使用 PDFium 创建和编辑 PDF 文档。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Opens [param bytes] with the optional [param password]. The writer retains the input until the "
+"document closes."
+msgstr "使用可选的 [param password] 打开 [param bytes]。写入器保留输入字节直到文档关闭。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Opens [param path] with the optional [param password]. A failed open preserves the current "
+"document."
+msgstr "使用可选的 [param password] 打开 [param path]。失败时保留当前文档。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Removes existing encryption during a full save."
+msgstr "完整保存时移除已有加密。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Requests PDFium font subsetting for newly added text."
+msgstr "请求 PDFium 为新添加的文字生成字体子集。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Returns the available writer capability groups. See the class description for their identifiers."
+msgstr "返回可用的写入能力组。标识见类说明。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Returns the last operation's diagnostic message."
+msgstr "返回上一次操作的错误说明。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Returns the last operation's error on this instance."
+msgstr "返回此实例上一次操作的错误码。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Returns the page count of the current document."
+msgstr "返回当前文档的页数。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Returns whether a document is open."
+msgstr "返回是否已打开文档。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Returns whether the PDFium backend can create, open, and save a document."
+msgstr "返回 PDFium 后端是否可以创建、打开和保存文档。"
+
+#. doc_classes/PDFWriter.xml
+msgid ""
+"Writes a copy with the original input bytes followed by the changes. Requires an opened PDF, the "
+"default version and unchanged encryption."
+msgstr "写入原始输入字节，再追加修改。需要已打开的 PDF、默认版本及原有加密。"
+
+#. doc_classes/PDFWriter.xml
+msgid "Writes a full PDF copy and preserves existing encryption."
+msgstr "写入完整 PDF 副本并保留已有加密。"

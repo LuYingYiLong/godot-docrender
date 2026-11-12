@@ -7,7 +7,9 @@
 #include "latex_document.h"
 #include "latex_document_loader.h"
 #include "mermaid_document.h"
+#include "pdf_reader.h"
 #include "pdf_texture.h"
+#include "pdf_writer.h"
 
 #include "nodes/latex_label.h"
 #include "nodes/latex_label_3d.h"
@@ -35,6 +37,8 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_INTERNAL_CLASS(MarkdownLabelCanvas);
 		GDREGISTER_CLASS(LatexDocument);
 		GDREGISTER_CLASS(MermaidDocument);
+		GDREGISTER_CLASS(PDFReader);
+		GDREGISTER_CLASS(PDFWriter);
 		GDREGISTER_CLASS(PDFTexture);
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
@@ -72,6 +76,7 @@ void uninitialize_docrender_module(ModuleInitializationLevel p_level) {
 	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
 		ResourceLoader::get_singleton()->remove_resource_format_loader(tex_loader);
 		tex_loader.unref();
+		PDFReader::shutdown_backend();
 		TeXRender::shutdown_renderer();
 	}
 }

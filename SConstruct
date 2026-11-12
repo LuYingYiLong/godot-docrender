@@ -24,9 +24,10 @@ if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc
 
 tex_render = "src/core/tex_render.cpp"
 mermaid_render = "src/core/mermaid_render.cpp"
-pdf_texture_importer = "src/editor/pdf_texture_importer.cpp"
-sources = (Glob("src/core/*.cpp", exclude=[tex_render, mermaid_render]) + Glob("src/nodes/*.cpp") +
-           Glob("src/editor/*.cpp", exclude=[pdf_texture_importer]))
+pdfium_sources = Glob("src/core/pdf_reader*.cpp") + Glob("src/core/pdf_writer*.cpp") + [File("src/core/pdfium_backend.cpp")]
+sources = [source for source in Glob("src/core/*.cpp", exclude=[tex_render, mermaid_render])
+           if source not in pdfium_sources]
+sources += Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp")
 mermaid_object = mermaid_env.StaticObject if env["platform"] == "ios" else mermaid_env.SharedObject
 sources += mermaid_object(mermaid_render)
 
@@ -42,9 +43,9 @@ if env["platform"] == "windows" and env["arch"] == "x86_64":
         print(f"Missing PDFium headers or DLL in {pdfium_sdk}.")
         Exit(1)
     else:
-        print("PDF import requires the Windows x64 SDK. Run python scripts/fetch_pdfium_sdk.py to install it.")
+        print("PDFium support requires the Windows x64 SDK. Run python scripts/fetch_pdfium_sdk.py to install it.")
 pdfium_object = pdfium_env.StaticObject if env["platform"] == "ios" else pdfium_env.SharedObject
-sources += pdfium_object(pdf_texture_importer)
+sources += pdfium_object(pdfium_sources)
 
 microtex = "src/thirdparty/microtex"
 tinyxml2 = "src/thirdparty/tinyxml2"

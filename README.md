@@ -206,7 +206,100 @@ Godot 4.7.2 also recognizes `.tex` as an `ImageTexture` extension, so its binary
 
 On Windows x64, add a `.pdf` to the project and select it in the FileSystem dock. In the Import dock, choose **PDF Texture**, set the page number (starting at 1) and DPI, and click **Reimport**. The default is page 1 at 144 DPI with a white background. Assign the resulting [PDFTexture](doc_classes/PDFTexture.xml) to any `Texture2D` property. Exported games load the imported pixels directly.
 
-For a source build, run `python scripts/fetch_pdfium_sdk.py` before SCons. For offline setup, pass `--archive <path-to-pdfium-win-x64.tgz>` with the [pinned release archive](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). The Windows x64 build copies `pdfium.dll` to the addon's `bin` directory for the editor.
+For a source build, run `python scripts/fetch_pdfium_sdk.py` before SCons. For offline setup, pass `--archive <path-to-pdfium-win-x64.tgz>` with the [pinned release archive](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). The Windows x64 build copies `pdfium.dll` to the addon's `bin` directory.
+
+## Read PDFs in GDScript
+
+[PDFReader](doc_classes/PDFReader.xml) opens PDF files and byte buffers. It can render pages to `Image` and query text, navigation, annotations, form values, attachments, signatures, and page structure. Call `PDFReader.is_available()` to check the backend and `PDFReader.get_capabilities()` to check which API groups are available. Reader indices start at 0. Page geometry uses PDF points with the Y axis pointing up. Rendering regions use pixels measured from the top-left corner of the rendered page.
+
+For a Windows x64 export that reads or writes PDFs at runtime, add `docrender_pdf_reader` under **Features** in the export preset. The preset includes `pdfium.dll` and `PDFium-LICENSES/` beside the executable. A default export can load imported `PDFTexture` resources without the DLL. [Godot feature tags](https://docs.godotengine.org/en/4.5/tutorials/export/feature_tags.html#custom-features) · [GDExtension dependencies](https://docs.godotengine.org/en/4.5/tutorials/scripting/gdextension/gdextension_file.html#dependencies-section)
+
+To read a project PDF at runtime, select it in the FileSystem dock, choose **Keep File** in the Import dock, and reimport it. Use `open_file()` for an exported project file or a user file. Use `open_buffer()` for PDF bytes from a download, a save file, or another source. Both methods accept an optional password.
+
+```gdscript
+func load_pdf_page(pdf_bytes: PackedByteArray, page_index: int = 0) -> ImageTexture:
+	var reader: PDFReader = PDFReader.new()
+	var error: Error = reader.open_buffer(pdf_bytes)
+	if error != OK:
+		push_error(reader.get_last_error_message())
+		return null
+	var image: Image = reader.render_page(page_index)
+	if image == null:
+		push_error(reader.get_last_error_message())
+		return null
+	return ImageTexture.create_from_image(image)
+```
+
+## Write PDFs in GDScript
+
+[PDFWriter](doc_classes/PDFWriter.xml) creates and edits PDFs with the same Windows x64 backend as `PDFReader`. It saves to a `PackedByteArray` or to a writable path such as `user://report.pdf`. Call `PDFWriter.get_capabilities()` to check which editing groups are available.
+
+The following example creates a page with text and saves it. Use the object's matrix to set its position in PDF points from the bottom-left of the page.
+
+```gdscript
+func write_report(output_path: String) -> Error:
+	var writer: PDFWriter = PDFWriter.new()
+	var error: Error = writer.create_document()
+	if error != OK:
+		return error
+	var page: int = writer.insert_page(Vector2(595.0, 842.0))
+	if page < 0:
+		return writer.get_last_error()
+	var font: int = writer.load_standard_font("Helvetica")
+	if font == 0:
+		return writer.get_last_error()
+	var title: int = writer.create_text(font, 20.0, "Monthly report")
+	if title == 0:
+		return writer.get_last_error()
+	error = writer.set_object_matrix(title, Transform2D(0.0, Vector2(36.0, 800.0)))
+	if error == OK:
+		error = writer.insert_object(page, title)
+	if error == OK:
+		error = writer.save_to_file(output_path)
+	return error
+```
+
+To merge PDFs, open each source in a `PDFReader`. Importing with an empty index array appends all source pages.
+
+```gdscript
+func merge_pdfs(sources: Array[PDFReader]) -> PackedByteArray:
+	var writer: PDFWriter = PDFWriter.new()
+	if writer.create_document() != OK:
+		push_error(writer.get_last_error_message())
+		return PackedByteArray()
+	for source: PDFReader in sources:
+		if writer.import_pages(source) != OK:
+			push_error(writer.get_last_error_message())
+			return PackedByteArray()
+	return writer.save_to_buffer()
+```
+
+For an existing AcroForm, use `PDFReader.get_form_fields(page_index)` to find a field's `annotation_index`. Open the same input in the writer to fill it.
+
+```gdscript
+func fill_text_field(
+		pdf_bytes: PackedByteArray,
+		page_index: int,
+		annotation_index: int,
+		text: String,
+		output_path: String,
+) -> Error:
+	var writer: PDFWriter = PDFWriter.new()
+	var error: Error = writer.open_buffer(pdf_bytes)
+	if error != OK:
+		return error
+	var field: int = writer.get_annotation_id(page_index, annotation_index)
+	if field == 0:
+		return writer.get_last_error()
+	error = writer.set_form_text(field, text)
+	if error == OK:
+		error = writer.save_to_file(output_path)
+	return error
+```
+
+Save defaults to a full rewrite that preserves existing encryption. `SAVE_INCREMENTAL` appends a revision to the original input bytes. Saving releases the open edit pages, so fetch their object and annotation IDs again before continuing to edit.
+
+To edit a direct child of a Form XObject, detach it first and adjust its transform before placing it on the page. The detached object's coordinates are relative to its original Form.
 
 ## Images And GIFs
 
@@ -307,10 +400,8 @@ Godot DocRender's own code is licensed under the MIT License. [LICENSE.txt](LICE
 | [MicroTeX](https://github.com/NanoMichael/MicroTeX) | LaTeX formula layout for `TeXRender`, the LaTeX nodes, and Markdown math | Required Git submodule, built into the extension with its math fonts | MIT for the library. Fonts have separate licenses. |
 | [TinyXML-2](https://github.com/leethomason/tinyxml2) | XML resource parsing for MicroTeX | Required Git submodule, built into the extension | zlib |
 | [Merman 0.9.3](https://github.com/Latias94/merman/releases/tag/v0.9.3) | Mermaid layout and rendering for `MermaidRender`, `MermaidLabel`, and Markdown Mermaid blocks | Optional SDK statically linked in Windows x64 MSVC builds. [SDK installer](scripts/fetch_merman_sdk.py) | MIT or Apache-2.0 for Merman's code. Bundled components have separate notices. |
-| [PDFium](https://pdfium.googlesource.com/pdfium/) | Rasterizes a PDF page during `PDFTexture` import | Optional Windows x64 editor DLL from [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). [SDK installer](scripts/fetch_pdfium_sdk.py) | BSD-3-Clause for PDFium. The binary package includes its own MIT license and component notices. |
+| [PDFium](https://pdfium.googlesource.com/pdfium/) | Backs `PDFReader`, `PDFWriter`, and `PDFTexture` import | Optional Windows x64 DLL from [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). [SDK installer](scripts/fetch_pdfium_sdk.py) | BSD-3-Clause for PDFium. The binary package includes its own MIT license and component notices. |
 | [Godot-GIF](https://github.com/godothub/godot-gif) | GIF decoding and playback in `MarkdownLabel` through `GIFTexture` | Optional Godot addon installed separately | MIT |
 | [Babel](https://babel.pocoo.org/) | Updating and validating editor translation catalogs | Python dependency for [localization tools](tools/README.md) | BSD-3-Clause |
 
-The addon includes notices for MicroTeX, TinyXML-2, and the embedded math fonts. [MicroTeX-LICENSES.txt](addons/docrender/MicroTeX-LICENSES.txt)
-
-The Windows x64 CI artifacts include SDK notices in `Merman-LICENSES/` and `PDFium-LICENSES/`. Exported games load the baked PDF textures directly.
+The addon includes notices for godot-cpp, MicroTeX, TinyXML-2, the embedded math fonts, and the Windows x64 SDKs. The CI artifacts carry the original Merman and PDFium notices from the SDK archives. [Third-party notices](addons/docrender/THIRD-PARTY-NOTICES.md)

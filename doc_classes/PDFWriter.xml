@@ -1,0 +1,886 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="PDFWriter" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Creates and edits PDF documents through PDFium.
+	</brief_description>
+	<description>
+		A writer holds one document and keeps edits in memory until saved. Page and list indices are zero-based, except the ranges in [method import_page_range]. Geometry uses PDF points with the Y axis increasing upward. Object, annotation and font IDs belong to the current writer. Saving and changing the page order close all open edit pages and invalidate their IDs. Clipping, transforming page content, or flattening closes the affected page. Changing an appearance stream can invalidate its object IDs. Detached objects and fonts are released when the document closes. PDFium supports detaching or removing direct children of a top-level Form. Detach a child before editing its properties. Its transform is still relative to its previous Form, so adjust it before placing the object on a page.
+		Capability identifiers are [code]document, save, pages, page_import, page_templates, page_geometry, objects, paths, content_marks, fonts, text, images, annotations, annotation_appearance, forms, flatten, attachments, catalog[/code]. A missing capability sets [constant ERR_UNAVAILABLE]. Query [method get_last_error] and [method get_last_error_message] after an operation fails. Mutations return [constant OK] on success unless otherwise documented. New object, font, and annotation IDs are positive and return 0 on failure.
+		Full saves can invalidate existing signatures. Incremental saves retain the original bytes and append an edited revision. Signature validity and permissions for a modified revision depend on the original signature and must be checked separately. Form editing uses existing AcroForm widgets.
+	</description>
+	<methods>
+		<method name="add_annotation_ink_stroke">
+			<return type="int" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="points" type="PackedVector2Array" />
+			<description>
+				Capability [code]annotations[/code]. Adds an ink stroke from [param points] to [param annotation_id]. Returns its index or -1 on failure.
+			</description>
+		</method>
+		<method name="add_attachment">
+			<return type="int" />
+			<param index="0" name="name" type="String" />
+			<param index="1" name="bytes" type="PackedByteArray" />
+			<description>
+				Capability [code]attachments[/code]. Adds a document attachment with [param name] and [param bytes]. Returns its index or -1 on failure. Attachment indices can shift when entries change.
+			</description>
+		</method>
+		<method name="add_object_mark">
+			<return type="int" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="name" type="String" />
+			<description>
+				Capability [code]content_marks[/code]. Adds a content mark named [param name] to [param object_id]. Returns its index or -1 on failure.
+			</description>
+		</method>
+		<method name="append_annotation_object">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="object_id" type="int" />
+			<description>
+				Capability [code]annotation_appearance[/code]. Appends detached path, text, or image [param object_id] to the appearance of [param annotation_id].
+			</description>
+		</method>
+		<method name="append_annotation_quad">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="points" type="PackedVector2Array" />
+			<description>
+				Capability [code]annotations[/code]. Appends a quad of four [param points] to [param annotation_id].
+			</description>
+		</method>
+		<method name="clear_annotation_ink">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<description>
+				Capability [code]annotations[/code]. Removes the ink list of [param annotation_id].
+			</description>
+		</method>
+		<method name="clip_page">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="rect" type="Rect2" />
+			<description>
+				Capability [code]page_geometry[/code]. Clips [param page_index] to [param rect].
+			</description>
+		</method>
+		<method name="close">
+			<return type="void" />
+			<description>
+				Closes the document and discards unsaved edits. May be called repeatedly.
+			</description>
+		</method>
+		<method name="close_font">
+			<return type="int" enum="Error" />
+			<param index="0" name="font_id" type="int" />
+			<description>
+				Capability [code]fonts[/code]. Releases [param font_id]. Existing text objects retain their fonts.
+			</description>
+		</method>
+		<method name="copy_viewer_preferences">
+			<return type="int" enum="Error" />
+			<param index="0" name="reader" type="PDFReader" />
+			<description>
+				Capability [code]catalog[/code]. Copies the viewer preferences from the open [param reader].
+			</description>
+		</method>
+		<method name="create_annotation">
+			<return type="int" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="subtype" type="int" />
+			<description>
+				Capability [code]annotations[/code]. Creates an annotation of [param subtype] on [param page_index]. Use a code from [method get_supported_annotation_subtypes].
+			</description>
+		</method>
+		<method name="create_document">
+			<return type="int" enum="Error" />
+			<description>
+				Capability [code]document[/code]. Creates an empty PDF and makes it the current document on success.
+			</description>
+		</method>
+		<method name="create_image">
+			<return type="int" />
+			<param index="0" name="image" type="Image" />
+			<description>
+				Capability [code]images[/code]. Creates a detached image object from [param image]. Set its page size and placement with [method set_object_matrix].
+			</description>
+		</method>
+		<method name="create_jpeg">
+			<return type="int" />
+			<param index="0" name="bytes" type="PackedByteArray" />
+			<description>
+				Capability [code]images[/code]. Creates a detached image object from JPEG [param bytes].
+			</description>
+		</method>
+		<method name="create_n_up">
+			<return type="int" enum="Error" />
+			<param index="0" name="reader" type="PDFReader" />
+			<param index="1" name="size_pt" type="Vector2" />
+			<param index="2" name="columns" type="int" />
+			<param index="3" name="rows" type="int" />
+			<description>
+				Capability [code]page_templates[/code]. Creates a new document by arranging pages from [param reader] in a grid of [param columns] by [param rows] on pages of [param size_pt] points. Replaces the current document on success.
+			</description>
+		</method>
+		<method name="create_page_stamp">
+			<return type="int" />
+			<param index="0" name="reader" type="PDFReader" />
+			<param index="1" name="page_index" type="int" />
+			<description>
+				Capability [code]page_templates[/code]. Creates a detached vector Form object from [param page_index] in [param reader]. Call again to place multiple copies.
+			</description>
+		</method>
+		<method name="create_path">
+			<return type="int" />
+			<param index="0" name="start" type="Vector2" />
+			<description>
+				Capability [code]paths[/code]. Creates a detached path beginning at [param start].
+			</description>
+		</method>
+		<method name="create_rectangle">
+			<return type="int" />
+			<param index="0" name="rect" type="Rect2" />
+			<description>
+				Capability [code]paths[/code]. Creates a detached rectangular path with bounds [param rect].
+			</description>
+		</method>
+		<method name="create_text">
+			<return type="int" />
+			<param index="0" name="font_id" type="int" />
+			<param index="1" name="font_size" type="float" />
+			<param index="2" name="text" type="String" />
+			<description>
+				Capability [code]text[/code]. Creates a detached text object using [param font_id], [param font_size] in points, and [param text]. The caller can set the text position with [method set_object_matrix].
+			</description>
+		</method>
+		<method name="delete_attachment">
+			<return type="int" enum="Error" />
+			<param index="0" name="index" type="int" />
+			<description>
+				Capability [code]attachments[/code]. Deletes document attachment [param index].
+			</description>
+		</method>
+		<method name="delete_page">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]pages[/code]. Deletes the page at [param page_index].
+			</description>
+		</method>
+		<method name="detach_object">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<description>
+				Capability [code]objects[/code]. Detaches [param object_id] from its page or parent Form. The object ID can be inserted again. Reacquire any descendant IDs. For a deeply nested object, detach the containing Form first.
+			</description>
+		</method>
+		<method name="flatten_page">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="mode" type="int" default="0" />
+			<description>
+				Capability [code]flatten[/code]. Flattens supported annotation and form appearances on [param page_index] into page content. Use a [enum FlattenMode] constant for [param mode].
+			</description>
+		</method>
+		<method name="generate_page_content">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]objects[/code]. Generates the PDF content stream for [param page_index]. Saving also generates dirty pages automatically.
+			</description>
+		</method>
+		<method name="get_annotation_id">
+			<return type="int" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="annotation_index" type="int" />
+			<description>
+				Capability [code]annotations[/code]. Returns the ID of annotation [param annotation_index] on [param page_index].
+			</description>
+		</method>
+		<method name="get_annotation_object_count">
+			<return type="int" />
+			<param index="0" name="annotation_id" type="int" />
+			<description>
+				Capability [code]annotation_appearance[/code]. Returns the appearance object count of [param annotation_id].
+			</description>
+		</method>
+		<method name="get_annotation_object_id">
+			<return type="int" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="index" type="int" />
+			<description>
+				Capability [code]annotation_appearance[/code]. Returns appearance object [param index] of [param annotation_id]. PDFium supports Ink and Stamp appearance objects.
+			</description>
+		</method>
+		<method name="get_capabilities" qualifiers="static">
+			<return type="PackedStringArray" />
+			<description>
+				Returns the available writer capability groups. See the class description for their identifiers.
+			</description>
+		</method>
+		<method name="get_last_error" qualifiers="const">
+			<return type="int" enum="Error" />
+			<description>
+				Returns the last operation's error on this instance.
+			</description>
+		</method>
+		<method name="get_last_error_message" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the last operation's diagnostic message.
+			</description>
+		</method>
+		<method name="get_object_child_count">
+			<return type="int" />
+			<param index="0" name="object_id" type="int" />
+			<description>
+				Capability [code]objects[/code]. Returns the child count of the Form object [param object_id].
+			</description>
+		</method>
+		<method name="get_object_child_id">
+			<return type="int" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="index" type="int" />
+			<description>
+				Capability [code]objects[/code]. Returns child [param index] of the Form object [param object_id].
+			</description>
+		</method>
+		<method name="get_object_id">
+			<return type="int" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="object_path" type="PackedInt32Array" />
+			<description>
+				Capability [code]objects[/code]. Returns the object ID at [param object_path] on [param page_index]. Path components are zero-based indices into the page and nested Form objects.
+			</description>
+		</method>
+		<method name="get_page_count">
+			<return type="int" />
+			<description>
+				Returns the page count of the current document.
+			</description>
+		</method>
+		<method name="get_supported_annotation_subtypes">
+			<return type="PackedInt32Array" />
+			<description>
+				Capability [code]annotations[/code]. Returns [enum AnnotationSubtype] codes that the active backend supports for creation.
+			</description>
+		</method>
+		<method name="import_page_range">
+			<return type="int" enum="Error" />
+			<param index="0" name="reader" type="PDFReader" />
+			<param index="1" name="range" type="String" />
+			<param index="2" name="at" type="int" default="-1" />
+			<description>
+				Capability [code]page_import[/code]. Copies pages from [param reader] at [param at]. [param range] uses the one-based PDFium syntax, for example [code]1,3,5-7[/code]. An empty string selects all pages. Pass -1 to append.
+			</description>
+		</method>
+		<method name="import_pages">
+			<return type="int" enum="Error" />
+			<param index="0" name="reader" type="PDFReader" />
+			<param index="1" name="indices" type="PackedInt32Array" default="PackedInt32Array()" />
+			<param index="2" name="at" type="int" default="-1" />
+			<description>
+				Capability [code]page_import[/code]. Copies pages from [param reader] in the order of [param indices]. An empty array selects all pages. Pass -1 for [param at] to append.
+			</description>
+		</method>
+		<method name="insert_object">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="object_id" type="int" />
+			<param index="2" name="at" type="int" default="-1" />
+			<description>
+				Capability [code]objects[/code]. Inserts detached [param object_id] into [param page_index] at [param at]. Pass -1 to append.
+			</description>
+		</method>
+		<method name="insert_page">
+			<return type="int" />
+			<param index="0" name="size_pt" type="Vector2" />
+			<param index="1" name="at" type="int" default="-1" />
+			<description>
+				Capability [code]pages[/code]. Inserts a page of [param size_pt] points at [param at] and returns its index. Pass -1 to append. Returns -1 on failure.
+			</description>
+		</method>
+		<method name="is_available" qualifiers="static">
+			<return type="bool" />
+			<description>
+				Returns whether the PDFium backend can create, open, and save a document.
+			</description>
+		</method>
+		<method name="is_open" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns whether a document is open.
+			</description>
+		</method>
+		<method name="load_cid_type2_font">
+			<return type="int" />
+			<param index="0" name="data" type="PackedByteArray" />
+			<param index="1" name="to_unicode" type="String" />
+			<param index="2" name="cid_to_gid" type="PackedByteArray" />
+			<description>
+				Capability [code]fonts[/code]. Loads a CID Type 2 font from [param data], a ToUnicode CMap [param to_unicode], and the [param cid_to_gid] mapping bytes.
+			</description>
+		</method>
+		<method name="load_font">
+			<return type="int" />
+			<param index="0" name="data" type="PackedByteArray" />
+			<param index="1" name="type" type="int" />
+			<param index="2" name="cid" type="bool" default="false" />
+			<description>
+				Capability [code]fonts[/code]. Loads font [param data] with [param type] from [enum FontType]. Use [param cid] to create a composite CID font.
+			</description>
+		</method>
+		<method name="load_standard_font">
+			<return type="int" />
+			<param index="0" name="name" type="String" />
+			<description>
+				Capability [code]fonts[/code]. Loads a standard PDF font by [param name], such as [code]Helvetica[/code].
+			</description>
+		</method>
+		<method name="move_pages">
+			<return type="int" enum="Error" />
+			<param index="0" name="indices" type="PackedInt32Array" />
+			<param index="1" name="at" type="int" />
+			<description>
+				Capability [code]pages[/code]. Moves [param indices] in the given order to position [param at] in the remaining pages. Duplicate indices are invalid.
+			</description>
+		</method>
+		<method name="open_buffer">
+			<return type="int" enum="Error" />
+			<param index="0" name="bytes" type="PackedByteArray" />
+			<param index="1" name="password" type="String" default="&quot;&quot;" />
+			<description>
+				Opens [param bytes] with the optional [param password]. The writer retains the input until the document closes.
+			</description>
+		</method>
+		<method name="open_file">
+			<return type="int" enum="Error" />
+			<param index="0" name="path" type="String" />
+			<param index="1" name="password" type="String" default="&quot;&quot;" />
+			<description>
+				Opens [param path] with the optional [param password]. A failed open preserves the current document.
+			</description>
+		</method>
+		<method name="path_bezier_to">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="control_a" type="Vector2" />
+			<param index="2" name="control_b" type="Vector2" />
+			<param index="3" name="end" type="Vector2" />
+			<description>
+				Capability [code]paths[/code]. Adds a cubic Bézier segment to [param object_id] with controls [param control_a] and [param control_b], ending at [param end].
+			</description>
+		</method>
+		<method name="path_close">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<description>
+				Capability [code]paths[/code]. Closes the current subpath in [param object_id].
+			</description>
+		</method>
+		<method name="path_line_to">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="point" type="Vector2" />
+			<description>
+				Capability [code]paths[/code]. Adds a line to [param point] in [param object_id].
+			</description>
+		</method>
+		<method name="path_move_to">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="point" type="Vector2" />
+			<description>
+				Capability [code]paths[/code]. Starts a new subpath in [param object_id] at [param point].
+			</description>
+		</method>
+		<method name="remove_annotation">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<description>
+				Capability [code]annotations[/code]. Removes [param annotation_id] and invalidates its appearance object IDs.
+			</description>
+		</method>
+		<method name="remove_annotation_object">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="index" type="int" />
+			<description>
+				Capability [code]annotation_appearance[/code]. Removes and destroys appearance object [param index] from [param annotation_id].
+			</description>
+		</method>
+		<method name="remove_object">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<description>
+				Capability [code]objects[/code]. Removes and destroys [param object_id], including a detached object. Use [method remove_annotation_object] for an annotation appearance object.
+			</description>
+		</method>
+		<method name="remove_object_mark">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="mark_index" type="int" />
+			<description>
+				Capability [code]content_marks[/code]. Removes [param mark_index] from [param object_id]. Later mark indices can shift.
+			</description>
+		</method>
+		<method name="remove_object_mark_param">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="mark_index" type="int" />
+			<param index="2" name="key" type="String" />
+			<description>
+				Capability [code]content_marks[/code]. Removes [param key] from mark [param mark_index] of [param object_id].
+			</description>
+		</method>
+		<method name="save_to_buffer">
+			<return type="PackedByteArray" />
+			<param index="0" name="flags" type="int" default="0" />
+			<param index="1" name="version" type="int" default="0" />
+			<description>
+				Capability [code]save[/code]. Saves the current document to a byte array. Use [enum SaveFlags] for [param flags]. [param version] is zero for the SDK default or 10 through 17 for PDF 1.0 through 1.7. Returns an empty array on failure.
+			</description>
+		</method>
+		<method name="save_to_file">
+			<return type="int" enum="Error" />
+			<param index="0" name="path" type="String" />
+			<param index="1" name="flags" type="int" default="0" />
+			<param index="2" name="version" type="int" default="0" />
+			<description>
+				Capability [code]save[/code]. Saves to [param path], replacing the destination after a successful write. Use [param flags] and [param version] as in [method save_to_buffer]. The writer remains open for further edits.
+			</description>
+		</method>
+		<method name="select_form_radio">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<description>
+				Capability [code]forms[/code]. Selects the existing AcroForm radio widget [param annotation_id].
+			</description>
+		</method>
+		<method name="set_annotation_appearance">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="mode" type="int" />
+			<param index="2" name="appearance" type="Variant" />
+			<description>
+				Capability [code]annotation_appearance[/code]. Sets the PDF appearance stream of [param annotation_id] in [param mode] using a string. Pass [code]null[/code] in [param appearance] to clear it. Use [enum AppearanceMode] constants.
+			</description>
+		</method>
+		<method name="set_annotation_border">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="radii" type="Vector2" />
+			<param index="2" name="width" type="float" />
+			<description>
+				Capability [code]annotations[/code]. Sets the [param radii] and [param width] of the border of [param annotation_id] in points. PDFium may remove an existing appearance stream that overrides the border.
+			</description>
+		</method>
+		<method name="set_annotation_color">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="color" type="Color" />
+			<param index="2" name="interior" type="bool" default="false" />
+			<description>
+				Capability [code]annotations[/code]. Sets [param color] on [param annotation_id]. Enable [param interior] for the interior color. For an existing appearance stream, edit its objects instead.
+			</description>
+		</method>
+		<method name="set_annotation_file_attachment">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="name" type="String" />
+			<param index="2" name="bytes" type="PackedByteArray" />
+			<description>
+				Capability [code]annotations[/code]. Adds an embedded file with [param name] and [param bytes] to [param annotation_id]. An existing file attachment is replaced with the given bytes and retains its name.
+			</description>
+		</method>
+		<method name="set_annotation_flags">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="flags" type="int" />
+			<description>
+				Capability [code]annotations[/code]. Sets the annotation [param flags] of [param annotation_id]. Use [enum AnnotationFlags] constants.
+			</description>
+		</method>
+		<method name="set_annotation_font_color">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="color" type="Color" />
+			<description>
+				Capability [code]annotation_appearance[/code]. Sets the font [param color] of a FreeText [param annotation_id].
+			</description>
+		</method>
+		<method name="set_annotation_quad">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="index" type="int" />
+			<param index="2" name="points" type="PackedVector2Array" />
+			<description>
+				Capability [code]annotations[/code]. Replaces attachment quad [param index] on [param annotation_id] with four [param points] in PDFium order.
+			</description>
+		</method>
+		<method name="set_annotation_rect">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="rect" type="Rect2" />
+			<description>
+				Capability [code]annotations[/code]. Sets the PDF point [param rect] of [param annotation_id].
+			</description>
+		</method>
+		<method name="set_annotation_string">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="key" type="String" />
+			<param index="2" name="value" type="String" />
+			<description>
+				Capability [code]annotations[/code]. Writes [param value] to a string entry [param key] on [param annotation_id]. Use the dedicated methods for typed PDF entries.
+			</description>
+		</method>
+		<method name="set_annotation_uri">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="uri" type="String" />
+			<description>
+				Capability [code]annotations[/code]. Sets the link action of [param annotation_id] to the ASCII [param uri].
+			</description>
+		</method>
+		<method name="set_attachment_data">
+			<return type="int" enum="Error" />
+			<param index="0" name="index" type="int" />
+			<param index="1" name="bytes" type="PackedByteArray" />
+			<description>
+				Capability [code]attachments[/code]. Replaces document attachment [param index] with [param bytes].
+			</description>
+		</method>
+		<method name="set_attachment_description">
+			<return type="int" enum="Error" />
+			<param index="0" name="index" type="int" />
+			<param index="1" name="description" type="String" />
+			<description>
+				Capability [code]attachments[/code]. Sets the [param description] of document attachment [param index].
+			</description>
+		</method>
+		<method name="set_attachment_string">
+			<return type="int" enum="Error" />
+			<param index="0" name="index" type="int" />
+			<param index="1" name="key" type="String" />
+			<param index="2" name="value" type="String" />
+			<description>
+				Capability [code]attachments[/code]. Sets a supported PDFium string property [param key] on document attachment [param index] to [param value].
+			</description>
+		</method>
+		<method name="set_document_language">
+			<return type="int" enum="Error" />
+			<param index="0" name="language" type="String" />
+			<description>
+				Capability [code]catalog[/code]. Sets the document catalog [param language], for example [code]zh-Hans[/code].
+			</description>
+		</method>
+		<method name="set_form_checked">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="checked" type="bool" />
+			<description>
+				Capability [code]forms[/code]. Sets whether the existing AcroForm checkbox [param annotation_id] is [param checked].
+			</description>
+		</method>
+		<method name="set_form_field_flags">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="flags" type="int" />
+			<description>
+				Capability [code]forms[/code]. Sets the field [param flags] of the AcroForm widget [param annotation_id]. These are PDF field flags, independent of annotation flags.
+			</description>
+		</method>
+		<method name="set_form_option_selected">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="option_index" type="int" />
+			<param index="2" name="selected" type="bool" default="true" />
+			<description>
+				Capability [code]forms[/code]. Sets whether choice [param option_index] is [param selected] on the AcroForm field [param annotation_id].
+			</description>
+		</method>
+		<method name="set_form_text">
+			<return type="int" enum="Error" />
+			<param index="0" name="annotation_id" type="int" />
+			<param index="1" name="text" type="String" />
+			<description>
+				Capability [code]forms[/code]. Replaces the text of existing AcroForm field [param annotation_id] with [param text], then commits the change.
+			</description>
+		</method>
+		<method name="set_image">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="image" type="Image" />
+			<description>
+				Capability [code]images[/code]. Replaces [param object_id] pixels with [param image], preserving its transform. The RGBA8 bitmap is limited to 8192 pixels per edge and 64 MiB.
+			</description>
+		</method>
+		<method name="set_jpeg">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="bytes" type="PackedByteArray" />
+			<description>
+				Capability [code]images[/code]. Replaces [param object_id] with inline JPEG [param bytes], preserving its transform.
+			</description>
+		</method>
+		<method name="set_object_active">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="active" type="bool" />
+			<description>
+				Capability [code]objects[/code]. Sets whether [param object_id] is included when [param active] is true.
+			</description>
+		</method>
+		<method name="set_object_blend_mode">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="mode" type="String" />
+			<description>
+				Capability [code]objects[/code]. Sets [param object_id] blend mode to the PDF name [param mode], such as [code]Multiply[/code].
+			</description>
+		</method>
+		<method name="set_object_dash">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="lengths" type="PackedFloat32Array" />
+			<param index="2" name="phase" type="float" default="0.0" />
+			<description>
+				Capability [code]objects[/code]. Sets dash [param lengths] and [param phase] in points on [param object_id]. An empty array makes a solid stroke.
+			</description>
+		</method>
+		<method name="set_object_fill_color">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="color" type="Color" />
+			<description>
+				Capability [code]objects[/code]. Sets the fill [param color] of [param object_id].
+			</description>
+		</method>
+		<method name="set_object_line_cap">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="cap" type="int" />
+			<description>
+				Capability [code]objects[/code]. Sets the line [param cap] of [param object_id]. Use a [enum LineCap] constant.
+			</description>
+		</method>
+		<method name="set_object_line_join">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="join" type="int" />
+			<description>
+				Capability [code]objects[/code]. Sets the line [param join] of [param object_id]. Use a [enum LineJoin] constant.
+			</description>
+		</method>
+		<method name="set_object_mark_param">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="mark_index" type="int" />
+			<param index="2" name="key" type="String" />
+			<param index="3" name="value" type="Variant" />
+			<description>
+				Capability [code]content_marks[/code]. Writes [param key] on mark [param mark_index] of [param object_id]. [param value] accepts an integer, float, string, or byte array.
+			</description>
+		</method>
+		<method name="set_object_matrix">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="transform" type="Transform2D" />
+			<description>
+				Capability [code]objects[/code]. Replaces the matrix of [param object_id] with [param transform].
+			</description>
+		</method>
+		<method name="set_object_stroke_color">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="color" type="Color" />
+			<description>
+				Capability [code]objects[/code]. Sets the stroke [param color] of [param object_id].
+			</description>
+		</method>
+		<method name="set_object_stroke_width">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="width" type="float" />
+			<description>
+				Capability [code]objects[/code]. Sets the stroke [param width] of [param object_id] in points.
+			</description>
+		</method>
+		<method name="set_page_box">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="box" type="int" />
+			<param index="2" name="rect" type="Rect2" />
+			<description>
+				Capability [code]page_geometry[/code]. Sets [param box] of [param page_index] to [param rect]. Use a [enum PageBox] constant.
+			</description>
+		</method>
+		<method name="set_page_rotation">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="degrees" type="int" />
+			<description>
+				Capability [code]page_geometry[/code]. Sets [param page_index] rotation to [param degrees] clockwise. Accepts 0, 90, 180, and 270.
+			</description>
+		</method>
+		<method name="set_path_draw_mode">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="fill_mode" type="int" />
+			<param index="2" name="stroke" type="bool" />
+			<description>
+				Capability [code]paths[/code]. Sets [param object_id] to [param fill_mode] and enables its stroke with [param stroke]. Use a [enum FillMode] constant.
+			</description>
+		</method>
+		<method name="set_text">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="text" type="String" />
+			<description>
+				Capability [code]text[/code]. Replaces the text in [param object_id] with [param text]. PDFium requires a non-empty string.
+			</description>
+		</method>
+		<method name="set_text_charcodes">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="charcodes" type="PackedInt64Array" />
+			<description>
+				Capability [code]text[/code]. Replaces [param object_id] text using font-specific unsigned 32-bit [param charcodes].
+			</description>
+		</method>
+		<method name="set_text_font_size">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="size" type="float" />
+			<description>
+				Capability [code]text[/code]. Sets [param object_id] font [param size] in points.
+			</description>
+		</method>
+		<method name="set_text_positions">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="positions" type="PackedFloat32Array" />
+			<description>
+				Capability [code]text[/code]. Sets relative [param positions] in points for the characters of [param object_id], excluding the first character at position zero.
+			</description>
+		</method>
+		<method name="set_text_render_mode">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="mode" type="int" />
+			<description>
+				Capability [code]text[/code]. Sets the text render [param mode] of [param object_id]. Use a [enum TextRenderMode] constant.
+			</description>
+		</method>
+		<method name="share_object_mark">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="source_object_id" type="int" />
+			<param index="2" name="mark_index" type="int" />
+			<description>
+				Capability [code]content_marks[/code]. Adds the mark at [param mark_index] of [param source_object_id] to [param object_id]. Consecutive objects can share one content mark in the output.
+			</description>
+		</method>
+		<method name="transform_object">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="transform" type="Transform2D" />
+			<description>
+				Capability [code]objects[/code]. Applies [param transform] to [param object_id].
+			</description>
+		</method>
+		<method name="transform_object_clip">
+			<return type="int" enum="Error" />
+			<param index="0" name="object_id" type="int" />
+			<param index="1" name="transform" type="Transform2D" />
+			<description>
+				Capability [code]objects[/code]. Applies [param transform] to the clip path of [param object_id].
+			</description>
+		</method>
+		<method name="transform_page">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="transform" type="Transform2D" />
+			<param index="2" name="clip" type="Variant" default="null" />
+			<description>
+				Capability [code]page_geometry[/code]. Transforms the contents of [param page_index] with [param transform]. Pass a [Rect2] in [param clip] to also clip the page.
+			</description>
+		</method>
+		<method name="transform_page_annotations">
+			<return type="int" enum="Error" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="transform" type="Transform2D" />
+			<description>
+				Capability [code]page_geometry[/code]. Applies [param transform] to all annotations on [param page_index].
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="SAVE_FULL" value="0" enum="SaveFlags">
+			Writes a full PDF copy and preserves existing encryption.
+		</constant>
+		<constant name="SAVE_INCREMENTAL" value="1" enum="SaveFlags">
+			Writes a copy with the original input bytes followed by the changes. Requires an opened PDF, the default version and unchanged encryption.
+		</constant>
+		<constant name="SAVE_REMOVE_SECURITY" value="4" enum="SaveFlags">
+			Removes existing encryption during a full save.
+		</constant>
+		<constant name="SAVE_SUBSET_NEW_FONTS" value="8" enum="SaveFlags">
+			Requests PDFium font subsetting for newly added text.
+		</constant>
+		<constant name="BOX_MEDIA" value="0" enum="PageBox" />
+		<constant name="BOX_CROP" value="1" enum="PageBox" />
+		<constant name="BOX_BLEED" value="2" enum="PageBox" />
+		<constant name="BOX_TRIM" value="3" enum="PageBox" />
+		<constant name="BOX_ART" value="4" enum="PageBox" />
+		<constant name="FONT_TYPE1" value="1" enum="FontType" />
+		<constant name="FONT_TRUETYPE" value="2" enum="FontType" />
+		<constant name="FILL_NONE" value="0" enum="FillMode" />
+		<constant name="FILL_EVEN_ODD" value="1" enum="FillMode" />
+		<constant name="FILL_WINDING" value="2" enum="FillMode" />
+		<constant name="CAP_BUTT" value="0" enum="LineCap" />
+		<constant name="CAP_ROUND" value="1" enum="LineCap" />
+		<constant name="CAP_SQUARE" value="2" enum="LineCap" />
+		<constant name="JOIN_MITER" value="0" enum="LineJoin" />
+		<constant name="JOIN_ROUND" value="1" enum="LineJoin" />
+		<constant name="JOIN_BEVEL" value="2" enum="LineJoin" />
+		<constant name="TEXT_FILL" value="0" enum="TextRenderMode" />
+		<constant name="TEXT_STROKE" value="1" enum="TextRenderMode" />
+		<constant name="TEXT_FILL_STROKE" value="2" enum="TextRenderMode" />
+		<constant name="TEXT_INVISIBLE" value="3" enum="TextRenderMode" />
+		<constant name="TEXT_FILL_CLIP" value="4" enum="TextRenderMode" />
+		<constant name="TEXT_STROKE_CLIP" value="5" enum="TextRenderMode" />
+		<constant name="TEXT_FILL_STROKE_CLIP" value="6" enum="TextRenderMode" />
+		<constant name="TEXT_CLIP" value="7" enum="TextRenderMode" />
+		<constant name="ANNOT_TEXT" value="1" enum="AnnotationSubtype" />
+		<constant name="ANNOT_LINK" value="2" enum="AnnotationSubtype" />
+		<constant name="ANNOT_FREE_TEXT" value="3" enum="AnnotationSubtype" />
+		<constant name="ANNOT_LINE" value="4" enum="AnnotationSubtype" />
+		<constant name="ANNOT_SQUARE" value="5" enum="AnnotationSubtype" />
+		<constant name="ANNOT_CIRCLE" value="6" enum="AnnotationSubtype" />
+		<constant name="ANNOT_HIGHLIGHT" value="9" enum="AnnotationSubtype" />
+		<constant name="ANNOT_UNDERLINE" value="10" enum="AnnotationSubtype" />
+		<constant name="ANNOT_SQUIGGLY" value="11" enum="AnnotationSubtype" />
+		<constant name="ANNOT_STRIKEOUT" value="12" enum="AnnotationSubtype" />
+		<constant name="ANNOT_STAMP" value="13" enum="AnnotationSubtype" />
+		<constant name="ANNOT_INK" value="15" enum="AnnotationSubtype" />
+		<constant name="ANNOT_POPUP" value="16" enum="AnnotationSubtype" />
+		<constant name="ANNOT_FILE_ATTACHMENT" value="17" enum="AnnotationSubtype" />
+		<constant name="ANNOT_WIDGET" value="20" enum="AnnotationSubtype" />
+		<constant name="ANNOT_FLAG_INVISIBLE" value="1" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_HIDDEN" value="2" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_PRINT" value="4" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_NO_ZOOM" value="8" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_NO_ROTATE" value="16" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_NO_VIEW" value="32" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_READ_ONLY" value="64" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_LOCKED" value="128" enum="AnnotationFlags" />
+		<constant name="ANNOT_FLAG_TOGGLE_NO_VIEW" value="256" enum="AnnotationFlags" />
+		<constant name="APPEARANCE_NORMAL" value="0" enum="AppearanceMode" />
+		<constant name="APPEARANCE_ROLLOVER" value="1" enum="AppearanceMode" />
+		<constant name="APPEARANCE_DOWN" value="2" enum="AppearanceMode" />
+		<constant name="FLATTEN_DISPLAY" value="0" enum="FlattenMode" />
+		<constant name="FLATTEN_PRINT" value="1" enum="FlattenMode" />
+	</constants>
+</class>

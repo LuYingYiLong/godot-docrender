@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="PDFReader" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Reads and renders PDF documents through PDFium.
+	</brief_description>
+	<description>
+		Each reader holds one document. Pages, characters, attachments, signatures and object paths use zero-based indices. Geometry uses native PDF point coordinates with Y increasing upward. Pixel coordinates use the top-left of the full rendered page. Results are Godot values and remain usable after [method close].
+		Check [method get_capabilities] to discover available groups. A missing capability sets [constant ERR_UNAVAILABLE]. If the document has no matching content, the method returns an empty result with [constant OK]. Use [method get_last_error] to distinguish these cases. Fields for absent optional data may be omitted.
+		PDF enum values in result dictionaries use the codes in the PDFium public headers. Embedded scripts, XFA data and signature contents are returned for inspection.
+	</description>
+	<methods>
+		<method name="close">
+			<return type="void" />
+			<description>
+				Closes the current document and clears the last error. Safe to call repeatedly.
+			</description>
+		</method>
+		<method name="find_text">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="query" type="String" />
+			<param index="2" name="flags" type="int" default="0" />
+			<description>
+				Capability [code]text[/code]. Finds Unicode [param query] on [param page_index] using [param flags] from [enum FindFlags]. Each match contains [code]start[/code] and [code]count[/code] in PDFium characters and [code]rects[/code] in PDF points.
+			</description>
+		</method>
+		<method name="get_annotation_string">
+			<return type="String" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="annotation_index" type="int" />
+			<param index="2" name="key" type="String" />
+			<description>
+				Capability [code]annotations[/code]. Reads the string or name at PDF dictionary [param key] on annotation [param annotation_index] of [param page_index]. Returns an empty string when the value is absent.
+			</description>
+		</method>
+		<method name="get_attachment_data">
+			<return type="PackedByteArray" />
+			<param index="0" name="index" type="int" />
+			<description>
+				Capability [code]attachments[/code]. Returns the decoded contents of attachment [param index] as bytes.
+			</description>
+		</method>
+		<method name="get_attachments">
+			<return type="Dictionary[]" />
+			<description>
+				Capability [code]attachments[/code]. Returns attachment metadata with available fields [code]index, name, description, mime_type, relationship, size, CreationDate, ModDate, CheckSum[/code]. The size is in bytes.
+			</description>
+		</method>
+		<method name="get_capabilities" qualifiers="static">
+			<return type="PackedStringArray" />
+			<description>
+				Returns available PDFium capability identifiers. The identifiers are [code]core, document, thumbnail, text, navigation, web_links, annotations, forms, attachments, signatures, structure, page_objects, javascript, xfa[/code].
+			</description>
+		</method>
+		<method name="get_char_info">
+			<return type="Dictionary" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="char_index" type="int" />
+			<description>
+				Capability [code]text[/code]. Returns character data for [param char_index] on [param page_index]. Fields include [code]index, unicode, generated, hyphen, unicode_map_error, angle, font_size, font_weight, font_name, font_flags, bounds, loose_bounds, origin, transform, fill_color, stroke_color[/code]. The angle is in radians.
+			</description>
+		</method>
+		<method name="get_document_info">
+			<return type="Dictionary" />
+			<description>
+				Capability [code]document[/code]. Returns [code]version[/code] (e.g. 17 for PDF 1.7), [code]page_count[/code], [code]valid_cross_reference_table[/code], [code]permissions[/code], [code]user_permissions[/code], [code]security_handler_revision[/code], [code]form_type[/code], [code]tagged[/code], [code]language[/code], [code]permanent_id[/code], [code]changing_id[/code], [code]trailer_ends[/code] and [code]viewer_preferences[/code]. Viewer preferences contain [code]print_scaling[/code], [code]copies[/code], [code]duplex[/code] and [code]print_page_range[/code]. File identifiers are raw bytes.
+			</description>
+		</method>
+		<method name="get_form_fields">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]forms[/code]. Returns AcroForm widgets on [param page_index] with [code]annotation_index, name, alternate_name, value, export_value, type, flags, checked, rect, options[/code]. Each option contains [code]index, label, selected[/code].
+			</description>
+		</method>
+		<method name="get_javascript_actions">
+			<return type="Dictionary[]" />
+			<description>
+				Capability [code]javascript[/code]. Returns document JavaScript actions with [code]index, name, script[/code]. The script is returned as text.
+			</description>
+		</method>
+		<method name="get_last_error" qualifiers="const">
+			<return type="int" enum="Error" />
+			<description>
+				Returns the last operation's error on this instance. A successful query clears the error, including a query that finds no content.
+			</description>
+		</method>
+		<method name="get_last_error_message" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the last operation's diagnostic message, or an empty string on success.
+			</description>
+		</method>
+		<method name="get_metadata">
+			<return type="Dictionary" />
+			<description>
+				Capability [code]document[/code]. Returns the available PDF information dictionary strings [code]Title, Author, Subject, Keywords, Creator, Producer, CreationDate, ModDate[/code].
+			</description>
+		</method>
+		<method name="get_named_destinations">
+			<return type="Dictionary[]" />
+			<description>
+				Capability [code]navigation[/code]. Returns destination dictionaries with [code]name[/code] and the fields described in [method get_page_links].
+			</description>
+		</method>
+		<method name="get_outline">
+			<return type="Dictionary[]" />
+			<description>
+				Capability [code]navigation[/code]. Returns a bookmark tree. Each entry contains [code]title, count, style, destination, action, children[/code] and optional [code]color[/code]. Destinations and actions use the fields described in [method get_page_links].
+			</description>
+		</method>
+		<method name="get_page_annotations">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]annotations[/code]. Returns annotations on [param page_index] with available fields [code]index, subtype, flags, author, contents, subject, modified, rect, color, interior_color, quads, vertices, ink_paths, line, border[/code]. Border components are horizontal radius, vertical radius and width.
+			</description>
+		</method>
+		<method name="get_page_char_count">
+			<return type="int" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]text[/code]. Counts PDFium character indices on [param page_index], including generated separators.
+			</description>
+		</method>
+		<method name="get_page_count">
+			<return type="int" />
+			<description>
+				Capability [code]core[/code]. Returns the number of pages in the open document.
+			</description>
+		</method>
+		<method name="get_page_info">
+			<return type="Dictionary" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]document[/code]. Returns [code]page_index, size_pt, rotation, has_transparency, label, boxes[/code] for [param page_index]. Rotation is in clockwise degrees. The [code]boxes[/code] dictionary contains any available PDF point rectangles [code]media, crop, bleed, trim, art, bounds[/code].
+			</description>
+		</method>
+		<method name="get_page_links">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]navigation[/code]. Returns explicit links on [param page_index] with [code]rect, quads, destination, action[/code]. A destination can contain [code]page_index, view, parameters, x, y, zoom[/code]. An action can contain [code]type, uri, file_path, destination[/code]. The type and view are PDFium numeric codes. A remote destination may lack a resolvable page index.
+			</description>
+		</method>
+		<method name="get_page_object_font_data">
+			<return type="PackedByteArray" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="object_path" type="PackedInt32Array" />
+			<description>
+				Capability [code]page_objects[/code]. Returns the font program bytes PDFium uses for the text object at [param object_path] on [param page_index].
+			</description>
+		</method>
+		<method name="get_page_object_image">
+			<return type="Image" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="object_path" type="PackedInt32Array" />
+			<param index="2" name="rendered" type="bool" default="false" />
+			<description>
+				Capability [code]page_objects[/code]. Returns an RGBA8 image for the image object at [param object_path] on [param page_index]. Enable [param rendered] to include the image matrix and mask. The bitmap limits from [method render_page] apply.
+			</description>
+		</method>
+		<method name="get_page_object_image_data">
+			<return type="PackedByteArray" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="object_path" type="PackedInt32Array" />
+			<param index="2" name="decoded" type="bool" default="false" />
+			<description>
+				Capability [code]page_objects[/code]. Returns stream bytes for the image object at [param object_path] on [param page_index]. Enable [param decoded] to apply the PDF stream filters that PDFium supports for this API.
+			</description>
+		</method>
+		<method name="get_page_objects">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]page_objects[/code]. Returns a tree of objects on [param page_index]. Common fields are [code]path, type, marked_content_id, has_transparency, active, bounds, rotated_bounds, transform, fill_color, stroke_color, stroke_width, line_join, line_cap, dash_phase, dash_array[/code]. Text adds [code]text, font_size, text_render_mode, font[/code]. Font fields are [code]family, base_name, embedded, flags, weight[/code]. Paths add [code]segments, fill_mode, stroke[/code] and each segment has [code]type, point, close[/code]. Images add [code]pixel_size, dpi, bits_per_pixel, color_space, filters[/code]. Form objects add [code]children[/code]. Use [code]path[/code] for follow-up extraction.
+			</description>
+		</method>
+		<method name="get_page_structure">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]structure[/code]. Returns the tagged structure tree for [param page_index]. Element fields are [code]type, title, alt_text, actual_text, language, id, expansion, marked_content_id, marked_content_ids, attributes, children[/code]. Marked-content children may contain just [code]marked_content_id[/code]. Attribute dictionaries map names to a [code]type[/code] code and an optional [code]value[/code].
+			</description>
+		</method>
+		<method name="get_page_text">
+			<return type="String" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="start" type="int" default="0" />
+			<param index="2" name="count" type="int" default="-1" />
+			<description>
+				Capability [code]text[/code]. Returns Unicode text on [param page_index] from [param start] for [param count] PDFium characters. A count of -1 reads to the end. Unmapped characters can be omitted from the resulting string.
+			</description>
+		</method>
+		<method name="get_page_text_in_rect">
+			<return type="String" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="rect" type="Rect2" />
+			<description>
+				Capability [code]text[/code]. Returns Unicode text within the PDF point [param rect] on [param page_index].
+			</description>
+		</method>
+		<method name="get_page_thumbnail">
+			<return type="Image" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]thumbnail[/code]. Returns the embedded thumbnail for [param page_index] as RGBA8, or [code]null[/code] if the page has none.
+			</description>
+		</method>
+		<method name="get_page_web_links">
+			<return type="Dictionary[]" />
+			<param index="0" name="page_index" type="int" />
+			<description>
+				Capability [code]web_links[/code]. Returns URLs detected in the text on [param page_index]. Entries contain [code]uri, rects, start, count[/code].
+			</description>
+		</method>
+		<method name="get_signature_contents">
+			<return type="PackedByteArray" />
+			<param index="0" name="index" type="int" />
+			<description>
+				Capability [code]signatures[/code]. Returns the raw PDF signature contents at [param index] for inspection.
+			</description>
+		</method>
+		<method name="get_signatures">
+			<return type="Dictionary[]" />
+			<description>
+				Capability [code]signatures[/code]. Returns [code]index, subfilter, time, reason, doc_mdp_permission, byte_range[/code] for each signature. The byte range contains alternating offsets and lengths.
+			</description>
+		</method>
+		<method name="get_text_rects">
+			<return type="Rect2[]" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="start" type="int" default="0" />
+			<param index="2" name="count" type="int" default="-1" />
+			<description>
+				Capability [code]text[/code]. Returns PDF point rectangles for [param count] characters starting at [param start] on [param page_index]. A count of -1 selects to the end.
+			</description>
+		</method>
+		<method name="get_xfa_packets">
+			<return type="Dictionary[]" />
+			<description>
+				Capability [code]xfa[/code]. Returns embedded XFA packets with [code]index, name, data[/code]. Packet data is returned as bytes.
+			</description>
+		</method>
+		<method name="hit_test_text">
+			<return type="int" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="position" type="Vector2" />
+			<param index="2" name="tolerance" type="Vector2" default="Vector2(2, 2)" />
+			<description>
+				Capability [code]text[/code]. Finds the character index near [param position] on [param page_index] within the horizontal and vertical [param tolerance] in points. Returns -1 on a miss or error.
+			</description>
+		</method>
+		<method name="is_available" qualifiers="static">
+			<return type="bool" />
+			<description>
+				Returns whether the core PDFium library can be loaded.
+			</description>
+		</method>
+		<method name="is_open" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns whether this reader holds an open document.
+			</description>
+		</method>
+		<method name="open_buffer">
+			<return type="int" enum="Error" />
+			<param index="0" name="bytes" type="PackedByteArray" />
+			<param index="1" name="password" type="String" default="&quot;&quot;" />
+			<description>
+				Opens a PDF from [param bytes] with an optional [param password]. The reader retains the bytes until the document closes. A failed attempt preserves the open document. Returns [constant OK] on success.
+			</description>
+		</method>
+		<method name="open_file">
+			<return type="int" enum="Error" />
+			<param index="0" name="path" type="String" />
+			<param index="1" name="password" type="String" default="&quot;&quot;" />
+			<description>
+				Opens [param path] through [FileAccess]. Supply [param password] for an encrypted document. A failed attempt preserves the open document. Returns [constant OK] on success.
+			</description>
+		</method>
+		<method name="page_to_pixel">
+			<return type="Vector2i" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="position" type="Vector2" />
+			<param index="2" name="dpi" type="int" default="144" />
+			<param index="3" name="rotation" type="int" default="0" />
+			<description>
+				Capability [code]core[/code]. Converts a PDF point [param position] on [param page_index] to an integer pixel position in the full bitmap at [param dpi] and additional [param rotation].
+			</description>
+		</method>
+		<method name="pixel_to_page">
+			<return type="Vector2" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="position" type="Vector2i" />
+			<param index="2" name="dpi" type="int" default="144" />
+			<param index="3" name="rotation" type="int" default="0" />
+			<description>
+				Capability [code]core[/code]. Converts [param position] from the full bitmap at [param dpi] and additional [param rotation] to a PDF point on [param page_index].
+			</description>
+		</method>
+		<method name="render_page">
+			<return type="Image" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="dpi" type="int" default="144" />
+			<param index="2" name="flags" type="int" default="1" />
+			<param index="3" name="rotation" type="int" default="0" />
+			<param index="4" name="background" type="Color" default="Color(1, 1, 1, 1)" />
+			<description>
+				Capability [code]core[/code]. Renders [param page_index] at [param dpi] to an RGBA8 image over [param background]. Use [param flags] from [enum RenderFlags]. Additional clockwise [param rotation] must be 0, 90, 180, or 270 degrees. Output is limited to 8192 pixels per side and 64 MiB. Form widgets require [code]forms[/code].
+			</description>
+		</method>
+		<method name="render_region">
+			<return type="Image" />
+			<param index="0" name="page_index" type="int" />
+			<param index="1" name="region" type="Rect2i" />
+			<param index="2" name="dpi" type="int" default="144" />
+			<param index="3" name="flags" type="int" default="1" />
+			<param index="4" name="rotation" type="int" default="0" />
+			<param index="5" name="background" type="Color" default="Color(1, 1, 1, 1)" />
+			<description>
+				Capability [code]core[/code]. Renders only [param region] of [param page_index]. Measure the region from the top-left of the full bitmap at [param dpi] and additional [param rotation]. The region must be inside the full page. The bitmap limits, [param flags] and [param background] work as in [method render_page].
+			</description>
+		</method>
+	</methods>
+	<constants>
+		<constant name="RENDER_ANNOTATIONS" value="1" enum="RenderFlags">
+			Draws ordinary page annotations.
+		</constant>
+		<constant name="RENDER_GRAYSCALE" value="2" enum="RenderFlags">
+			Renders page content in grayscale.
+		</constant>
+		<constant name="RENDER_FORM_WIDGETS" value="4" enum="RenderFlags">
+			Draws AcroForm widget appearances.
+		</constant>
+		<constant name="RENDER_PRINTING" value="8" enum="RenderFlags">
+			Uses PDFium's print rendering mode.
+		</constant>
+		<constant name="RENDER_LCD_TEXT" value="16" enum="RenderFlags">
+			Enables LCD text rendering.
+		</constant>
+		<constant name="RENDER_NO_NATIVE_TEXT" value="32" enum="RenderFlags">
+			Disables native text output.
+		</constant>
+		<constant name="RENDER_LIMITED_IMAGE_CACHE" value="64" enum="RenderFlags">
+			Limits the PDFium image cache.
+		</constant>
+		<constant name="RENDER_FORCE_HALFTONE" value="128" enum="RenderFlags">
+			Forces halftone image scaling.
+		</constant>
+		<constant name="RENDER_NO_SMOOTH_TEXT" value="256" enum="RenderFlags">
+			Disables smoothing for text.
+		</constant>
+		<constant name="RENDER_NO_SMOOTH_IMAGE" value="512" enum="RenderFlags">
+			Disables smoothing for images.
+		</constant>
+		<constant name="RENDER_NO_SMOOTH_PATH" value="1024" enum="RenderFlags">
+			Disables smoothing for paths.
+		</constant>
+		<constant name="FIND_MATCH_CASE" value="1" enum="FindFlags">
+			Matches letter case.
+		</constant>
+		<constant name="FIND_WHOLE_WORD" value="2" enum="FindFlags">
+			Matches whole words.
+		</constant>
+		<constant name="FIND_CONSECUTIVE" value="4" enum="FindFlags">
+			Allows consecutive search matches to overlap.
+		</constant>
+	</constants>
+</class>

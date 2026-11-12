@@ -40,6 +40,13 @@ windows.release.arm64 = "bin/docrender.windows.template_release.arm64.dll"
 windows.release.x86_32 = "bin/docrender.windows.template_release.x86_32.dll"
 windows.release.x86_64 = "bin/docrender.windows.template_release.x86_64.dll"
 
+[dependencies]
+
+windows.x86_64.docrender_pdf_reader = {
+	"bin/pdfium.dll": "",
+	"PDFium-LICENSES": "",
+}
+
 [icons]
 
 MarkdownLabel = "icons/markdown_label.svg"
