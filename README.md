@@ -190,12 +190,6 @@ Both document types inherit `Resource` directly. The editor reimports files from
 
 In Godot 4.7.2, double-click an imported `.tex` or `.mmd` file in the FileSystem tree or file list to edit its source in the built-in ScriptEditor. Use the ScriptEditor File menu to save the source or save it to a new path.
 
-## Import a PDF Page as a Texture
-
-On Windows x64, add a `.pdf` to the project and select it in the FileSystem dock. In the Import dock, choose **PDF Texture**, set the page number (starting at 1) and DPI, and click **Reimport**. The default is page 1 at 144 DPI with a white background. Assign the resulting [PDFTexture](doc_classes/PDFTexture.xml) to any `Texture2D` property. Exported games load the imported pixels directly.
-
-For a source build, run `python scripts/fetch_pdfium_sdk.py` before SCons. For offline setup, pass `--archive <path-to-pdfium-win-x64.tgz>` with the [pinned release archive](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). The Windows x64 build copies `pdfium.dll` to the addon's `bin` directory for the editor.
-
 ```gdscript
 @export var diagram_source: MermaidDocument
 @onready var diagram: MermaidLabel = %MermaidLabel
@@ -207,6 +201,12 @@ func _ready() -> void:
 ```
 
 Godot 4.7.2 also recognizes `.tex` as an `ImageTexture` extension, so its binary loader can log `Unrecognized binary resource file` when it scans a LaTeX file for dependencies. DocRender's import still produces a `LatexDocument`.
+
+## Import a PDF Page as a Texture
+
+On Windows x64, add a `.pdf` to the project and select it in the FileSystem dock. In the Import dock, choose **PDF Texture**, set the page number (starting at 1) and DPI, and click **Reimport**. The default is page 1 at 144 DPI with a white background. Assign the resulting [PDFTexture](doc_classes/PDFTexture.xml) to any `Texture2D` property. Exported games load the imported pixels directly.
+
+For a source build, run `python scripts/fetch_pdfium_sdk.py` before SCons. For offline setup, pass `--archive <path-to-pdfium-win-x64.tgz>` with the [pinned release archive](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). The Windows x64 build copies `pdfium.dll` to the addon's `bin` directory for the editor.
 
 ## Images And GIFs
 
@@ -263,8 +263,8 @@ See [Localization tools](tools/README.md) to update or validate the translation 
 - **Godot:** 4.5 or later in the extension configuration; development has primarily been tested with Godot 4.7.
 - **Language:** C++17 or newer.
 - **Build system:** SCons.
-- **Dependency:** `godot-cpp` submodule.
-- **Optional GIF dependency:** [godothub/godot-gif](https://github.com/godothub/godot-gif).
+
+Source builds use the required submodules and any SDKs installed for optional features. [Third-party Libraries](#third-party-libraries)
 
 Initialize submodules before building:
 
@@ -297,8 +297,20 @@ scons godot-docrender platform=windows target=template_release arch=x86_64
 
 ## License
 
-This repository is licensed under the MIT License. See [LICENSE.txt](LICENSE.txt).
+Godot DocRender's own code is licensed under the MIT License. [LICENSE.txt](LICENSE.txt)
 
-## Acknowledgments
+## Third-party Libraries
 
-- Optional GIF support via [godothub/godot-gif](https://github.com/godothub/godot-gif)
+| Library | Used for | How it is included | License |
+| --- | --- | --- | --- |
+| [godot-cpp](https://github.com/godotengine/godot-cpp/tree/4.5) | C++ bindings for the Godot GDExtension API | Required Git submodule | MIT |
+| [MicroTeX](https://github.com/NanoMichael/MicroTeX) | LaTeX formula layout for `TeXRender`, the LaTeX nodes, and Markdown math | Required Git submodule, built into the extension with its math fonts | MIT for the library. Fonts have separate licenses. |
+| [TinyXML-2](https://github.com/leethomason/tinyxml2) | XML resource parsing for MicroTeX | Required Git submodule, built into the extension | zlib |
+| [Merman 0.9.3](https://github.com/Latias94/merman/releases/tag/v0.9.3) | Mermaid layout and rendering for `MermaidRender`, `MermaidLabel`, and Markdown Mermaid blocks | Optional SDK statically linked in Windows x64 MSVC builds. [SDK installer](scripts/fetch_merman_sdk.py) | MIT or Apache-2.0 for Merman's code. Bundled components have separate notices. |
+| [PDFium](https://pdfium.googlesource.com/pdfium/) | Rasterizes a PDF page during `PDFTexture` import | Optional Windows x64 editor DLL from [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). [SDK installer](scripts/fetch_pdfium_sdk.py) | BSD-3-Clause for PDFium. The binary package includes its own MIT license and component notices. |
+| [Godot-GIF](https://github.com/godothub/godot-gif) | GIF decoding and playback in `MarkdownLabel` through `GIFTexture` | Optional Godot addon installed separately | MIT |
+| [Babel](https://babel.pocoo.org/) | Updating and validating editor translation catalogs | Python dependency for [localization tools](tools/README.md) | BSD-3-Clause |
+
+The addon includes notices for MicroTeX, TinyXML-2, and the embedded math fonts. [MicroTeX-LICENSES.txt](addons/docrender/MicroTeX-LICENSES.txt)
+
+The Windows x64 CI artifacts include SDK notices in `Merman-LICENSES/` and `PDFium-LICENSES/`. Exported games load the baked PDF textures directly.
