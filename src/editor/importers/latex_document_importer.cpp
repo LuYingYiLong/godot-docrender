@@ -1,7 +1,7 @@
 #include "latex_document_importer.h"
 
-#include "core/docrender_source.h"
-#include "core/latex_document.h"
+#include "formats/docrender_source.h"
+#include "formats/latex/latex_document.h"
 
 namespace godot {
 	String LatexDocumentImporter::_get_importer_name() const {

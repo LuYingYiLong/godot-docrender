@@ -1,7 +1,7 @@
 #include "docrender_source_editor.h"
 
-#include "core/latex_document.h"
-#include "core/mermaid_document.h"
+#include "formats/latex/latex_document.h"
+#include "formats/mermaid/mermaid_document.h"
 
 #include <godot_cpp/classes/code_edit.hpp>
 #include <godot_cpp/classes/editor_file_dialog.hpp>

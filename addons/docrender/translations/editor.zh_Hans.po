@@ -15,12 +15,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#. src/editor/latex_document_importer.cpp:12
+#. src/editor/importers/latex_document_importer.cpp:12
 msgctxt "Godot DocRender"
 msgid "LaTeX Document"
 msgstr "LaTeX 文档"
 
-#. src/editor/mermaid_document_importer.cpp:12
+#. src/editor/importers/mermaid_document_importer.cpp:12
 msgctxt "Godot DocRender"
 msgid "Mermaid Document"
 msgstr "Mermaid 文档"
@@ -30,7 +30,7 @@ msgctxt "Godot DocRender"
 msgid "Open Preview to the Right"
 msgstr "右侧打开预览"
 
-#. src/editor/pdf_texture_importer.cpp:20
+#. src/editor/importers/pdf_texture_importer.cpp:20
 msgctxt "Godot DocRender"
 msgid "PDF Texture"
 msgstr "PDF 纹理"

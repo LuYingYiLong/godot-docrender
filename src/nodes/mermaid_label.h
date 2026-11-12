@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/mermaid_render.h"
+#include "formats/mermaid/mermaid_render.h"
 
 #include <godot_cpp/classes/control.hpp>
 

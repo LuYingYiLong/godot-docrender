@@ -13,11 +13,59 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
     </Filter>
-    <Filter Include="Header Files\core">
+    <Filter Include="Header Files\formats">
       <UniqueIdentifier>{3fc4eb50-a349-46b3-a82b-930517c14263}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\core">
+    <Filter Include="Header Files\editor\importers">
+      <UniqueIdentifier>{277fd92b-0adc-5e9a-9f48-accf9d261001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\latex">
+      <UniqueIdentifier>{85908c06-a8d2-5e29-96b8-294f478ca0ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\markdown">
+      <UniqueIdentifier>{6376da64-0698-50fe-92ed-a1f1170fef65}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\mermaid">
+      <UniqueIdentifier>{f5b978ae-2a60-5010-b1d3-f84c169a324e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\pdf">
+      <UniqueIdentifier>{e48262d8-1496-52af-88b8-ab76abc66908}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\pdf\pdfium">
+      <UniqueIdentifier>{3086aa9f-4e2d-5922-ac3d-73c09bb4b27d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\pdf\reader">
+      <UniqueIdentifier>{6d641198-247c-5b23-a359-7b72aad38f81}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\pdf\writer">
+      <UniqueIdentifier>{e02cafad-eb1a-5c01-afb9-22bf97dca0ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats">
       <UniqueIdentifier>{5db42ea8-3244-4081-acd2-bd91bf0cf928}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\editor\importers">
+      <UniqueIdentifier>{6e744abb-f136-58c2-b05a-dd4a6383b6e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\latex">
+      <UniqueIdentifier>{3073cf9d-b70f-5475-a972-e4b25d2d9632}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\markdown">
+      <UniqueIdentifier>{a9d832f5-0f7a-5022-a2f1-c40282ed6581}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\mermaid">
+      <UniqueIdentifier>{a7a7b72b-6031-59b5-b6fa-e2e311480742}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\pdf">
+      <UniqueIdentifier>{e7ee82fb-a0d6-5773-846e-754a804b97d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\pdf\pdfium">
+      <UniqueIdentifier>{65f23ff5-56a4-5ce9-99e5-d5f69347b97b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\pdf\reader">
+      <UniqueIdentifier>{e6eed1ac-8503-5c6c-94dd-77e38e7c718d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\pdf\writer">
+      <UniqueIdentifier>{44b31fb8-6fa0-5c69-8748-7b05e1160671}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files\nodes">
       <UniqueIdentifier>{c962ed92-e2f0-4d9b-a8cf-ba2ab635fc8e}</UniqueIdentifier>
@@ -33,71 +81,71 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\core\docrender_source.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\docrender_source.cpp">
+      <Filter>Source Files\formats</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\register_types.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\register_types.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\tex_render.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\latex\tex_render.cpp">
+      <Filter>Source Files\formats\latex</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\markdown_document.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\markdown\markdown_document.cpp">
+      <Filter>Source Files\formats\markdown</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\latex_document.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\latex\latex_document.cpp">
+      <Filter>Source Files\formats\latex</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\latex_document_loader.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\latex\latex_document_loader.cpp">
+      <Filter>Source Files\formats\latex</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\mermaid_document.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\mermaid\mermaid_document.cpp">
+      <Filter>Source Files\formats\mermaid</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_reader.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\reader\pdf_reader.cpp">
+      <Filter>Source Files\formats\pdf\reader</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdfium_backend.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\pdfium\pdfium_backend.cpp">
+      <Filter>Source Files\formats\pdf\pdfium</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_annotations.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_annotations.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_attachments.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_attachments.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_bindings.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_bindings.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_media.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_media.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_objects.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_objects.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_pages.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_pages.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_writer_stub.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\writer\pdf_writer_stub.cpp">
+      <Filter>Source Files\formats\pdf\writer</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_reader_content.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\reader\pdf_reader_content.cpp">
+      <Filter>Source Files\formats\pdf\reader</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_reader_queries.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\reader\pdf_reader_queries.cpp">
+      <Filter>Source Files\formats\pdf\reader</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\pdf_texture.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\pdf\pdf_texture.cpp">
+      <Filter>Source Files\formats\pdf</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\markdown_parser.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\markdown\markdown_parser.cpp">
+      <Filter>Source Files\formats\markdown</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\mermaid_render.cpp">
-      <Filter>Source Files\core</Filter>
+    <ClCompile Include="src\formats\mermaid\mermaid_render.cpp">
+      <Filter>Source Files\formats\mermaid</Filter>
     </ClCompile>
     <ClCompile Include="src\nodes\latex_label.cpp">
       <Filter>Source Files\nodes</Filter>
@@ -117,67 +165,67 @@
     <ClCompile Include="src\editor\docrender_source_editor.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
-    <ClCompile Include="src\editor\latex_document_importer.cpp">
-      <Filter>Source Files\editor</Filter>
+    <ClCompile Include="src\editor\importers\latex_document_importer.cpp">
+      <Filter>Source Files\editor\importers</Filter>
     </ClCompile>
-    <ClCompile Include="src\editor\mermaid_document_importer.cpp">
-      <Filter>Source Files\editor</Filter>
+    <ClCompile Include="src\editor\importers\mermaid_document_importer.cpp">
+      <Filter>Source Files\editor\importers</Filter>
     </ClCompile>
-    <ClCompile Include="src\editor\pdf_texture_importer.cpp">
-      <Filter>Source Files\editor</Filter>
+    <ClCompile Include="src\editor\importers\pdf_texture_importer.cpp">
+      <Filter>Source Files\editor\importers</Filter>
     </ClCompile>
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\core\docrender_source.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\docrender_source.h">
+      <Filter>Header Files\formats</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\register_types.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\register_types.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\tex_render.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\latex\tex_render.h">
+      <Filter>Header Files\formats\latex</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\markdown_parser.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\markdown\markdown_parser.h">
+      <Filter>Header Files\formats\markdown</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\mermaid_render.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\mermaid\mermaid_render.h">
+      <Filter>Header Files\formats\mermaid</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\markdown_document.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\markdown\markdown_document.h">
+      <Filter>Header Files\formats\markdown</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\latex_document.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\latex\latex_document.h">
+      <Filter>Header Files\formats\latex</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\latex_document_loader.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\latex\latex_document_loader.h">
+      <Filter>Header Files\formats\latex</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\mermaid_document.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\mermaid\mermaid_document.h">
+      <Filter>Header Files\formats\mermaid</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdf_reader.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\reader\pdf_reader.h">
+      <Filter>Header Files\formats\pdf\reader</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdf_reader_internal.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\reader\pdf_reader_internal.h">
+      <Filter>Header Files\formats\pdf\reader</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdfium_backend.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\pdfium\pdfium_backend.h">
+      <Filter>Header Files\formats\pdf\pdfium</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdfium_writer_symbols.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\pdfium\pdfium_writer_symbols.h">
+      <Filter>Header Files\formats\pdf\pdfium</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdf_writer.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\writer\pdf_writer.h">
+      <Filter>Header Files\formats\pdf\writer</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdf_writer_internal.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\writer\pdf_writer_internal.h">
+      <Filter>Header Files\formats\pdf\writer</Filter>
     </ClInclude>
-    <ClInclude Include="src\core\pdf_texture.h">
-      <Filter>Header Files\core</Filter>
+    <ClInclude Include="src\formats\pdf\pdf_texture.h">
+      <Filter>Header Files\formats\pdf</Filter>
     </ClInclude>
     <ClInclude Include="src\nodes\latex_label.h">
       <Filter>Header Files\nodes</Filter>
@@ -197,14 +245,14 @@
     <ClInclude Include="src\editor\docrender_source_editor.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
-    <ClInclude Include="src\editor\latex_document_importer.h">
-      <Filter>Header Files\editor</Filter>
+    <ClInclude Include="src\editor\importers\latex_document_importer.h">
+      <Filter>Header Files\editor\importers</Filter>
     </ClInclude>
-    <ClInclude Include="src\editor\mermaid_document_importer.h">
-      <Filter>Header Files\editor</Filter>
+    <ClInclude Include="src\editor\importers\mermaid_document_importer.h">
+      <Filter>Header Files\editor\importers</Filter>
     </ClInclude>
-    <ClInclude Include="src\editor\pdf_texture_importer.h">
-      <Filter>Header Files\editor</Filter>
+    <ClInclude Include="src\editor\importers\pdf_texture_importer.h">
+      <Filter>Header Files\editor\importers</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">
       <Filter>Header Files\editor</Filter>

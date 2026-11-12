@@ -4,7 +4,7 @@
 #include <godot_cpp/classes/label_settings.hpp>
 #include <godot_cpp/classes/style_box.hpp>
 
-#include "core/tex_render.h"
+#include "formats/latex/tex_render.h"
 
 class LatexLabel : public godot::Control {
 	GDCLASS(LatexLabel, godot::Control)

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pdf_writer.h"
-#include "pdfium_backend.h"
+#include "formats/pdf/pdfium/pdfium_backend.h"
 
 #ifdef DOCRENDER_PDFIUM_ENABLED
 #include <godot_cpp/core/math.hpp>

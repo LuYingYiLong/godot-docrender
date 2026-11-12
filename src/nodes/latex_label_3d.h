@@ -4,7 +4,7 @@
 #include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 
-#include "core/tex_render.h"
+#include "formats/latex/tex_render.h"
 
 namespace godot {
 	class Node2D;

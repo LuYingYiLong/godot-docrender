@@ -22,12 +22,13 @@ if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc
     else:
         print("Mermaid rendering requires the Windows x64 SDK. Run python scripts/fetch_merman_sdk.py to install it.")
 
-tex_render = "src/core/tex_render.cpp"
-mermaid_render = "src/core/mermaid_render.cpp"
-pdfium_sources = Glob("src/core/pdf_reader*.cpp") + Glob("src/core/pdf_writer*.cpp") + [File("src/core/pdfium_backend.cpp")]
-sources = [source for source in Glob("src/core/*.cpp", exclude=[tex_render, mermaid_render])
-           if source not in pdfium_sources]
-sources += Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp")
+tex_render = File("src/formats/latex/tex_render.cpp")
+mermaid_render = File("src/formats/mermaid/mermaid_render.cpp")
+pdfium_sources = (Glob("src/formats/pdf/reader/*.cpp") + Glob("src/formats/pdf/writer/*.cpp")
+                  + Glob("src/formats/pdf/pdfium/*.cpp"))
+format_sources = Glob("src/formats/*.cpp") + Glob("src/formats/*/*.cpp")
+sources = Glob("src/*.cpp") + [source for source in format_sources if source not in (tex_render, mermaid_render)]
+sources += Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp") + Glob("src/editor/importers/*.cpp")
 mermaid_object = mermaid_env.StaticObject if env["platform"] == "ios" else mermaid_env.SharedObject
 sources += mermaid_object(mermaid_render)
 

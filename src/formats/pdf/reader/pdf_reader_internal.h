@@ -1,7 +1,7 @@
 #pragma once
 
 #include "pdf_reader.h"
-#include "pdfium_backend.h"
+#include "formats/pdf/pdfium/pdfium_backend.h"
 
 namespace godot {
 	struct PDFReader::State {

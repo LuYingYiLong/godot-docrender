@@ -1,7 +1,7 @@
 #include "mermaid_document_importer.h"
 
-#include "core/docrender_source.h"
-#include "core/mermaid_document.h"
+#include "formats/docrender_source.h"
+#include "formats/mermaid/mermaid_document.h"
 
 namespace godot {
 	String MermaidDocumentImporter::_get_importer_name() const {

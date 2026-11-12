@@ -1,7 +1,7 @@
 #include "pdf_writer_internal.h"
 
 #ifdef DOCRENDER_PDFIUM_ENABLED
-#include "pdf_reader.h"
+#include "formats/pdf/reader/pdf_reader.h"
 
 #include <godot_cpp/variant/char_string.hpp>
 

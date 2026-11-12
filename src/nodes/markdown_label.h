@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/markdown_parser.h"
-#include "core/mermaid_render.h"
+#include "formats/markdown/markdown_parser.h"
+#include "formats/mermaid/mermaid_render.h"
 
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/font.hpp>

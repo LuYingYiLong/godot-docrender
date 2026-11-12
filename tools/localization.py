@@ -51,7 +51,7 @@ def inspector_label(name):
 def collect_sources():
     messages = {name: defaultdict(set) for name in ("editor", "properties", "documentation")}
 
-    for path in sorted((ROOT / "src/editor").glob("*.cpp")):
+    for path in sorted((ROOT / "src/editor").rglob("*.cpp")):
         text = path.read_text(encoding="utf-8")
         for match in EDITOR_TEXT.finditer(text):
             key = (json.loads(match[1]), json.loads(match[2]))

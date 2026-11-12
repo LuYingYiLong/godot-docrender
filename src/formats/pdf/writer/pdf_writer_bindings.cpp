@@ -1,6 +1,6 @@
 #include "pdf_writer.h"
 
-#include "pdf_reader.h"
+#include "formats/pdf/reader/pdf_reader.h"
 
 namespace godot {
 	void PDFWriter::_bind_methods() {

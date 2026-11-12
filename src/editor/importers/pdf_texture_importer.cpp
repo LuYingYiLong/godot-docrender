@@ -1,7 +1,7 @@
 #include "pdf_texture_importer.h"
 
-#include "core/pdf_reader.h"
-#include "core/pdf_texture.h"
+#include "formats/pdf/reader/pdf_reader.h"
+#include "formats/pdf/pdf_texture.h"
 
 #include <godot_cpp/classes/resource_saver.hpp>
 

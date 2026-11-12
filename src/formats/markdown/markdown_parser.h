@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tex_render.h"
+#include "formats/latex/tex_render.h"
 
 #include <godot_cpp/classes/font.hpp>
 #include <godot_cpp/classes/ref.hpp>

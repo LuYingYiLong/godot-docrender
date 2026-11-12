@@ -1,6 +1,6 @@
 #include "pdf_writer_internal.h"
 
-#include "pdf_reader_internal.h"
+#include "formats/pdf/reader/pdf_reader_internal.h"
 
 #ifdef DOCRENDER_PDFIUM_ENABLED
 #include <godot_cpp/classes/project_settings.hpp>

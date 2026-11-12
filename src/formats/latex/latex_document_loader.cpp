@@ -1,6 +1,6 @@
 #include "latex_document_loader.h"
 
-#include "docrender_source.h"
+#include "formats/docrender_source.h"
 #include "latex_document.h"
 
 #include <godot_cpp/classes/config_file.hpp>
