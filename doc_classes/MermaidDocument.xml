@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="MermaidDocument" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Imported Mermaid document.
+	</brief_description>
+	<description>
+		The editor imports UTF-8 [code].mmd[/code] files as [MermaidDocument] resources. Use [method get_text] to read the Mermaid source.
+	</description>
+	<methods>
+		<method name="get_text" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the imported source text, including its original line breaks.
+			</description>
+		</method>
+	</methods>
+</class>

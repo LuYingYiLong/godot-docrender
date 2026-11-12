@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Godot DocRender VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-11 22:15+0800\n"
+"POT-Creation-Date: 2026-11-12 14:45+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans\n"
@@ -486,6 +486,14 @@ msgid ""
 "inside the control bounds."
 msgstr "设为 [constant TextServer.AUTOWRAP_OFF] 以外的值时，渲染后的 Markdown 文本会在控件范围内换行。"
 
+#. doc_classes/LatexDocument.xml
+msgid "Imported LaTeX document."
+msgstr "导入的 LaTeX 文档。"
+
+#. doc_classes/MermaidDocument.xml
+msgid "Imported Mermaid document."
+msgstr "导入的 Mermaid 文档。"
+
 #. doc_classes/TeXRender.xml
 msgid "Inline math style."
 msgstr "行内公式样式。"
@@ -819,6 +827,11 @@ msgstr "返回上次排版更新的错误信息。排版成功时返回空字符
 msgid "Returns the error message from the last parse attempt, or an empty string on success."
 msgstr "返回上次解析的错误信息。解析成功时返回空字符串。"
 
+#. doc_classes/LatexDocument.xml
+#. doc_classes/MermaidDocument.xml
+msgid "Returns the imported source text, including its original line breaks."
+msgstr "返回导入的源文本，保留原有换行。"
+
 #. doc_classes/MarkdownLabel.xml
 msgid ""
 "Returns the internal [PopupMenu] used for the context menu. The menu is lazily created on first "
@@ -1104,6 +1117,22 @@ msgstr "内容边距，单位为像素。控制 MarkdownLabel 边缘与渲染内
 #. doc_classes/MermaidLabel.xml
 msgid "The default palette for the diagram."
 msgstr "图表的默认配色。"
+
+#. doc_classes/MermaidDocument.xml
+msgid ""
+"The editor imports UTF-8 [code].mmd[/code] files as [MermaidDocument] resources. Use [method "
+"get_text] to read the Mermaid source."
+msgstr ""
+"编辑器会将 UTF-8 编码的 [code].mmd[/code] 文件导入为 [MermaidDocument] 资源。使用 [method get_text]"
+" 读取 Mermaid 源文本。"
+
+#. doc_classes/LatexDocument.xml
+msgid ""
+"The editor imports UTF-8 [code].tex[/code] files as [LatexDocument] resources. Use [method "
+"get_text] to read the LaTeX source."
+msgstr ""
+"编辑器会将 UTF-8 编码的 [code].tex[/code] 文件导入为 [LatexDocument] 资源。使用 [method get_text] "
+"读取 LaTeX 源文本。"
 
 #. doc_classes/LatexLabel3D.xml
 msgid "Tints the entire formula, including colors specified inside it."

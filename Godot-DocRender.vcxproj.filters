@@ -33,6 +33,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\core\docrender_source.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
     <ClCompile Include="src\core\register_types.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
@@ -40,6 +43,15 @@
       <Filter>Source Files\core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\markdown_document.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\latex_document.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\latex_document_loader.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\mermaid_document.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\markdown_parser.cpp">
@@ -60,11 +72,23 @@
     <ClCompile Include="src\nodes\mermaid_label.cpp">
       <Filter>Source Files\nodes</Filter>
     </ClCompile>
+    <ClCompile Include="src\editor\docrender_source_editor.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editor\latex_document_importer.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editor\mermaid_document_importer.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\core\docrender_source.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
     <ClInclude Include="src\core\register_types.h">
       <Filter>Header Files\core</Filter>
     </ClInclude>
@@ -80,6 +104,15 @@
     <ClInclude Include="src\core\markdown_document.h">
       <Filter>Header Files\core</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\latex_document.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\latex_document_loader.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\mermaid_document.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
     <ClInclude Include="src\nodes\latex_label.h">
       <Filter>Header Files\nodes</Filter>
     </ClInclude>
@@ -91,6 +124,15 @@
     </ClInclude>
     <ClInclude Include="src\nodes\mermaid_label.h">
       <Filter>Header Files\nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\docrender_source_editor.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\latex_document_importer.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\mermaid_document_importer.h">
+      <Filter>Header Files\editor</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">
       <Filter>Header Files\editor</Filter>

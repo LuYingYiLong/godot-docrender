@@ -180,6 +180,28 @@ markdown_label.finish_stream()
 
 Call `finish_stream()` after the final chunk. It forces a final full parse so document-level features such as footnotes, anchors, and lists settle into their final state.
 
+## Import LaTeX and Mermaid Files
+
+Place a UTF-8 `.tex` or `.mmd` file in your Godot project.
+
+The LaTeX Document importer imports `.tex` files as `LatexDocument`. The Mermaid Document importer imports `.mmd` files as `MermaidDocument`. Use `get_text()` on either resource to read the original source and assign it to a node's `text` property.
+
+Both document types inherit `Resource` directly. The editor reimports files from the former DocRender Source importer on project load and keeps their existing resource UIDs. If you used the removed `DocRenderSource` type in scripts or saved standalone resources with it, update them to the appropriate document type. Use the resource class to distinguish the formats.
+
+In Godot 4.7.2, double-click an imported `.tex` or `.mmd` file in the FileSystem tree or file list to edit its source in the built-in ScriptEditor. Use the ScriptEditor File menu to save the source or save it to a new path.
+
+```gdscript
+@export var diagram_source: MermaidDocument
+@onready var diagram: MermaidLabel = %MermaidLabel
+
+
+func _ready() -> void:
+	if diagram_source != null:
+		diagram.text = diagram_source.get_text()
+```
+
+Godot 4.7.2 also recognizes `.tex` as an `ImageTexture` extension, so its binary loader can log `Unrecognized binary resource file` when it scans a LaTeX file for dependencies. DocRender's import still produces a `LatexDocument`.
+
 ## Images And GIFs
 
 MarkdownLabel supports standard Markdown image syntax:

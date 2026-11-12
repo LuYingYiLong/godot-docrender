@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Godot DocRender VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-11 22:15+0800\n"
+"POT-Creation-Date: 2026-11-12 14:31+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: zh_Hans\n"
@@ -14,6 +14,16 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
+
+#. src/editor/latex_document_importer.cpp:12
+msgctxt "Godot DocRender"
+msgid "LaTeX Document"
+msgstr "LaTeX 文档"
+
+#. src/editor/mermaid_document_importer.cpp:12
+msgctxt "Godot DocRender"
+msgid "Mermaid Document"
+msgstr "Mermaid 文档"
 
 #. src/editor/markdown_preview_editor_plugin.cpp:179
 msgctxt "Godot DocRender"

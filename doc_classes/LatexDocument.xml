@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LatexDocument" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		Imported LaTeX document.
+	</brief_description>
+	<description>
+		The editor imports UTF-8 [code].tex[/code] files as [LatexDocument] resources. Use [method get_text] to read the LaTeX source.
+	</description>
+	<methods>
+		<method name="get_text" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the imported source text, including its original line breaks.
+			</description>
+		</method>
+	</methods>
+</class>
