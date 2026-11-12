@@ -3,9 +3,11 @@
 #include "editor/docrender_source_editor.h"
 #include "editor/latex_document_importer.h"
 #include "editor/mermaid_document_importer.h"
+#include "editor/pdf_texture_importer.h"
 #include "latex_document.h"
 #include "latex_document_loader.h"
 #include "mermaid_document.h"
+#include "pdf_texture.h"
 
 #include "nodes/latex_label.h"
 #include "nodes/latex_label_3d.h"
@@ -33,6 +35,7 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_INTERNAL_CLASS(MarkdownLabelCanvas);
 		GDREGISTER_CLASS(LatexDocument);
 		GDREGISTER_CLASS(MermaidDocument);
+		GDREGISTER_CLASS(PDFTexture);
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
 		GDREGISTER_CLASS(TeXRender);
@@ -50,6 +53,9 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		EditorPlugins::add_by_type<MarkdownPreviewEditorPlugin>();
 		GDREGISTER_INTERNAL_CLASS(LatexDocumentImporter);
 		GDREGISTER_INTERNAL_CLASS(MermaidDocumentImporter);
+		if (PDFTextureImporter::is_supported()) {
+			GDREGISTER_INTERNAL_CLASS(PDFTextureImporter);
+		}
 		GDREGISTER_INTERNAL_CLASS(DocRenderSourceEditorPlugin);
 		DocRenderSourceEditorPlugin::prepare_registration();
 		EditorPlugins::add_by_type<DocRenderSourceEditorPlugin>();

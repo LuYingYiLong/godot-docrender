@@ -54,6 +54,9 @@
     <ClCompile Include="src\core\mermaid_document.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\pdf_texture.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
     <ClCompile Include="src\core\markdown_parser.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
@@ -82,6 +85,9 @@
       <Filter>Source Files\editor</Filter>
     </ClCompile>
     <ClCompile Include="src\editor\mermaid_document_importer.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editor\pdf_texture_importer.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
@@ -116,6 +122,9 @@
     <ClInclude Include="src\core\mermaid_document.h">
       <Filter>Header Files\core</Filter>
     </ClInclude>
+    <ClInclude Include="src\core\pdf_texture.h">
+      <Filter>Header Files\core</Filter>
+    </ClInclude>
     <ClInclude Include="src\nodes\latex_label.h">
       <Filter>Header Files\nodes</Filter>
     </ClInclude>
@@ -138,6 +147,9 @@
       <Filter>Header Files\editor</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\mermaid_document_importer.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\pdf_texture_importer.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">

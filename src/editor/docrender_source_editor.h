@@ -3,6 +3,7 @@
 #include "docrender_editor_translations.h"
 #include "latex_document_importer.h"
 #include "mermaid_document_importer.h"
+#include "pdf_texture_importer.h"
 
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/editor_plugin.hpp>
@@ -33,6 +34,7 @@ namespace godot {
 		DocRenderEditorTranslations editor_translations;
 		Ref<LatexDocumentImporter> latex_importer;
 		Ref<MermaidDocumentImporter> mermaid_importer;
+		Ref<PDFTextureImporter> pdf_importer;
 		NativeConnection tree_activation;
 		NativeConnection list_activation;
 		NativeConnection file_selection;

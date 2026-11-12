@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="PDFTexture" inherits="ImageTexture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		A texture imported from a single PDF page.
+	</brief_description>
+	<description>
+		The Windows x64 editor can import a [code].pdf[/code] file as a [PDFTexture]. Select the page and DPI in the Import dock, then use the resource anywhere a [Texture2D] is accepted. Exported projects load the baked pixels without PDFium.
+	</description>
+	<members>
+		<member name="dpi" type="int" setter="" getter="get_dpi" default="144">
+			The resolution in dots per inch used to render the imported page.
+		</member>
+		<member name="page" type="int" setter="" getter="get_page" default="1">
+			The imported page number, starting at 1.
+		</member>
+	</members>
+</class>

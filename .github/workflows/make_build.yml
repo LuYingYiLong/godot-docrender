@@ -58,6 +58,10 @@ jobs:
         if: ${{ matrix.target.platform == 'windows' && matrix.target.arch == 'x86_64' }}
         run: python scripts/fetch_merman_sdk.py
 
+      - name: Install PDFium SDK
+        if: ${{ matrix.target.platform == 'windows' && matrix.target.arch == 'x86_64' }}
+        run: python scripts/fetch_pdfium_sdk.py
+
       # Remove committed/pre-existing binaries so each matrix artifact only contains its own build output.
       - name: Clean bundled binary outputs
         shell: pwsh
@@ -119,6 +123,14 @@ jobs:
           }
 
           if ("${{ matrix.target.platform }}-${{ matrix.target.arch }}" -eq "windows-x86_64") {
+            Copy-Item -LiteralPath addons/docrender/bin/pdfium.dll -Destination $stage_bin -ErrorAction Stop
+            $pdfium_sdk = Join-Path $env:GITHUB_WORKSPACE "src/thirdparty/pdfium-sdk"
+            $pdfium_licenses = Join-Path $stage "PDFium-LICENSES"
+            New-Item -ItemType Directory -Path $pdfium_licenses | Out-Null
+            foreach ($item in @("LICENSE", "licenses")) {
+              Copy-Item -LiteralPath (Join-Path $pdfium_sdk $item) -Destination $pdfium_licenses -Recurse -ErrorAction Stop
+            }
+
             $merman_licenses = Join-Path $stage "Merman-LICENSES"
             New-Item -ItemType Directory -Path $merman_licenses | Out-Null
             $sdk = Join-Path $env:GITHUB_WORKSPACE "src/thirdparty/merman-sdk"

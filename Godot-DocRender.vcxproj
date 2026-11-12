@@ -89,6 +89,10 @@
     <NMakeIncludeSearchPath>$(ProjectDir)src\thirdparty\merman-sdk\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
     <NMakePreprocessorDefinitions>MARKDOWN_LABEL_MERMAN_ENABLED;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform)'=='x64' And Exists('$(ProjectDir)src\thirdparty\pdfium-sdk\include\fpdfview.h') And Exists('$(ProjectDir)src\thirdparty\pdfium-sdk\bin\pdfium.dll')">
+    <NMakeIncludeSearchPath>$(ProjectDir)src\thirdparty\pdfium-sdk\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+    <NMakePreprocessorDefinitions>DOCRENDER_PDFIUM_ENABLED;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -109,6 +113,7 @@
     <ClCompile Include="src\core\latex_document.cpp" />
     <ClCompile Include="src\core\latex_document_loader.cpp" />
     <ClCompile Include="src\core\mermaid_document.cpp" />
+    <ClCompile Include="src\core\pdf_texture.cpp" />
     <ClCompile Include="src\nodes\latex_label.cpp" />
     <ClCompile Include="src\nodes\latex_label_3d.cpp" />
     <ClCompile Include="src\nodes\markdown_label.cpp" />
@@ -119,6 +124,7 @@
     <ClCompile Include="src\editor\docrender_source_editor.cpp" />
     <ClCompile Include="src\editor\latex_document_importer.cpp" />
     <ClCompile Include="src\editor\mermaid_document_importer.cpp" />
+    <ClCompile Include="src\editor\pdf_texture_importer.cpp" />
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp" />
     <ClCompile Include="src\core\docrender_source.cpp" />
     <ClCompile Include="src\core\register_types.cpp" />
@@ -129,6 +135,7 @@
     <ClInclude Include="src\core\latex_document.h" />
     <ClInclude Include="src\core\latex_document_loader.h" />
     <ClInclude Include="src\core\mermaid_document.h" />
+    <ClInclude Include="src\core\pdf_texture.h" />
     <ClInclude Include="src\nodes\markdown_label.h" />
     <ClInclude Include="src\nodes\mermaid_label.h" />
     <ClInclude Include="src\nodes\latex_label.h" />
@@ -139,6 +146,7 @@
     <ClInclude Include="src\editor\docrender_source_editor.h" />
     <ClInclude Include="src\editor\latex_document_importer.h" />
     <ClInclude Include="src\editor\mermaid_document_importer.h" />
+    <ClInclude Include="src\editor\pdf_texture_importer.h" />
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h" />
     <ClInclude Include="src\core\docrender_source.h" />
     <ClInclude Include="src\core\register_types.h" />

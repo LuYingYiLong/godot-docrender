@@ -190,6 +190,12 @@ Both document types inherit `Resource` directly. The editor reimports files from
 
 In Godot 4.7.2, double-click an imported `.tex` or `.mmd` file in the FileSystem tree or file list to edit its source in the built-in ScriptEditor. Use the ScriptEditor File menu to save the source or save it to a new path.
 
+## Import a PDF Page as a Texture
+
+On Windows x64, add a `.pdf` to the project and select it in the FileSystem dock. In the Import dock, choose **PDF Texture**, set the page number (starting at 1) and DPI, and click **Reimport**. The default is page 1 at 144 DPI with a white background. Assign the resulting [PDFTexture](doc_classes/PDFTexture.xml) to any `Texture2D` property. Exported games load the imported pixels directly.
+
+For a source build, run `python scripts/fetch_pdfium_sdk.py` before SCons. For offline setup, pass `--archive <path-to-pdfium-win-x64.tgz>` with the [pinned release archive](https://github.com/bblanchon/pdfium-binaries/releases/tag/chromium/8152). The Windows x64 build copies `pdfium.dll` to the addon's `bin` directory for the editor.
+
 ```gdscript
 @export var diagram_source: MermaidDocument
 @onready var diagram: MermaidLabel = %MermaidLabel

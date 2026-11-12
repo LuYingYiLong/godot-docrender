@@ -2,6 +2,7 @@
 from pathlib import Path
 
 merman_sdk_option = ARGUMENTS.pop("merman_sdk", None)
+pdfium_sdk_option = ARGUMENTS.pop("pdfium_sdk", None)
 env = SConscript("godot-cpp/SConstruct")
 
 env.Append(CPPPATH=["src/"])
@@ -23,9 +24,27 @@ if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc
 
 tex_render = "src/core/tex_render.cpp"
 mermaid_render = "src/core/mermaid_render.cpp"
-sources = Glob("src/core/*.cpp", exclude=[tex_render, mermaid_render]) + Glob("src/nodes/*.cpp") + Glob("src/editor/*.cpp")
+pdf_texture_importer = "src/editor/pdf_texture_importer.cpp"
+sources = (Glob("src/core/*.cpp", exclude=[tex_render, mermaid_render]) + Glob("src/nodes/*.cpp") +
+           Glob("src/editor/*.cpp", exclude=[pdf_texture_importer]))
 mermaid_object = mermaid_env.StaticObject if env["platform"] == "ios" else mermaid_env.SharedObject
 sources += mermaid_object(mermaid_render)
+
+pdfium_env = env.Clone()
+pdfium_dll = []
+if env["platform"] == "windows" and env["arch"] == "x86_64":
+    pdfium_sdk = Path(pdfium_sdk_option or "src/thirdparty/pdfium-sdk")
+    pdfium_library = pdfium_sdk / "bin/pdfium.dll"
+    if (pdfium_sdk / "include/fpdfview.h").is_file() and pdfium_library.is_file():
+        pdfium_env.AppendUnique(CPPPATH=[str(pdfium_sdk / "include")], CPPDEFINES=["DOCRENDER_PDFIUM_ENABLED"])
+        pdfium_dll = env.Install("addons/docrender/bin", str(pdfium_library))
+    elif pdfium_sdk_option:
+        print(f"Missing PDFium headers or DLL in {pdfium_sdk}.")
+        Exit(1)
+    else:
+        print("PDF import requires the Windows x64 SDK. Run python scripts/fetch_pdfium_sdk.py to install it.")
+pdfium_object = pdfium_env.StaticObject if env["platform"] == "ios" else pdfium_env.SharedObject
+sources += pdfium_object(pdf_texture_importer)
 
 microtex = "src/thirdparty/microtex"
 tinyxml2 = "src/thirdparty/tinyxml2"
@@ -113,4 +132,4 @@ else:
     )
 
 # The GDExtension descriptor loads the packaged libraries by their existing paths.
-Default(Alias("godot-docrender", library))
+Default(Alias("godot-docrender", library + pdfium_dll))

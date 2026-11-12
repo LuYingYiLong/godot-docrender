@@ -1169,3 +1169,24 @@ msgid ""
 "Uses the resource's font size and font color in preference to the theme. Changes to a shared "
 "resource update the formula. The glyphs use the embedded math fonts."
 msgstr "优先使用该资源的字号和字体颜色。共享资源发生变化时会更新公式。公式字形来自内置数学字体。"
+
+#. doc_classes/PDFTexture.xml
+msgid "A texture imported from a single PDF page."
+msgstr "从单页 PDF 导入的纹理。"
+
+#. doc_classes/PDFTexture.xml
+msgid ""
+"The Windows x64 editor can import a [code].pdf[/code] file as a [PDFTexture]. Select the page "
+"and DPI in the Import dock, then use the resource anywhere a [Texture2D] is accepted. Exported "
+"projects load the baked pixels without PDFium."
+msgstr ""
+"Windows x64 编辑器可以将 [code].pdf[/code] 文件导入为 [PDFTexture]。在导入面板中选择页码和 DPI 后，"
+"即可在接受 [Texture2D] 的位置使用该资源。导出的项目直接加载烘焙后的像素，无需 PDFium。"
+
+#. doc_classes/PDFTexture.xml
+msgid "The resolution in dots per inch used to render the imported page."
+msgstr "渲染导入页面时使用的分辨率，单位为每英寸点数。"
+
+#. doc_classes/PDFTexture.xml
+msgid "The imported page number, starting at 1."
+msgstr "导入的页码，从 1 开始。"

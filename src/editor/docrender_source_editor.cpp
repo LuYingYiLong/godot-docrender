@@ -25,6 +25,7 @@ namespace godot {
 	namespace {
 		Ref<LatexDocumentImporter> startup_latex_importer;
 		Ref<MermaidDocumentImporter> startup_mermaid_importer;
+		Ref<PDFTextureImporter> startup_pdf_importer;
 
 		StringName get_document_type(const String& p_path) {
 			const String extension = p_path.get_extension().to_lower();
@@ -100,6 +101,7 @@ namespace godot {
 		registrar->install_importers();
 		startup_latex_importer = registrar->latex_importer;
 		startup_mermaid_importer = registrar->mermaid_importer;
+		startup_pdf_importer = registrar->pdf_importer;
 		memdelete(registrar);
 	}
 
@@ -110,6 +112,11 @@ namespace godot {
 		mermaid_importer->set_translation_domain("godot.editor");
 		add_import_plugin(latex_importer);
 		add_import_plugin(mermaid_importer);
+		if (PDFTextureImporter::is_supported()) {
+			pdf_importer.instantiate();
+			pdf_importer->set_translation_domain("godot.editor");
+			add_import_plugin(pdf_importer);
+		}
 	}
 
 	void DocRenderSourceEditorPlugin::_enter_tree() {
@@ -117,8 +124,10 @@ namespace godot {
 		if (startup_latex_importer.is_valid()) {
 			latex_importer = startup_latex_importer;
 			mermaid_importer = startup_mermaid_importer;
+			pdf_importer = startup_pdf_importer;
 			startup_latex_importer.unref();
 			startup_mermaid_importer.unref();
+			startup_pdf_importer.unref();
 		} else {
 			install_importers();
 		}
@@ -159,6 +168,10 @@ namespace godot {
 
 	void DocRenderSourceEditorPlugin::_exit_tree() {
 		detach_source_editor();
+		if (pdf_importer.is_valid()) {
+			remove_import_plugin(pdf_importer);
+			pdf_importer.unref();
+		}
 		remove_import_plugin(mermaid_importer);
 		remove_import_plugin(latex_importer);
 		mermaid_importer.unref();
