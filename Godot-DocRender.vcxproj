@@ -138,6 +138,8 @@
     <ClCompile Include="src\editor\importers\mermaid_document_importer.cpp" />
     <ClCompile Include="src\editor\importers\pdf_texture_importer.cpp" />
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp" />
+    <ClCompile Include="src\editor\mermaid_preview_editor_plugin.cpp" />
+    <ClCompile Include="src\editor\script_editor_preview_plugin.cpp" />
     <ClCompile Include="src\formats\docrender_source.cpp" />
     <ClCompile Include="src\register_types.cpp" />
     <ClCompile Include="src\formats\latex\tex_render.cpp" />
@@ -166,6 +168,8 @@
     <ClInclude Include="src\editor\importers\mermaid_document_importer.h" />
     <ClInclude Include="src\editor\importers\pdf_texture_importer.h" />
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h" />
+    <ClInclude Include="src\editor\mermaid_preview_editor_plugin.h" />
+    <ClInclude Include="src\editor\script_editor_preview_plugin.h" />
     <ClInclude Include="src\formats\docrender_source.h" />
     <ClInclude Include="src\register_types.h" />
     <ClInclude Include="src\formats\latex\tex_render.h" />

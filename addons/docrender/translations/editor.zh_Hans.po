@@ -25,7 +25,7 @@ msgctxt "Godot DocRender"
 msgid "Mermaid Document"
 msgstr "Mermaid 文档"
 
-#. src/editor/markdown_preview_editor_plugin.cpp:179
+#. src/editor/script_editor_preview_plugin.cpp:124
 msgctxt "Godot DocRender"
 msgid "Open Preview to the Right"
 msgstr "右侧打开预览"
@@ -35,17 +35,17 @@ msgctxt "Godot DocRender"
 msgid "PDF Texture"
 msgstr "PDF 纹理"
 
-#. src/editor/markdown_preview_editor_plugin.cpp:173
+#. src/editor/script_editor_preview_plugin.cpp:118
 msgctxt "Godot DocRender"
 msgid "Preview"
 msgstr "预览"
 
-#. src/editor/markdown_preview_editor_plugin.cpp:180
+#. src/editor/script_editor_preview_plugin.cpp:125
 msgctxt "Godot DocRender"
 msgid "Preview Only"
 msgstr "仅预览"
 
-#. src/editor/markdown_preview_editor_plugin.cpp:178
+#. src/editor/script_editor_preview_plugin.cpp:123
 msgctxt "Godot DocRender"
 msgid "View Source"
 msgstr "查看源文件"

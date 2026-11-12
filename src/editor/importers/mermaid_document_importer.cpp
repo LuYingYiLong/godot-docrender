@@ -15,6 +15,7 @@ namespace godot {
 	PackedStringArray MermaidDocumentImporter::_get_recognized_extensions() const {
 		PackedStringArray extensions;
 		extensions.append("mmd");
+		extensions.append("mermaid");
 		return extensions;
 	}
 

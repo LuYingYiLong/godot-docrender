@@ -18,6 +18,7 @@ namespace godot {
 
 	public:
 		static void prepare_registration();
+		static String get_source_path(uint64_t p_tab_id);
 		void _enter_tree() override;
 		void _exit_tree() override;
 		void _set_window_layout(const Ref<ConfigFile>& p_configuration) override;
@@ -41,7 +42,7 @@ namespace godot {
 		Callable open_text_result;
 		uint64_t script_list_id = 0;
 		uint64_t script_tabs_id = 0;
-		HashMap<uint64_t, String> source_tabs;
+		static HashMap<uint64_t, String> source_tabs;
 
 		void install_importers();
 		void import_existing_sources();

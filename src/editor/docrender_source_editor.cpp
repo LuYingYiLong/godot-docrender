@@ -89,6 +89,13 @@ namespace godot {
 		}
 	} // namespace
 
+	HashMap<uint64_t, String> DocRenderSourceEditorPlugin::source_tabs;
+
+	String DocRenderSourceEditorPlugin::get_source_path(uint64_t p_tab_id) {
+		const String* path = source_tabs.getptr(p_tab_id);
+		return path != nullptr ? *path : String();
+	}
+
 	void DocRenderSourceEditorPlugin::prepare_registration() {
 		const EditorInterface* editor = EditorInterface::get_singleton();
 		if (editor == nullptr || editor->get_resource_filesystem() == nullptr) {

@@ -4,6 +4,9 @@
 #include "editor/importers/latex_document_importer.h"
 #include "editor/importers/mermaid_document_importer.h"
 #include "editor/importers/pdf_texture_importer.h"
+#include "editor/markdown_preview_editor_plugin.h"
+#include "editor/mermaid_preview_editor_plugin.h"
+#include "editor/script_editor_preview_plugin.h"
 #include "formats/latex/latex_document.h"
 #include "formats/latex/latex_document_loader.h"
 #include "formats/mermaid/mermaid_document.h"
@@ -15,7 +18,6 @@
 #include "nodes/latex_label_3d.h"
 #include "nodes/markdown_label.h"
 #include "nodes/mermaid_label.h"
-#include "editor/markdown_preview_editor_plugin.h"
 #include "formats/mermaid/mermaid_render.h"
 #include "formats/latex/tex_render.h"
 
@@ -53,8 +55,11 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 	}
 
 	else if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR && Engine::get_singleton()->is_editor_hint()) {
+		GDREGISTER_ABSTRACT_CLASS(ScriptEditorPreviewPlugin);
 		GDREGISTER_INTERNAL_CLASS(MarkdownPreviewEditorPlugin);
+		GDREGISTER_INTERNAL_CLASS(MermaidPreviewEditorPlugin);
 		EditorPlugins::add_by_type<MarkdownPreviewEditorPlugin>();
+		EditorPlugins::add_by_type<MermaidPreviewEditorPlugin>();
 		GDREGISTER_INTERNAL_CLASS(LatexDocumentImporter);
 		GDREGISTER_INTERNAL_CLASS(MermaidDocumentImporter);
 		if (PDFTextureImporter::is_supported()) {
@@ -70,6 +75,7 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 void uninitialize_docrender_module(ModuleInitializationLevel p_level) {
 	if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR && editor_plugins_registered) {
 		EditorPlugins::remove_by_type<DocRenderSourceEditorPlugin>();
+		EditorPlugins::remove_by_type<MermaidPreviewEditorPlugin>();
 		EditorPlugins::remove_by_type<MarkdownPreviewEditorPlugin>();
 		editor_plugins_registered = false;
 	}

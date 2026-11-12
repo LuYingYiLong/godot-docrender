@@ -177,6 +177,12 @@
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
       <Filter>Source Files\editor</Filter>
     </ClCompile>
+    <ClCompile Include="src\editor\mermaid_preview_editor_plugin.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editor\script_editor_preview_plugin.cpp">
+      <Filter>Source Files\editor</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\formats\docrender_source.h">
@@ -255,6 +261,12 @@
       <Filter>Header Files\editor\importers</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\mermaid_preview_editor_plugin.h">
+      <Filter>Header Files\editor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\script_editor_preview_plugin.h">
       <Filter>Header Files\editor</Filter>
     </ClInclude>
   </ItemGroup>
