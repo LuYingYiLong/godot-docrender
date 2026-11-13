@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="HTMLElement" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<brief_description>
+		A read-only handle to an element in a parsed HTML layout.
+	</brief_description>
+	<description>
+		Obtain a handle from [method HTMLLayout.query_selector] or [method HTMLLabel.query_selector]. A handle belongs to one layout and stays valid across viewport resizes. Parsing again, clearing the layout, or freeing its owner invalidates it. An invalid handle returns empty results or the supplied attribute default. Use these methods on the main thread.
+	</description>
+	<methods>
+		<method name="get_attribute" qualifiers="const">
+			<return type="String" />
+			<param index="0" name="name" type="String" />
+			<param index="1" name="default_value" type="String" default="&quot;&quot;" />
+			<description>
+				Returns the attribute value, or [param default_value] if the attribute is absent. Attribute names are ASCII case-insensitive. An explicitly empty attribute returns an empty string.
+			</description>
+		</method>
+		<method name="get_bounding_rect" qualifiers="const">
+			<return type="Rect2" />
+			<description>
+				Returns the union of the rectangles from [method get_client_rects], or an empty rectangle if there are no boxes.
+			</description>
+		</method>
+		<method name="get_children" qualifiers="const">
+			<return type="HTMLElement[]" />
+			<description>
+				Returns the direct child elements in document order. Text nodes, comments, and CSS-generated pseudo-elements are excluded.
+			</description>
+		</method>
+		<method name="get_client_rects" qualifiers="const">
+			<return type="Rect2[]" />
+			<description>
+				Returns the element's border-box fragments in document pixel coordinates, before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box.
+			</description>
+		</method>
+		<method name="get_parent" qualifiers="const">
+			<return type="HTMLElement" />
+			<description>
+				Returns the parent element, or [code]null[/code] at the document root.
+			</description>
+		</method>
+		<method name="get_tag_name" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the element's lowercase HTML tag name.
+			</description>
+		</method>
+		<method name="get_text_content" qualifiers="const">
+			<return type="String" />
+			<description>
+				Concatenates the parsed text nodes in document order, including hidden content. Comments and CSS-generated text are excluded. For the laid-out text of the document, see [method HTMLLayout.get_plain_text].
+			</description>
+		</method>
+		<method name="has_attribute" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="name" type="String" />
+			<description>
+				Returns whether the element has an attribute with the given name, including an empty attribute.
+			</description>
+		</method>
+		<method name="is_valid" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns whether the handle still refers to an element in its original parsed layout.
+			</description>
+		</method>
+	</methods>
+</class>

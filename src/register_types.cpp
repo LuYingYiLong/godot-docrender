@@ -48,6 +48,7 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_CLASS(PDFTexture);
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
+		GDREGISTER_ABSTRACT_CLASS(HTMLElement);
 		GDREGISTER_CLASS(HTMLLayout);
 		GDREGISTER_CLASS(HTMLDocument);
 		GDREGISTER_INTERNAL_CLASS(HTMLLabelCanvas);

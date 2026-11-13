@@ -1,6 +1,8 @@
 #ifndef DOCRENDER_HTML_LAYOUT_H
 #define DOCRENDER_HTML_LAYOUT_H
 
+#include "html_element.h"
+
 #include <godot_cpp/classes/font.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
@@ -11,6 +13,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 namespace godot {
 	class CanvasItem;
@@ -20,8 +23,16 @@ namespace godot {
 class HTMLLayout : public godot::RefCounted {
 	GDCLASS(HTMLLayout, godot::RefCounted)
 
+	friend class HTMLElement;
+
 	struct State;
 	std::unique_ptr<State> state;
+	uint64_t parse_version = 0;
+
+	godot::Ref<HTMLElement> make_element(const std::shared_ptr<litehtml::element>& p_element) const;
+	godot::TypedArray<HTMLElement> select_elements(const godot::String& p_selector, bool p_first_only) const;
+	godot::TypedArray<godot::Rect2> get_element_rects(const std::shared_ptr<litehtml::element>& p_element) const;
+	std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_position) const;
 
 	void _on_canvas_redraw(uint64_t p_id);
 	void _detach_canvas(uint64_t p_id);
@@ -68,6 +79,11 @@ public:
 	LinkHit find_link_at(const godot::Vector2& p_position) const;
 	godot::Rect2 get_anchor_rect(const godot::String& p_id) const;
 	const godot::HashMap<godot::String, godot::Rect2>& get_anchor_rects() const;
+	godot::Ref<HTMLElement> query_selector(const godot::String& p_selector) const;
+	godot::TypedArray<HTMLElement> query_selector_all(const godot::String& p_selector) const;
+	godot::Ref<HTMLElement> get_element_by_id(const godot::String& p_id) const;
+	godot::Ref<HTMLElement> get_element_at(const godot::Vector2& p_position) const;
+	std::optional<godot::Rect2> get_element_scroll_bounds(const godot::Ref<HTMLElement>& p_element) const;
 	godot::String get_render_error() const;
 	void clear();
 };

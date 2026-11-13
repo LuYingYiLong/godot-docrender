@@ -269,6 +269,109 @@ void fragment() {
 		return radii_x != Vector4();
 	}
 
+	bool LiteHTMLContainer::RoundedRect::has_point(const Vector2& p_position) const {
+		if (!rect.has_point(p_position)) {
+			return false;
+		}
+		const Vector2 from_start = p_position - rect.position;
+		const Vector2 from_end = rect.get_end() - p_position;
+		for (int i = 0; i < 4; ++i) {
+			const Vector2 radius(radii_x[i], radii_y[i]);
+			const Vector2 edge(i == 0 || i == 3 ? from_start.x : from_end.x, i < 2 ? from_start.y : from_end.y);
+			if (edge.x < radius.x && edge.y < radius.y) {
+				return ((radius - edge) / radius).length_squared() <= 1.0;
+			}
+		}
+		return true;
+	}
+
+	LiteHTMLContainer::RoundedRect LiteHTMLContainer::get_overflow_clip(render_item& p_item) {
+		const position box = p_item.get_placement();
+		position border_box = box;
+		border_box += p_item.get_paddings();
+		border_box += p_item.get_borders();
+		border_radiuses radii = p_item.css().get_borders().radius.calc_percents(border_box.width, border_box.height);
+		radii -= p_item.get_borders();
+		radii -= p_item.get_paddings();
+		return RoundedRect(to_rect(box), radii);
+	}
+
+	bool LiteHTMLContainer::is_hit_visible(const render_item& p_item, const Vector2& p_position) {
+		position::vector boxes;
+		p_item.get_rendering_boxes(boxes);
+		const auto& css_radius = p_item.css().get_borders().radius;
+		bool inside = false;
+		for (size_t i = 0; i < boxes.size(); ++i) {
+			const Rect2 box = to_rect(boxes[i]);
+			if (!box.has_point(p_position)) {
+				continue;
+			}
+			border_radiuses radii;
+			if (p_item.css().get_display() != display_table_row) {
+				radii = css_radius.calc_percents(box.size.x, box.size.y);
+				if (p_item.css().get_display() == display_inline) {
+					if (i > 0) {
+						radii.top_left_x = radii.top_left_y = radii.bottom_left_x = radii.bottom_left_y = 0;
+					}
+					if (i + 1 < boxes.size()) {
+						radii.top_right_x = radii.top_right_y = radii.bottom_right_x = radii.bottom_right_y = 0;
+					}
+				}
+			}
+			if (RoundedRect(box, radii).has_point(p_position)) {
+				inside = true;
+				break;
+			}
+		}
+		if (!inside) {
+			return false;
+		}
+
+		int rounded_clips = 0;
+		for (auto parent = p_item.parent(); parent; parent = parent->parent()) {
+			const auto& css = parent->css();
+			if (css.get_overflow() <= overflow_visible || css.get_display() == display_inline) {
+				continue;
+			}
+			const RoundedRect shape = get_overflow_clip(*parent);
+			const bool rounded = shape.has_radius() && rounded_clips++ < MAX_ROUNDED_CLIPS;
+			if (!(rounded ? shape.has_point(p_position) : shape.rect.has_point(p_position))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool LiteHTMLContainer::has_visible_area(const render_item& p_item, const Rect2& p_box) {
+		Rect2 visible = p_box;
+		int rounded_clips = 0;
+		for (auto parent = p_item.parent(); parent; parent = parent->parent()) {
+			const auto& css = parent->css();
+			if (css.get_overflow() <= overflow_visible || css.get_display() == display_inline) {
+				continue;
+			}
+			const RoundedRect clip = get_overflow_clip(*parent);
+			visible = visible.intersection(clip.rect);
+			if (!visible.has_area()) {
+				return false;
+			}
+			if (clip.has_radius() && rounded_clips++ < MAX_ROUNDED_CLIPS) {
+				// A rectangle entirely inside a cut-off corner cannot be revealed by scrolling the label.
+				for (int i = 0; i < 4; ++i) {
+					const Vector2 inward(i == 0 || i == 3 ? visible.get_end().x : visible.position.x,
+						i < 2 ? visible.get_end().y : visible.position.y);
+					const Vector2 edge(i == 0 || i == 3 ? inward.x - clip.rect.position.x : clip.rect.get_end().x - inward.x,
+						i < 2 ? inward.y - clip.rect.position.y : clip.rect.get_end().y - inward.y);
+					const Vector2 radius(clip.radii_x[i], clip.radii_y[i]);
+					if (edge.x < radius.x && edge.y < radius.y && ((radius - edge) / radius).length_squared() >= 1.0) {
+						return false;
+					}
+				}
+			}
+		}
+		return visible.has_area();
+	}
+
 	LiteHTMLContainer::LiteHTMLContainer(const String& p_base_dir, const Dictionary& p_textures, bool p_fit_images,
 		const HTMLLayout::Fonts& p_fonts, const Dictionary& p_local_stylesheets) :
 		base_dir(p_base_dir), textures(p_textures), local_stylesheets(p_local_stylesheets),

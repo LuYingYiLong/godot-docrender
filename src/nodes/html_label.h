@@ -67,6 +67,7 @@ class HTMLLabel : public godot::Control {
 	void update_view(const godot::Vector2i& p_viewport, const godot::Vector2i& p_content,
 		bool p_scroll_horizontal, bool p_scroll_vertical, const godot::String& p_error = {});
 	godot::Rect2 get_visible_rect() const;
+	bool scroll_to_rect(const godot::Rect2& p_target, float p_align);
 	void apply_scroll_offset(const godot::Vector2i& p_offset);
 	void apply_pending_scroll();
 	void on_scroll_changed(double p_value);
@@ -92,6 +93,11 @@ public:
 	godot::Vector2i get_scroll_offset() const;
 	void set_scroll_offset(const godot::Vector2i& p_offset);
 	bool scroll_to_anchor(const godot::String& p_id, float p_align = 0.0f);
+	godot::Ref<HTMLElement> query_selector(const godot::String& p_selector) const;
+	godot::TypedArray<HTMLElement> query_selector_all(const godot::String& p_selector) const;
+	godot::Ref<HTMLElement> get_element_by_id(const godot::String& p_id) const;
+	godot::Ref<HTMLElement> get_element_at(const godot::Vector2& p_position) const;
+	bool scroll_to_element(const godot::Ref<HTMLElement>& p_element, float p_align = 0.0f);
 	void set_selection_enabled(bool p_enabled);
 	bool is_selection_enabled() const;
 	void select_all();

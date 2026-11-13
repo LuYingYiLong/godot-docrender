@@ -2391,6 +2391,93 @@ msgstr ""
 "[code]radial-gradient()[/code] 和 [code]conic-gradient()[/code]，使用 sRGB 颜色插值。\n"
 "文字使用项目主题的默认字体或 Godot 的回退字体。请在主线程中使用渲染器。"
 
+#. doc_classes/HTMLElement.xml
+msgid "A read-only handle to an element in a parsed HTML layout."
+msgstr "指向已解析 HTML 布局中某个元素的只读句柄。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Obtain a handle from [method HTMLLayout.query_selector] or [method HTMLLabel.query_selector]. "
+"A handle belongs to one layout and stays valid across viewport resizes. Parsing again, clearing the layout, "
+"or freeing its owner invalidates it. An invalid handle returns empty results or the supplied attribute default. "
+"Use these methods on the main thread."
+msgstr ""
+"通过 [method HTMLLayout.query_selector] 或 [method HTMLLabel.query_selector] 获取句柄。"
+"句柄属于单个布局，调整视口尺寸后仍然有效。重新解析、清空布局或释放所属对象后，句柄会失效。"
+"无效句柄返回空结果或传入的属性默认值。请在主线程调用这些方法。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns the attribute value, or [param default_value] if the attribute is absent. Attribute names are ASCII case-insensitive. An explicitly empty attribute returns an empty string."
+msgstr "返回属性值。属性不存在时返回 [param default_value]。属性名称的 ASCII 字母不区分大小写。显式指定的空属性返回空字符串。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns the union of the rectangles from [method get_client_rects], or an empty rectangle if there are no boxes."
+msgstr "返回包含 [method get_client_rects] 所有矩形的最小矩形。没有布局盒时返回空矩形。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns the direct child elements in document order. Text nodes, comments, and CSS-generated pseudo-elements are excluded."
+msgstr "按文档顺序返回直接子元素，跳过文本节点、注释和 CSS 生成的伪元素。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns the element's border-box fragments in document pixel coordinates, before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box."
+msgstr "以文档像素坐标返回元素各片段的边框盒，坐标与裁剪和控件滚动无关。行内元素可能有多个矩形。排版前或元素没有布局盒时返回空数组。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns the parent element, or [code]null[/code] at the document root."
+msgstr "返回父元素。文档根元素返回 [code]null[/code]。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns the element's lowercase HTML tag name."
+msgstr "返回元素的小写 HTML 标签名。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Concatenates the parsed text nodes in document order, including hidden content. Comments and CSS-generated text are excluded. For the laid-out text of the document, see [method HTMLLayout.get_plain_text]."
+msgstr "按文档顺序连接解析后的文本节点，包含隐藏内容，跳过注释和 CSS 生成的文本。获取排版后的文档文本请参见 [method HTMLLayout.get_plain_text]。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns whether the element has an attribute with the given name, including an empty attribute."
+msgstr "返回元素是否具有指定名称的属性，空属性也视为存在。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns whether the handle still refers to an element in its original parsed layout."
+msgstr "返回句柄是否仍指向原始解析布局中的元素。"
+
+#. doc_classes/HTMLLayout.xml
+msgid "Returns the frontmost element at the given document pixel position, accounting for overflow clipping. Returns [code]null[/code] when there is no hit or no layout."
+msgstr "返回指定文档像素位置处最上层的元素，并考虑溢出裁剪。未命中或尚未排版时返回 [code]null[/code]。"
+
+#. doc_classes/HTMLLayout.xml
+msgid "Returns the first element with the given case-sensitive HTML ID, including hidden elements. Pass the ID without [code]#[/code]. Returns [code]null[/code] if the ID is absent."
+msgstr "返回第一个匹配指定 HTML ID 的元素，包括隐藏元素。ID 区分大小写，传入时省略 [code]#[/code]。ID 不存在时返回 [code]null[/code]。"
+
+#. doc_classes/HTMLLayout.xml
+msgid "Returns the first match in document order, or [code]null[/code]. See [method query_selector_all] for selector syntax."
+msgstr "按文档顺序返回第一个匹配项。无匹配时返回 [code]null[/code]。选择器语法见 [method query_selector_all]。"
+
+#. doc_classes/HTMLLayout.xml
+msgid "Returns matching elements from the litehtml element tree in document order, with each element included once. Tags, classes, IDs, attributes, combinators, and comma-separated lists are supported. Queries include hidden elements and are available after parsing. Invalid or unsupported selectors report an error and return an empty array."
+msgstr "按文档顺序返回 litehtml 元素树中匹配的元素，每个元素只出现一次。支持标签、类、ID、属性、组合器和逗号分隔的列表。解析后即可查询，结果包含隐藏元素。选择器无效或不受支持时会报告错误并返回空数组。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Returns the element at the given position in this control's local coordinates. The scroll offset is applied automatically. Returns [code]null[/code] outside the content viewport, including the scrollbars, and when there is no hit or the layout is pending."
+msgstr "返回控件局部坐标中指定位置处的元素，并自动应用滚动偏移。位置在内容视口之外（含滚动条区域）、未命中或布局待更新时返回 [code]null[/code]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Looks up a case-sensitive HTML ID in this label's parsed document. See [method HTMLLayout.get_element_by_id]."
+msgstr "在控件解析后的文档中查找区分大小写的 HTML ID。参见 [method HTMLLayout.get_element_by_id]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Returns the first match in this label's parsed document. See [method HTMLLayout.query_selector]."
+msgstr "返回控件解析后的文档中的第一个匹配项。参见 [method HTMLLayout.query_selector]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Returns all matches in this label's parsed document. See [method HTMLLayout.query_selector_all]."
+msgstr "返回控件解析后的文档中的全部匹配项。参见 [method HTMLLayout.query_selector_all]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Scrolls to an element obtained from this label. [param align] positions the element's top from [code]0.0[/code] at the viewport top to [code]1.0[/code] at the viewport bottom, within the scrollable range. Horizontal scrolling adjusts when the target's left edge is outside the viewport. Returns [code]false[/code] for an invalid, foreign, or invisible element, or when layout is pending."
+msgstr "滚动到从此控件获取的元素。[param align] 将元素顶部定位于视口顶部的 [code]0.0[/code] 到视口底部的 [code]1.0[/code] 之间，实际偏移限制在可滚动范围内。目标左边缘在视口之外时会调整横向偏移。元素无效、属于其他布局、不可见或布局待更新时返回 [code]false[/code]。"
+
 #. doc_classes/HTMLLabel.xml
 msgid "Displays a scrollable HTML document."
 msgstr "显示可滚动的 HTML 文档。"

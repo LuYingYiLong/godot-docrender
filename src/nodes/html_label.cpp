@@ -174,6 +174,11 @@ void HTMLLabel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scroll_offset"), &HTMLLabel::get_scroll_offset);
 	ClassDB::bind_method(D_METHOD("set_scroll_offset", "offset"), &HTMLLabel::set_scroll_offset);
 	ClassDB::bind_method(D_METHOD("scroll_to_anchor", "id", "align"), &HTMLLabel::scroll_to_anchor, DEFVAL(0.0f));
+	ClassDB::bind_method(D_METHOD("query_selector", "selector"), &HTMLLabel::query_selector);
+	ClassDB::bind_method(D_METHOD("query_selector_all", "selector"), &HTMLLabel::query_selector_all);
+	ClassDB::bind_method(D_METHOD("get_element_by_id", "id"), &HTMLLabel::get_element_by_id);
+	ClassDB::bind_method(D_METHOD("get_element_at", "position"), &HTMLLabel::get_element_at);
+	ClassDB::bind_method(D_METHOD("scroll_to_element", "element", "align"), &HTMLLabel::scroll_to_element, DEFVAL(0.0f));
 	ClassDB::bind_method(D_METHOD("set_selection_enabled", "enabled"), &HTMLLabel::set_selection_enabled);
 	ClassDB::bind_method(D_METHOD("is_selection_enabled"), &HTMLLabel::is_selection_enabled);
 	ClassDB::bind_method(D_METHOD("select_all"), &HTMLLabel::select_all);
@@ -279,20 +284,49 @@ void HTMLLabel::set_scroll_offset(const Vector2i& p_offset) {
 }
 
 bool HTMLLabel::scroll_to_anchor(const String& p_id, float p_align) {
-	if (!is_inside_tree() || refresh_queued || layout.is_null()) {
+	if (!is_inside_tree() || refresh_queued || viewport_size.x <= 0 || viewport_size.y <= 0) {
 		return false;
 	}
 	const Rect2* anchor = layout->get_anchor_rects().getptr(p_id);
-	if (!anchor) {
+	return anchor && scroll_to_rect(*anchor, p_align);
+}
+
+Ref<HTMLElement> HTMLLabel::query_selector(const String& p_selector) const {
+	return source_dirty ? Ref<HTMLElement>() : layout->query_selector(p_selector);
+}
+
+TypedArray<HTMLElement> HTMLLabel::query_selector_all(const String& p_selector) const {
+	return source_dirty ? TypedArray<HTMLElement>() : layout->query_selector_all(p_selector);
+}
+
+Ref<HTMLElement> HTMLLabel::get_element_by_id(const String& p_id) const {
+	return source_dirty ? Ref<HTMLElement>() : layout->get_element_by_id(p_id);
+}
+
+Ref<HTMLElement> HTMLLabel::get_element_at(const Vector2& p_position) const {
+	if (!is_inside_tree() || refresh_queued || !p_position.is_finite() || !Rect2(Vector2(), get_size()).has_point(p_position)) {
+		return {};
+	}
+	const Vector2 local = (canvas->get_global_transform().affine_inverse() * get_global_transform()).xform(p_position);
+	return get_visible_rect().has_point(local) ? layout->get_element_at(local) : Ref<HTMLElement>();
+}
+
+bool HTMLLabel::scroll_to_element(const Ref<HTMLElement>& p_element, float p_align) {
+	if (!is_inside_tree() || refresh_queued || viewport_size.x <= 0 || viewport_size.y <= 0) {
 		return false;
 	}
+	const auto bounds = layout->get_element_scroll_bounds(p_element);
+	return bounds && scroll_to_rect(*bounds, p_align);
+}
+
+bool HTMLLabel::scroll_to_rect(const Rect2& p_target, float p_align) {
 	const Vector2i max_offset = (content_size - viewport_size).max(Vector2i());
 	const float align = std::isfinite(p_align) ? std::clamp(p_align, 0.0f, 1.0f) : 0.0f;
 	Vector2i offset = get_scroll_offset();
-	if (anchor->position.x < offset.x || anchor->position.x >= static_cast<double>(offset.x) + viewport_size.x) {
-		offset.x = static_cast<int32_t>(std::clamp<double>(anchor->position.x, 0.0, max_offset.x));
+	if (p_target.position.x < offset.x || p_target.position.x >= static_cast<double>(offset.x) + viewport_size.x) {
+		offset.x = static_cast<int32_t>(std::clamp<double>(p_target.position.x, 0.0, max_offset.x));
 	}
-	offset.y = static_cast<int32_t>(std::clamp<double>(anchor->position.y - viewport_size.y * align, 0.0, max_offset.y));
+	offset.y = static_cast<int32_t>(std::clamp<double>(p_target.position.y - viewport_size.y * align, 0.0, max_offset.y));
 	set_scroll_offset(offset);
 	return true;
 }
@@ -383,6 +417,7 @@ void HTMLLabel::queue_refresh() {
 
 void HTMLLabel::source_changed() {
 	source_dirty = true;
+	layout->clear();
 	pending_scroll_offset = Vector2i();
 	if (canvas) {
 		canvas->cancel_press();

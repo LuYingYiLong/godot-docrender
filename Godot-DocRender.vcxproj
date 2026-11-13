@@ -135,6 +135,7 @@
     <ClCompile Include="src\formats\markdown\markdown_html.cpp" />
     <ClCompile Include="src\formats\mermaid\mermaid_render.cpp" />
     <ClCompile Include="src\formats\html\html_document.cpp" />
+    <ClCompile Include="src\formats\html\html_element.cpp" />
     <ClCompile Include="src\formats\html\html_layout.cpp" />
     <ClCompile Include="src\formats\html\html_markup.cpp" />
     <ClCompile Include="src\formats\html\litehtml_container.cpp" />
@@ -173,6 +174,7 @@
     <ClInclude Include="src\formats\markdown\markdown_html.h" />
     <ClInclude Include="src\formats\mermaid\mermaid_render.h" />
     <ClInclude Include="src\formats\html\html_document.h" />
+    <ClInclude Include="src\formats\html\html_element.h" />
     <ClInclude Include="src\formats\html\html_layout.h" />
     <ClInclude Include="src\formats\html\html_markup.h" />
     <ClInclude Include="src\formats\html\litehtml_container.h" />

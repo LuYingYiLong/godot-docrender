@@ -37,6 +37,20 @@
 				Returns the content size in pixels from the most recent successful layout of the current document. Returns [constant Vector2i.ZERO] before layout and for an empty document.
 			</description>
 		</method>
+		<method name="get_element_at" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="position" type="Vector2" />
+			<description>
+				Returns the frontmost element at the given document pixel position, accounting for overflow clipping. Returns [code]null[/code] when there is no hit or no layout.
+			</description>
+		</method>
+		<method name="get_element_by_id" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="id" type="String" />
+			<description>
+				Returns the first element with the given case-sensitive HTML ID, including hidden elements. Pass the ID without [code]#[/code]. Returns [code]null[/code] if the ID is absent.
+			</description>
+		</method>
 		<method name="get_link_at" qualifiers="const">
 			<return type="String" />
 			<param index="0" name="position" type="Vector2" />
@@ -85,6 +99,20 @@
 			<param index="2" name="stylesheet" type="String" default="&quot;&quot;" />
 			<description>
 				Replaces the document and resets its layout. An empty string creates an empty document. Styles come from inline attributes, [code]&lt;style&gt;[/code] elements, [code]&lt;link rel="stylesheet"&gt;[/code], and the optional stylesheet text. Use [code]@import[/code] to include UTF-8 [code].css[/code] files within the project. Relative URLs in a CSS file are resolved from that file's directory. Relative URLs in HTML and stylesheet text are resolved from [param base_dir]. Paths may use [code]../[/code] within the project or absolute [code]res://[/code] paths. Images can be imported PNG, JPEG, WebP, or SVG textures. Missing or unsupported assets are skipped. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside [code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed.
+			</description>
+		</method>
+		<method name="query_selector" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns the first match in document order, or [code]null[/code]. See [method query_selector_all] for selector syntax.
+			</description>
+		</method>
+		<method name="query_selector_all" qualifiers="const">
+			<return type="HTMLElement[]" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns matching elements from the litehtml element tree in document order, with each element included once. Tags, classes, IDs, attributes, combinators, and comma-separated lists are supported. Queries include hidden elements and are available after parsing. Invalid or unsupported selectors report an error and return an empty array.
 			</description>
 		</method>
 	</methods>

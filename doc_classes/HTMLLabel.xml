@@ -21,6 +21,20 @@
 				Returns the laid-out document size in pixels. Returns [constant Vector2i.ZERO] when there is no valid layout or the document is empty.
 			</description>
 		</method>
+		<method name="get_element_at" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="position" type="Vector2" />
+			<description>
+				Returns the element at the given position in this control's local coordinates. The scroll offset is applied automatically. Returns [code]null[/code] outside the content viewport, including the scrollbars, and when there is no hit or the layout is pending.
+			</description>
+		</method>
+		<method name="get_element_by_id" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="id" type="String" />
+			<description>
+				Looks up a case-sensitive HTML ID in this label's parsed document. See [method HTMLLayout.get_element_by_id].
+			</description>
+		</method>
 		<method name="get_render_error" qualifiers="const">
 			<return type="String" />
 			<description>
@@ -39,12 +53,34 @@
 				Returns the selected plain text, or an empty string if nothing is selected.
 			</description>
 		</method>
+		<method name="query_selector" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns the first match in this label's parsed document. See [method HTMLLayout.query_selector].
+			</description>
+		</method>
+		<method name="query_selector_all" qualifiers="const">
+			<return type="HTMLElement[]" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns all matches in this label's parsed document. See [method HTMLLayout.query_selector_all].
+			</description>
+		</method>
 		<method name="scroll_to_anchor">
 			<return type="bool" />
 			<param index="0" name="id" type="String" />
 			<param index="1" name="align" type="float" default="0.0" />
 			<description>
 				Scrolls to a laid-out element by its case-sensitive HTML ID. Pass the ID without [code]#[/code]. The vertical alignment ranges from [code]0.0[/code] at the top to [code]1.0[/code] at the bottom and is clamped to the scrollable range. Returns [code]false[/code] if the ID is absent or the layout is pending.
+			</description>
+		</method>
+		<method name="scroll_to_element">
+			<return type="bool" />
+			<param index="0" name="element" type="HTMLElement" />
+			<param index="1" name="align" type="float" default="0.0" />
+			<description>
+				Scrolls to an element obtained from this label. [param align] positions the element's top from [code]0.0[/code] at the viewport top to [code]1.0[/code] at the viewport bottom, within the scrollable range. Horizontal scrolling adjusts when the target's left edge is outside the viewport. Returns [code]false[/code] for an invalid, foreign, or invisible element, or when layout is pending.
 			</description>
 		</method>
 		<method name="select_all">

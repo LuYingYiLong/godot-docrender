@@ -93,6 +93,9 @@
     <ClCompile Include="src\formats\html\html_document.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\html\html_element.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\html\html_layout.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
@@ -234,6 +237,9 @@
       <Filter>Header Files\formats\mermaid</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\html_document.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_element.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\html_layout.h">

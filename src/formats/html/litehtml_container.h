@@ -34,6 +34,7 @@ namespace docrender {
 			RoundedRect(const godot::Rect2& p_rect, const litehtml::border_radiuses& p_radii);
 			RoundedRect inset(const godot::Rect2& p_rect) const;
 			bool has_radius() const;
+			bool has_point(const godot::Vector2& p_position) const;
 		};
 
 		struct Clip {
@@ -41,6 +42,8 @@ namespace docrender {
 			RoundedRect shape;
 			godot::Ref<godot::ShaderMaterial> material;
 		};
+
+		static RoundedRect get_overflow_clip(litehtml::render_item& p_item);
 
 		struct Fill {
 			godot::Rect2 rect;
@@ -104,6 +107,8 @@ namespace docrender {
 		const godot::String& get_plain_text() const;
 		int64_t hit_test_text(const godot::Vector2& p_point) const;
 		godot::TypedArray<godot::Rect2> get_selection_rects(int64_t p_from, int64_t p_to) const;
+		static bool is_hit_visible(const litehtml::render_item& p_item, const godot::Vector2& p_position);
+		static bool has_visible_area(const litehtml::render_item& p_item, const godot::Rect2& p_box);
 
 	private:
 		struct FontData {
