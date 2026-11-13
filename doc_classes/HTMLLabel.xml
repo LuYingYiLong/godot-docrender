@@ -15,6 +15,21 @@
 				Clears the text selection.
 			</description>
 		</method>
+		<method name="create_element">
+			<return type="HTMLElement" />
+			<param index="0" name="tag_name" type="String" />
+			<description>
+				Creates an unattached element in this label's layout. Parses any pending source first, so the new element and its parent can be prepared before the first layout update. Returns [code]null[/code] for an invalid name or a source that could not be parsed. See [method HTMLLayout.create_element].
+				[codeblock]
+				var item: HTMLElement = label.create_element("li")
+				var list: HTMLElement = label.query_selector("#quests")
+				if item != null and list != null:
+					item.set_attribute("data-quest", "intro")
+					item.set_text_content("Find the entrance")
+					list.append_child(item)
+				[/codeblock]
+			</description>
+		</method>
 		<method name="get_content_size" qualifiers="const">
 			<return type="Vector2i" />
 			<description>
@@ -115,6 +130,17 @@
 		</member>
 	</members>
 	<signals>
+		<signal name="element_clicked">
+			<param index="0" name="element" type="HTMLElement" />
+			<description>
+				Emitted when a left mouse press and release hit the same visible HTML element without dragging or scrolling. Use [method HTMLElement.closest] to find an ancestor with an action attribute. For a link, the built-in anchor scroll and [signal link_pressed] run first. The element signal is emitted if the target still belongs to the current document.
+			</description>
+		</signal>
+		<signal name="layout_changed">
+			<description>
+				Emitted after a deferred layout update, when the new content size and scroll range can be queried. Multiple element edits before the update are combined. The signal also reports a cleared or failed layout.
+			</description>
+		</signal>
 		<signal name="link_pressed">
 			<param index="0" name="uri" type="String" />
 			<description>

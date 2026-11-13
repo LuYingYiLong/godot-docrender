@@ -10,9 +10,12 @@
 #include <godot_cpp/classes/text_server_manager.hpp>
 #include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
+#include <gumbo.h>
 #include <litehtml/css_parser.h>
 #include <litehtml/css_selector.h>
 #include <litehtml/document.h>
+#include <litehtml/el_space.h>
+#include <litehtml/html_tag.h>
 #include <litehtml/render_item.h>
 
 #include <algorithm>
@@ -23,6 +26,135 @@
 
 using namespace godot;
 using docrender::LiteHTMLContainer;
+
+namespace litehtml {
+	// The staged litehtml headers grant access to rebuild the existing document in place.
+	struct docrender_editor {
+		static void reset_link(html_tag& p_element, bool p_has_href) {
+			auto& classes = p_element.m_pseudo_classes;
+			classes.erase(std::remove(classes.begin(), classes.end(), _link_), classes.end());
+			if (p_has_href) {
+				classes.push_back(_link_);
+			}
+		}
+
+		static void remove_attribute(html_tag& p_element, const char* p_name) {
+			if (std::string_view(p_name) == "class" || std::string_view(p_name) == "id") {
+				p_element.set_attr(p_name, "");
+			}
+			p_element.m_attrs.erase(p_name);
+		}
+
+		static elements_list parse_fragment(document& p_document, const element& p_parent, const godot::CharString& p_html) {
+			GumboOptions options = kGumboDefaultOptions;
+			options.fragment_context = gumbo_tag_enum(p_parent.get_tagName());
+			if (options.fragment_context == GUMBO_TAG_UNKNOWN) {
+				options.fragment_context = GUMBO_TAG_DIV;
+			}
+			const auto destroy = [&options](GumboOutput* p_output) { gumbo_destroy_output(&options, p_output); };
+			const std::unique_ptr<GumboOutput, decltype(destroy)> output(
+				gumbo_parse_with_options(&options, p_html.get_data(), p_html.length()), destroy);
+			elements_list children;
+			p_document.create_node(output->root, children, true, false);
+			return children;
+		}
+
+		static elements_list create_text(const document::ptr& p_document, const char* p_text, bool p_split) {
+			elements_list children;
+			if (*p_text && !p_split) {
+				children.push_back(std::make_shared<el_text>(p_text, p_document));
+			}
+			else if (*p_text) {
+				p_document->container()->split_text(p_text,
+					[&](const char* p_word) { children.push_back(std::make_shared<el_text>(p_word, p_document)); },
+					[&](const char* p_space) { children.push_back(std::make_shared<el_space>(p_space, p_document)); });
+			}
+			return children;
+		}
+
+		static void replace_children(element& p_parent, elements_list p_children) {
+			for (const auto& child : p_parent.m_children) {
+				child->parent(nullptr);
+			}
+			for (const auto& child : p_children) {
+				child->parent(p_parent.shared_from_this());
+			}
+			p_parent.m_children.swap(p_children);
+		}
+
+		static void move(html_tag& p_old_parent, html_tag& p_new_parent, const element::ptr& p_child) {
+			const auto child = std::find(p_old_parent.m_children.begin(), p_old_parent.m_children.end(), p_child);
+			p_new_parent.m_children.splice(p_new_parent.m_children.end(), p_old_parent.m_children, child);
+			p_child->parent(p_new_parent.shared_from_this());
+		}
+
+		static void reset_tree(element& p_element) {
+			p_element.m_renders.clear();
+			p_element.m_used_styles.clear();
+			p_element.m_counter_values.clear();
+			p_element.m_children.remove_if([](const element::ptr& p_child) {
+				return p_child->tag() == __tag_before_ || p_child->tag() == __tag_after_;
+			});
+			if (auto* tag = dynamic_cast<html_tag*>(&p_element)) {
+				tag->m_style.clear();
+				if (tag->tag() == _a_) {
+					reset_link(*tag, false);
+				}
+			}
+			for (const auto& child : p_element.children()) {
+				reset_tree(*child);
+			}
+		}
+
+		static bool media_changed(document& p_document) {
+			p_document.container()->get_media_features(p_document.m_media);
+			return p_document.update_media_lists(p_document.m_media);
+		}
+
+		static void rebuild(document& p_document, const string& p_master, const string& p_user) {
+			const auto doc = p_document.shared_from_this();
+			const auto& root = doc->m_root;
+			doc->m_root_render.reset();
+			doc->m_tabular_elements.clear();
+			doc->m_fixed_boxes.clear();
+			doc->m_size = {};
+			reset_tree(*root);
+			doc->m_css.clear();
+			doc->m_media_lists.clear();
+			doc->m_master_css = {};
+			doc->m_styles = {};
+			doc->m_user_css = {};
+			doc->container()->get_media_features(doc->m_media);
+			doc->m_master_css.parse_css_stylesheet(p_master, "", doc);
+			doc->m_master_css.sort_selectors();
+			if (!p_user.empty()) {
+				doc->m_user_css.parse_css_stylesheet(p_user, "", doc);
+				doc->m_user_css.sort_selectors();
+			}
+			doc->update_media_lists(doc->m_media);
+			root->apply_stylesheet(doc->m_master_css);
+			root->parse_attributes();
+			for (const auto& sheet : doc->m_css) {
+				media_query_list_list::ptr media;
+				if (!sheet.media.empty()) {
+					media = std::make_shared<media_query_list_list>();
+					media->add(parse_media_query_list(sheet.media, doc));
+				}
+				doc->m_styles.parse_css_stylesheet(sheet.text, sheet.baseurl, doc, media);
+			}
+			doc->m_styles.sort_selectors();
+			doc->update_media_lists(doc->m_media);
+			root->apply_stylesheet(doc->m_styles);
+			root->apply_stylesheet(doc->m_user_css);
+			root->compute_styles();
+			doc->m_root_render = root->create_render_item(nullptr);
+			doc->fix_tables_layout();
+			if (doc->m_root_render) {
+				doc->m_root_render = doc->m_root_render->init();
+			}
+		}
+	};
+}
 
 namespace {
 	struct CanvasDrawing {
@@ -54,6 +186,61 @@ namespace {
 
 	using RenderItems = std::vector<std::shared_ptr<litehtml::render_item>>;
 	using RenderIndex = HashMap<const litehtml::element*, RenderItems>;
+
+	bool is_valid_tag_name(std::string_view p_name) {
+		const auto is_letter = [](unsigned char p_byte) {
+			return (p_byte >= 'A' && p_byte <= 'Z') || (p_byte >= 'a' && p_byte <= 'z');
+		};
+		if (p_name.empty() || !is_letter(p_name.front())) {
+			return false;
+		}
+		return std::all_of(p_name.begin(), p_name.end(), [&](unsigned char p_byte) {
+			return is_letter(p_byte) || (p_byte >= '0' && p_byte <= '9') ||
+				p_byte == '-' || p_byte == '_' || p_byte == '.' || p_byte == ':' || p_byte >= 0x80;
+		});
+	}
+
+	const litehtml::element* tree_root(const litehtml::element& p_element) {
+		const litehtml::element* root = &p_element;
+		for (auto parent = root->parent(); parent; parent = parent->parent()) {
+			root = parent.get();
+		}
+		return root;
+	}
+
+	bool is_void_element(const litehtml::element& p_element) {
+		const std::string_view tag = p_element.get_tagName();
+		static constexpr std::string_view void_tags[] = {
+			"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
+			"source", "track", "wbr", "basefont", "bgsound", "frame", "keygen",
+		};
+		return std::find(std::begin(void_tags), std::end(void_tags), tag) != std::end(void_tags);
+	}
+
+	bool can_contain_elements(const litehtml::element& p_element) {
+		const std::string_view tag = p_element.get_tagName();
+		return !is_void_element(p_element) && tag != "style" && tag != "script" &&
+			tag != "title" && tag != "textarea" && tag != "xmp" && tag != "iframe" &&
+			tag != "noembed" && tag != "noframes" && tag != "plaintext";
+	}
+
+	bool has_raw_text(const litehtml::element& p_element) {
+		const std::string_view tag = p_element.get_tagName();
+		return tag == "style" || tag == "script" || tag == "xmp" || tag == "iframe" ||
+			tag == "noembed" || tag == "noframes" || tag == "plaintext";
+	}
+
+	void append_escaped(std::string& r_html, std::string_view p_value, bool p_attribute) {
+		for (const char byte : p_value) {
+			switch (byte) {
+			case '&': r_html += "&amp;"; break;
+			case '<': r_html += "&lt;"; break;
+			case '>': r_html += "&gt;"; break;
+			case '"': r_html += p_attribute ? "&quot;" : "\""; break;
+			default: r_html += byte; break;
+			}
+		}
+	}
 
 	bool is_html_element(const litehtml::element& p_element) {
 		const auto tag = p_element.tag();
@@ -156,7 +343,34 @@ namespace {
 		return closing.empty();
 	}
 
+	class SelectorScope {
+		litehtml::element* scope;
+		const litehtml::string_id scope_id = litehtml::_id("scope");
+		bool added;
+
+	public:
+		explicit SelectorScope(litehtml::element* p_scope) :
+			scope(p_scope), added(scope && scope->set_pseudo_class(scope_id, true)) {}
+
+		~SelectorScope() {
+			if (added) {
+				scope->set_pseudo_class(scope_id, false);
+			}
+		}
+	};
+
 } // namespace
+
+struct HTMLElement::DetachedTree {
+	ObjectID owner;
+	uint64_t version;
+	litehtml::element::ptr root;
+
+	DetachedTree(ObjectID p_owner, uint64_t p_version, const litehtml::element::ptr& p_root) :
+		owner(p_owner), version(p_version), root(p_root) {}
+
+	~DetachedTree();
+};
 
 struct HTMLLayout::State {
 	// Render items are cleared before the document releases its fonts through the container.
@@ -164,13 +378,35 @@ struct HTMLLayout::State {
 	litehtml::document::ptr document;
 	HashMap<uint64_t, CanvasDrawing> drawings;
 	RenderIndex render_items;
+	HashMap<const litehtml::element*, ObjectID> element_handles;
+	HashMap<const litehtml::element*, std::weak_ptr<HTMLElement::DetachedTree>> detached_trees;
 	HashMap<String, Rect2> anchors;
 	Vector2i viewport_size;
 	Vector2i content_size;
+	std::string master_styles;
+	std::string user_styles;
+	Callable edit_callback;
 	String error;
 	Error parse_error = OK;
 	bool has_layout = false;
+	bool implicit_empty_document = false;
+	bool styles_dirty = false;
+	bool edited = false;
+	bool reflow_queued = false;
 };
+
+HTMLElement::DetachedTree::~DetachedTree() {
+	auto* layout = Object::cast_to<HTMLLayout>(ObjectDB::get_instance(owner));
+	if (root && layout && layout->parse_version == version) {
+		auto& current = *layout->state;
+		current.detached_trees.erase(root.get());
+		visit_elements(root, [&](const litehtml::element::ptr& p_element) {
+			current.element_handles.erase(p_element.get());
+			current.container->forget_source_attributes(*p_element);
+			return false;
+		});
+	}
+}
 
 void HTMLLayout::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("parse", "html", "base_dir", "stylesheet"), &HTMLLayout::parse,
@@ -184,6 +420,7 @@ void HTMLLayout::_bind_methods() {
 		DEFVAL(Vector2()), DEFVAL(Rect2()));
 	ClassDB::bind_method(D_METHOD("get_link_at", "position"), &HTMLLayout::get_link_at);
 	ClassDB::bind_method(D_METHOD("get_anchor_rect", "id"), &HTMLLayout::get_anchor_rect);
+	ClassDB::bind_method(D_METHOD("create_element", "tag_name"), &HTMLLayout::create_element);
 	ClassDB::bind_method(D_METHOD("query_selector", "selector"), &HTMLLayout::query_selector);
 	ClassDB::bind_method(D_METHOD("query_selector_all", "selector"), &HTMLLayout::query_selector_all);
 	ClassDB::bind_method(D_METHOD("get_element_by_id", "id"), &HTMLLayout::get_element_by_id);
@@ -215,23 +452,17 @@ Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, c
 	}
 	try {
 		state->container = std::make_unique<LiteHTMLContainer>(*base_dir, p_textures, p_fit_images, p_fonts, p_local_stylesheets);
-		if (!p_html.strip_edges().is_empty()) {
-			const CharString html = p_html.utf8();
-			const CharString stylesheet = p_stylesheet.utf8();
-			std::string master_styles = litehtml::master_css;
-			if (!p_default_stylesheet.is_empty()) {
-				master_styles += '\n';
-				master_styles += p_default_stylesheet.utf8().get_data();
-			}
-			// Godot strings have already been decoded, regardless of an HTML meta charset.
-			state->document = litehtml::document::createFromString(
-				litehtml::estring(std::string(html.get_data(), html.length()), litehtml::encoding::utf_8),
-				state->container.get(), master_styles, stylesheet.get_data());
-			if (!state->document || !state->document->root()) {
-				clear();
-				state->error = "litehtml could not create the document.";
-				return state->parse_error = ERR_PARSE_ERROR;
-			}
+		state->master_styles = litehtml::master_css;
+		if (!p_default_stylesheet.is_empty()) {
+			state->master_styles += '\n';
+			state->master_styles += p_default_stylesheet.utf8().get_data();
+		}
+		const CharString stylesheet = p_stylesheet.utf8();
+		state->user_styles.assign(stylesheet.get_data(), stylesheet.length());
+		if (!p_html.strip_edges().is_empty() && !initialize_document(p_html.utf8())) {
+			clear();
+			state->error = "litehtml could not create the document.";
+			return state->parse_error = ERR_PARSE_ERROR;
 		}
 	}
 	catch (const std::exception& p_error) {
@@ -240,6 +471,18 @@ Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, c
 		return state->parse_error = ERR_PARSE_ERROR;
 	}
 	return OK;
+}
+
+bool HTMLLayout::initialize_document(const CharString& p_html) {
+	// Godot strings have already been decoded, regardless of an HTML meta charset.
+	auto document = litehtml::document::createFromString(
+		litehtml::estring(std::string(p_html.get_data(), p_html.length()), litehtml::encoding::utf_8),
+		state->container.get(), state->master_styles, state->user_styles);
+	if (!document || !document->root()) {
+		return false;
+	}
+	state->document = std::move(document);
+	return true;
 }
 
 Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
@@ -262,9 +505,14 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 	state->anchors.clear();
 	state->render_items.clear();
 	state->container->set_viewport(p_viewport_size);
-	if (state->document) {
+	if (state->document && !state->implicit_empty_document) {
 		try {
-			if (!state->document->media_changed()) {
+			if (state->styles_dirty || (state->edited && litehtml::docrender_editor::media_changed(*state->document))) {
+				state->container->reset_stylesheet_reads();
+				litehtml::docrender_editor::rebuild(*state->document, state->master_styles, state->user_styles);
+				state->styles_dirty = false;
+			}
+			else if (state->edited || !state->document->media_changed()) {
 				// Viewport units also change when all media queries keep matching.
 				state->document->root()->compute_styles();
 			}
@@ -404,19 +652,296 @@ const HashMap<String, Rect2>& HTMLLayout::get_anchor_rects() const {
 	return state->anchors;
 }
 
+Ref<HTMLElement> HTMLLayout::create_element(const String& p_tag_name) {
+	CharString tag = p_tag_name.utf8();
+	if (!state->container || state->parse_error != OK || !is_valid_tag_name(std::string_view(tag.get_data(), tag.length()))) {
+		return {};
+	}
+	for (char* byte = tag.ptrw(); *byte; ++byte) {
+		if (*byte >= 'A' && *byte <= 'Z') {
+			*byte += 'a' - 'A';
+		}
+	}
+	try {
+		if (!state->document) {
+			if (!initialize_document(String("<!doctype html>").utf8())) {
+				return {};
+			}
+			state->implicit_empty_document = true;
+		}
+		const auto node = state->document->create_element(tag.get_data(), {});
+		Ref<HTMLElement> handle = make_element(node);
+		if (handle.is_valid()) {
+			auto tree = std::make_shared<HTMLElement::DetachedTree>(ObjectID(get_instance_id()), parse_version, node);
+			state->detached_trees.insert(node.get(), tree);
+			handle->detached_tree = std::move(tree);
+		}
+		return handle;
+	}
+	catch (const std::exception&) {
+		return {};
+	}
+}
+
+std::shared_ptr<HTMLElement::DetachedTree> HTMLLayout::get_detached_tree(const litehtml::element& p_element) const {
+	const auto* tree = state->detached_trees.getptr(tree_root(p_element));
+	return tree ? tree->lock() : nullptr;
+}
+
 Ref<HTMLElement> HTMLLayout::make_element(const litehtml::element::ptr& p_element) const {
 	if (!p_element || !is_html_element(*p_element)) {
 		return {};
+	}
+	if (const ObjectID* id = state->element_handles.getptr(p_element.get())) {
+		auto* existing = Object::cast_to<HTMLElement>(ObjectDB::get_instance(*id));
+		if (existing && existing->element.lock() == p_element) {
+			return Ref<HTMLElement>(existing);
+		}
 	}
 	Ref<HTMLElement> handle;
 	handle.instantiate();
 	handle->layout_id = ObjectID(get_instance_id());
 	handle->parse_version = parse_version;
 	handle->element = p_element;
+	handle->detached_tree = get_detached_tree(*p_element);
+	state->element_handles.insert(p_element.get(), ObjectID(handle->get_instance_id()));
 	return handle;
 }
 
-TypedArray<HTMLElement> HTMLLayout::select_elements(const String& p_selector, bool p_first_only) const {
+Dictionary HTMLLayout::get_element_attributes(const litehtml::element& p_element) const {
+	Dictionary result;
+	if (const auto* attributes = state->container->get_source_attributes(p_element)) {
+		for (const auto& [name, value] : *attributes) {
+			result[String::utf8(name.c_str())] = String::utf8(value.c_str());
+		}
+	}
+	return result;
+}
+
+const char* HTMLLayout::get_element_attribute(const litehtml::element& p_element, const char* p_name) const {
+	if (const auto* attributes = state->container->get_source_attributes(p_element)) {
+		const auto found = attributes->find(p_name);
+		if (found != attributes->end()) {
+			return found->second.c_str();
+		}
+	}
+	return p_element.get_attr(p_name);
+}
+
+Error HTMLLayout::edit_attribute(const litehtml::element::ptr& p_element, const char* p_name, const char* p_value) {
+	auto* tag = dynamic_cast<litehtml::html_tag*>(p_element.get());
+	if (!tag) {
+		return ERR_UNAVAILABLE;
+	}
+	const auto* source = state->container->get_source_attributes(*tag);
+	const char* previous = nullptr;
+	if (source) {
+		const auto found = source->find(p_name);
+		if (found != source->end()) {
+			previous = found->second.c_str();
+		}
+	}
+	if ((!previous && !p_value) || (previous && p_value && std::string_view(previous) == p_value)) {
+		return OK;
+	}
+	if (p_value) {
+		tag->set_attr(p_name, p_value);
+	}
+	else {
+		litehtml::docrender_editor::remove_attribute(*tag, p_name);
+	}
+	state->container->set_source_attribute(p_element, p_name, p_value);
+	if (tag->tag() == litehtml::_a_ && std::string_view(p_name) == "href") {
+		litehtml::docrender_editor::reset_link(*tag, p_value != nullptr);
+	}
+	if (!get_detached_tree(*p_element)) {
+		invalidate_layout();
+	}
+	return OK;
+}
+
+String HTMLLayout::serialize_children(const litehtml::element& p_element) const {
+	std::string html;
+	const auto append_children = [&](const auto& p_append_children, const litehtml::element& p_parent) -> void {
+		for (const auto& child : p_parent.children()) {
+			if (child->tag() == litehtml::__tag_before_ || child->tag() == litehtml::__tag_after_) {
+				continue;
+			}
+			if (is_html_element(*child)) {
+				const char* tag = child->get_tagName();
+				html += '<';
+				html += tag;
+				if (const auto* attributes = state->container->get_source_attributes(*child)) {
+					for (const auto& [name, value] : *attributes) {
+						html += ' ';
+						html += name;
+						html += "=\"";
+						append_escaped(html, value, true);
+						html += '"';
+					}
+				}
+				html += '>';
+				if (!is_void_element(*child)) {
+					p_append_children(p_append_children, *child);
+					html += "</";
+					html += tag;
+					html += '>';
+				}
+			}
+			else {
+				std::string text;
+				child->get_text(text);
+				if (child->is_comment()) {
+					html += "<!--" + text + "-->";
+				}
+				else if (has_raw_text(p_parent)) {
+					html += text;
+				}
+				else {
+					append_escaped(html, text, false);
+				}
+			}
+		}
+	};
+	append_children(append_children, p_element);
+	return String::utf8(html.data(), html.size());
+}
+
+Error HTMLLayout::replace_children(const litehtml::element::ptr& p_element, const String& p_content, bool p_parse_html) {
+	if (is_void_element(*p_element)) {
+		return p_content.is_empty() ? OK : ERR_INVALID_PARAMETER;
+	}
+	const CharString content = p_content.utf8();
+	if (std::string_view(content.get_data(), content.length()).find('\0') != std::string_view::npos) {
+		return ERR_INVALID_PARAMETER;
+	}
+	litehtml::elements_list children;
+	try {
+		const bool split = !has_raw_text(*p_element);
+		children = p_parse_html ? litehtml::docrender_editor::parse_fragment(*state->document, *p_element, content) :
+			litehtml::docrender_editor::create_text(state->document, content.get_data(), split);
+	}
+	catch (const std::exception&) {
+		return ERR_PARSE_ERROR;
+	}
+	for (const auto& child : p_element->children()) {
+		forget_subtree(*child);
+	}
+	litehtml::docrender_editor::replace_children(*p_element, std::move(children));
+	if (!get_detached_tree(*p_element)) {
+		invalidate_layout();
+	}
+	return OK;
+}
+
+Error HTMLLayout::move_element(const litehtml::element::ptr& p_element, const litehtml::element::ptr& p_parent) {
+	const auto old_parent = p_element->parent();
+	const auto old_tree = get_detached_tree(*p_element);
+	if (!old_parent && !old_tree) {
+		return ERR_INVALID_PARAMETER;
+	}
+	bool needs_layout = !old_tree;
+	if (p_parent) {
+		auto* from = dynamic_cast<litehtml::html_tag*>(old_parent.get());
+		auto* to = dynamic_cast<litehtml::html_tag*>(p_parent.get());
+		if ((old_parent && !from) || !to || !can_contain_elements(*to)) {
+			return ERR_INVALID_PARAMETER;
+		}
+		for (auto ancestor = p_parent; ancestor; ancestor = ancestor->parent()) {
+			if (ancestor == p_element) {
+				return ERR_INVALID_PARAMETER;
+			}
+		}
+		const auto new_tree = get_detached_tree(*p_parent);
+		if (from) {
+			litehtml::docrender_editor::move(*from, *to, p_element);
+		}
+		else if (!to->appendChild(p_element)) {
+			return ERR_INVALID_PARAMETER;
+		}
+		if (old_tree != new_tree) {
+			if (old_tree && old_tree->root == p_element) {
+				state->detached_trees.erase(p_element.get());
+				old_tree->root.reset();
+			}
+			visit_elements(p_element, [&](const litehtml::element::ptr& p_child) {
+				if (const ObjectID* id = state->element_handles.getptr(p_child.get())) {
+					if (auto* handle = Object::cast_to<HTMLElement>(ObjectDB::get_instance(*id))) {
+						handle->detached_tree = new_tree;
+					}
+				}
+				return false;
+			});
+		}
+		needs_layout |= !new_tree;
+	}
+	else {
+		if (!old_parent) {
+			return OK;
+		}
+		if (!old_parent->removeChild(p_element)) {
+			return ERR_INVALID_PARAMETER;
+		}
+		forget_subtree(*p_element);
+	}
+	if (needs_layout) {
+		invalidate_layout();
+	}
+	return OK;
+}
+
+void HTMLLayout::forget_subtree(const litehtml::element& p_element) {
+	if (const ObjectID* id = state->element_handles.getptr(&p_element)) {
+		if (auto* handle = Object::cast_to<HTMLElement>(ObjectDB::get_instance(*id))) {
+			handle->element.reset();
+			handle->detached_tree.reset();
+		}
+		state->element_handles.erase(&p_element);
+	}
+	state->container->forget_source_attributes(p_element);
+	for (const auto& child : p_element.children()) {
+		forget_subtree(*child);
+	}
+}
+
+void HTMLLayout::set_edit_callback(const Callable& p_callback) {
+	state->edit_callback = p_callback;
+}
+
+void HTMLLayout::invalidate_layout() {
+	state->has_layout = false;
+	state->implicit_empty_document = false;
+	state->styles_dirty = true;
+	state->edited = true;
+	state->anchors.clear();
+	if (state->edit_callback.is_valid()) {
+		state->edit_callback.call();
+	}
+	else if (state->viewport_size != Vector2i() && !state->reflow_queued) {
+		state->reflow_queued = true;
+		callable_mp_static(&HTMLLayout::reflow_after_edit).call_deferred(get_instance_id());
+	}
+}
+
+void HTMLLayout::reflow_after_edit(uint64_t p_id) {
+	auto* owner = Object::cast_to<HTMLLayout>(ObjectDB::get_instance(ObjectID(p_id)));
+	if (!owner) {
+		return;
+	}
+	State& current = *owner->state;
+	current.reflow_queued = false;
+	if (!current.has_layout && current.viewport_size != Vector2i()) {
+		owner->layout(current.viewport_size);
+	}
+	for (const auto& drawing : current.drawings) {
+		if (auto* canvas = Object::cast_to<CanvasItem>(ObjectDB::get_instance(ObjectID(drawing.key)))) {
+			canvas->queue_redraw();
+		}
+	}
+}
+
+TypedArray<HTMLElement> HTMLLayout::select_elements(const String& p_selector, SelectorQuery p_query,
+	const litehtml::element::ptr& p_scope) const {
 	TypedArray<HTMLElement> matches;
 	const CharString utf8 = p_selector.utf8();
 	const auto tokens = litehtml::tokenize(std::string(utf8.get_data(), utf8.length()));
@@ -425,25 +950,46 @@ TypedArray<HTMLElement> HTMLLayout::select_elements(const String& p_selector, bo
 		litehtml::strict_mode | litehtml::forbid_pseudo_elements,
 		state->document ? state->document->mode() : litehtml::no_quirks_mode);
 	ERR_FAIL_COND_V_MSG(selectors.empty(), matches, "Invalid or unsupported HTML selector: " + p_selector);
-	if (state->document) {
-		visit_elements(state->document->root(), [&](const litehtml::element::ptr& p_element) {
-			if (p_element->select(selectors) == litehtml::select_no_match) {
-				return false;
+	if (!state->document) {
+		return matches;
+	}
+	const auto root = p_scope ? p_scope : state->document->root();
+	const SelectorScope scope(root.get());
+	const auto collect = [&](const litehtml::element::ptr& p_element) {
+		if (p_element->select(selectors) == litehtml::select_no_match) {
+			return false;
+		}
+		matches.append(make_element(p_element));
+		return p_query != SelectorQuery::ALL;
+	};
+
+	if (p_query == SelectorQuery::SELF || p_query == SelectorQuery::CLOSEST) {
+		for (auto element = root; element; element = element->parent()) {
+			if ((is_html_element(*element) && collect(element)) || p_query == SelectorQuery::SELF) {
+				break;
 			}
-			matches.append(make_element(p_element));
-			return p_first_only;
-		});
+		}
+	}
+	else if (p_scope) {
+		for (const auto& child : p_scope->children()) {
+			if (visit_elements(child, collect)) {
+				break;
+			}
+		}
+	}
+	else {
+		visit_elements(root, collect);
 	}
 	return matches;
 }
 
 Ref<HTMLElement> HTMLLayout::query_selector(const String& p_selector) const {
-	const auto matches = select_elements(p_selector, true);
+	const auto matches = select_elements(p_selector, SelectorQuery::FIRST);
 	return matches.is_empty() ? Ref<HTMLElement>() : Ref<HTMLElement>(matches[0]);
 }
 
 TypedArray<HTMLElement> HTMLLayout::query_selector_all(const String& p_selector) const {
-	return select_elements(p_selector, false);
+	return select_elements(p_selector, SelectorQuery::ALL);
 }
 
 Ref<HTMLElement> HTMLLayout::get_element_by_id(const String& p_id) const {
@@ -453,7 +999,7 @@ Ref<HTMLElement> HTMLLayout::get_element_by_id(const String& p_id) const {
 	const CharString id = p_id.utf8();
 	litehtml::element::ptr match;
 	visit_elements(state->document->root(), [&](const litehtml::element::ptr& p_element) {
-		const char* candidate = p_element->get_attr("id");
+		const char* candidate = get_element_attribute(*p_element, "id");
 		if (candidate && std::string_view(candidate) == std::string_view(id.get_data(), id.length())) {
 			match = p_element;
 		}
@@ -475,11 +1021,14 @@ TypedArray<Rect2> HTMLLayout::get_element_rects(const litehtml::element::ptr& p_
 }
 
 Ref<HTMLElement> HTMLLayout::get_element_at(const Vector2& p_position) const {
-	auto element = hit_test_element(p_position);
-	while (element && !is_html_element(*element)) {
-		element = element->parent();
+	return wrap_hit_element(hit_test_element(p_position));
+}
+
+Ref<HTMLElement> HTMLLayout::wrap_hit_element(litehtml::element::ptr p_element) const {
+	while (p_element && !is_html_element(*p_element)) {
+		p_element = p_element->parent();
 	}
-	return make_element(element);
+	return make_element(p_element);
 }
 
 litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) const {
@@ -554,8 +1103,11 @@ std::optional<Rect2> HTMLLayout::get_element_scroll_bounds(const Ref<HTMLElement
 	return bounds;
 }
 
-HTMLLayout::LinkHit HTMLLayout::find_link_at(const Vector2& p_position) const {
+HTMLLayout::LinkHit HTMLLayout::find_link_at(const Vector2& p_position, Ref<HTMLElement>* r_element) const {
 	auto element = hit_test_element(p_position);
+	if (r_element) {
+		*r_element = wrap_hit_element(element);
+	}
 	while (element) {
 		if (element->tag() == litehtml::_a_) {
 			const char* href = element->get_attr("href");
@@ -576,6 +1128,13 @@ void HTMLLayout::clear() {
 		_detach_canvas(state->drawings.begin()->key);
 	}
 	state->render_items.clear();
+	state->element_handles.clear();
+	for (const auto& entry : state->detached_trees) {
+		if (const auto tree = entry.value.lock()) {
+			tree->root.reset();
+		}
+	}
+	state->detached_trees.clear();
 	state->document.reset();
 	state->container.reset();
 	state->anchors.clear();
@@ -584,6 +1143,11 @@ void HTMLLayout::clear() {
 	state->error = String();
 	state->parse_error = OK;
 	state->has_layout = false;
+	state->implicit_empty_document = false;
+	state->styles_dirty = false;
+	state->edited = false;
+	state->master_styles.clear();
+	state->user_styles.clear();
 }
 
 void HTMLLayout::_on_canvas_redraw(uint64_t p_id) {

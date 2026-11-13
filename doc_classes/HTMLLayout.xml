@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="HTMLLayout" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<brief_description>
-		Parses and lays out a static HTML document for drawing on a [CanvasItem].
+		Parses and lays out HTML for drawing on a [CanvasItem].
 	</brief_description>
 	<description>
 		Use [method parse] to load an HTML document or fragment and [method layout] to set its viewport size. Call [method draw] from the target [CanvasItem]'s [method CanvasItem._draw] callback. Call [method CanvasItem.queue_redraw] after changing the document, viewport size, or drawing position.
@@ -13,6 +13,14 @@
 			<return type="void" />
 			<description>
 				Releases the document, layout, and drawing resources, and clears the last error.
+			</description>
+		</method>
+		<method name="create_element">
+			<return type="HTMLElement" />
+			<param index="0" name="tag_name" type="String" />
+			<description>
+				Creates an element owned by this layout after a successful [method parse]. Pass a tag name such as [code]li[/code] or [code]quest-card[/code]. ASCII letters in the name are lowercased. Returns [code]null[/code] if the name is invalid or there is no parsed document.
+				The new element has no parent. Set its attributes and content, then insert it using [method HTMLElement.append_child] on a parent from the same layout. Unattached elements are outside document queries and have no layout rectangles. On an empty document, the first creation also makes [code]html[/code], [code]head[/code], and [code]body[/code] available to queries.
 			</description>
 		</method>
 		<method name="draw">

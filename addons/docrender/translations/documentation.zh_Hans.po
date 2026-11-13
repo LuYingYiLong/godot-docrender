@@ -2318,8 +2318,8 @@ msgstr ""
 "中绘制当前布局。绘制起点为左上角，与可选的轴对齐裁剪矩形均使用画布项的局部坐标。默认裁剪仅应用文档的裁剪规则。首次成功布局前，此方法不绘制内容。"
 
 #. doc_classes/HTMLLayout.xml
-msgid "Parses and lays out a static HTML document for drawing on a [CanvasItem]."
-msgstr "解析并排版静态 HTML 文档，以便在 [CanvasItem] 上绘制。"
+msgid "Parses and lays out HTML for drawing on a [CanvasItem]."
+msgstr "解析并排版 HTML，以便在 [CanvasItem] 上绘制。"
 
 #. doc_classes/HTMLLayout.xml
 msgid "Releases the document, layout, and drawing resources, and clears the last error."
@@ -2392,21 +2392,6 @@ msgstr ""
 "文字使用项目主题的默认字体或 Godot 的回退字体。请在主线程中使用渲染器。"
 
 #. doc_classes/HTMLElement.xml
-msgid "A read-only handle to an element in a parsed HTML layout."
-msgstr "指向已解析 HTML 布局中某个元素的只读句柄。"
-
-#. doc_classes/HTMLElement.xml
-msgid ""
-"Obtain a handle from [method HTMLLayout.query_selector] or [method HTMLLabel.query_selector]. "
-"A handle belongs to one layout and stays valid across viewport resizes. Parsing again, clearing the layout, "
-"or freeing its owner invalidates it. An invalid handle returns empty results or the supplied attribute default. "
-"Use these methods on the main thread."
-msgstr ""
-"通过 [method HTMLLayout.query_selector] 或 [method HTMLLabel.query_selector] 获取句柄。"
-"句柄属于单个布局，调整视口尺寸后仍然有效。重新解析、清空布局或释放所属对象后，句柄会失效。"
-"无效句柄返回空结果或传入的属性默认值。请在主线程调用这些方法。"
-
-#. doc_classes/HTMLElement.xml
 msgid "Returns the attribute value, or [param default_value] if the attribute is absent. Attribute names are ASCII case-insensitive. An explicitly empty attribute returns an empty string."
 msgstr "返回属性值。属性不存在时返回 [param default_value]。属性名称的 ASCII 字母不区分大小写。显式指定的空属性返回空字符串。"
 
@@ -2423,8 +2408,8 @@ msgid "Returns the element's border-box fragments in document pixel coordinates,
 msgstr "以文档像素坐标返回元素各片段的边框盒，坐标与裁剪和控件滚动无关。行内元素可能有多个矩形。排版前或元素没有布局盒时返回空数组。"
 
 #. doc_classes/HTMLElement.xml
-msgid "Returns the parent element, or [code]null[/code] at the document root."
-msgstr "返回父元素。文档根元素返回 [code]null[/code]。"
+msgid "Returns the parent element, or [code]null[/code] if this element has no parent."
+msgstr "返回父元素。没有父元素时返回 [code]null[/code]。"
 
 #. doc_classes/HTMLElement.xml
 msgid "Returns the element's lowercase HTML tag name."
@@ -2679,3 +2664,186 @@ msgid ""
 "layout is pending."
 msgstr "按区分大小写的 HTML ID 滚动到已排版的元素，传入 ID 时省略 [code]#[/code]。垂直对齐从顶部的 [code]0.0[/code] "
 "到底部的 [code]1.0[/code]，实际偏移限制在可滚动范围内。ID 不存在或布局尚未完成时返回 [code]false[/code]。"
+
+#. doc_classes/HTMLElement.xml
+msgid "A handle to an element in a parsed HTML layout."
+msgstr "指向已解析 HTML 布局中某个元素的句柄。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Adds a case-sensitive class name if it is absent. The name must be a single non-empty token "
+"without ASCII whitespace."
+msgstr "添加尚未存在的区分大小写的类名。类名必须是单个非空名称，且不能含有 ASCII 空白字符。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Adds or updates the named HTML attribute. The value is stored as literal text. An empty value "
+"leaves the attribute present."
+msgstr "添加或更新指定的 HTML 属性。属性值按原文保存，空值也会保留该属性。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Emitted after a deferred layout update, when the new content size and scroll range can be "
+"queried. Multiple element edits before the update are combined. The signal also reports a cleared"
+" or failed layout."
+msgstr "延迟排版完成，且新内容尺寸和滚动范围可查询时发出。排版前的多次元素修改会合并。清空布局或排版失败时也会发出。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Emitted when a left mouse press and release hit the same visible HTML element without dragging or"
+" scrolling. Use [method HTMLElement.closest] to find an ancestor with an action attribute. For a "
+"link, the built-in anchor scroll and [signal link_pressed] run first. The element signal is "
+"emitted if the target still belongs to the current document."
+msgstr ""
+"鼠标左键在同一个可见 HTML 元素上按下并松开且期间未拖动或滚动时发出。可用 [method HTMLElement.closest] "
+"查找带有动作属性的祖先元素。点击链接时，先执行内置锚点滚动并发出 [signal link_pressed]。目标仍属于当前文档时才发出元素点击信号。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Appends [param child] to the end of this element's children and preserves the subtree's handles. "
+"Accepts both unattached elements from [method HTMLLayout.create_element] and existing elements from the same layout. "
+"Cycles, moving the document root, and inserting elements into tags that cannot contain them are rejected."
+msgstr "将 [param child] 追加到当前元素的子元素末尾，并保留子树的句柄。接受同一布局中通过 [method HTMLLayout.create_element] 创建的新元素或已有元素。形成循环、移动文档根元素或插入到不能容纳元素的标签时会返回错误。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Obtain a handle from [method HTMLLayout.query_selector] or [method HTMLLabel.query_selector]. A "
+"handle belongs to one layout and stays valid across viewport resizes. While a handle is held, "
+"querying or hitting the same element in that layout returns the same object. Parsing again, "
+"clearing the layout, or freeing its owner invalidates it. An invalid handle returns empty results"
+" or the supplied attribute default. Use these methods on the main thread.\n"
+"Edits affect this layout only. Other views of the same [HTMLDocument] and the source resource are"
+" unaffected. Queries and attribute reads see edits immediately. Geometry is available after the "
+"next layout pass. [HTMLLabel] batches edits and emits [signal HTMLLabel.layout_changed] when the "
+"new layout is ready. A standalone [HTMLLayout] with a previous viewport reflows on a deferred "
+"call, or can be laid out immediately with [method HTMLLayout.layout].\n"
+"Editing methods return [constant OK] on success and [constant ERR_INVALID_PARAMETER] for an "
+"invalid handle or invalid arguments."
+msgstr ""
+"通过 [method HTMLLayout.query_selector] 或 [method HTMLLabel.query_selector] "
+"获取句柄。句柄属于单个布局，调整视口尺寸后仍然有效。持有句柄期间，在同一布局中查询或命中同一个元素会返回同一对象。重新解析、清空布局或释放所属对象后，句柄会失效。无效句柄返回空结果或传入的属性默认值。请在主线程调用这些方法。"
+"\n"
+"修改只作用于当前布局。同一 [HTMLDocument] 的其他视图及源资源保持原状。查询和属性读取会立即反映修改，几何信息在下次排版后可用。[HTMLLabel] 会合并修改，新布局就绪后发出"
+" [signal HTMLLabel.layout_changed]。已有视口的独立 [HTMLLayout] 会延迟重排，也可调用 [method HTMLLayout.layout] "
+"立即重排。\n"
+"编辑成功时返回 [constant OK]。句柄或参数无效时返回 [constant ERR_INVALID_PARAMETER]。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Parses [param html] in the context of this element and replaces its children. The replaced "
+"descendants' handles become invalid. Empty HTML clears the children. Use [method "
+"set_text_content] to insert literal text."
+msgstr "在当前元素的上下文中解析 [param html] 并替换子内容。被替换的后代元素句柄会失效。空 HTML 会清空子内容。用 [method set_text_content] 插入纯文本。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Removes the given class name if present. See [method add_class] for the name rules."
+msgstr "移除已存在的指定类名。名称规则见 [method add_class]。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Removes the named HTML attribute, if present. Attribute names are ASCII case-insensitive."
+msgstr "移除已存在的指定 HTML 属性。属性名不区分 ASCII 大小写。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Removes this element and its subtree from their parent and invalidates their handles. Calling this method on an unattached element with no parent leaves it available for insertion. The document root cannot be removed."
+msgstr "从父元素移除当前元素及其子树，并使其句柄失效。对尚未插入且没有父元素的元素调用此方法后，该元素仍可插入。文档根元素不能移除。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Creates an element owned by this layout after a successful [method parse]. Pass a tag name such as [code]li[/code] or [code]quest-card[/code]. ASCII letters in the name are lowercased. Returns [code]null[/code] if the name is invalid or there is no parsed document.\n"
+"The new element has no parent. Set its attributes and content, then insert it using [method HTMLElement.append_child] on a parent from the same layout. Unattached elements are outside document queries and have no layout rectangles. On an empty document, the first creation also makes [code]html[/code], [code]head[/code], and [code]body[/code] available to queries."
+msgstr ""
+"[method parse] 成功后，创建归当前布局所有的元素。传入 [code]li[/code] 或 [code]quest-card[/code] 等标签名，名称中的 ASCII 字母会转换为小写。标签名无效或文档尚未解析时返回 [code]null[/code]。\n"
+"新元素没有父元素。可以先设置属性和内容，再调用同一布局中父元素的 [method HTMLElement.append_child] 将其插入。未插入的元素不会出现在文档查询中，也没有布局矩形。在空文档中首次创建元素后，可以查询 [code]html[/code]、[code]head[/code] 和 [code]body[/code]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Creates an unattached element in this label's layout. Parses any pending source first, so the new element and its parent can be prepared before the first layout update. Returns [code]null[/code] for an invalid name or a source that could not be parsed. See [method HTMLLayout.create_element].\n"
+"[codeblock]\n"
+"var item: HTMLElement = label.create_element(\"li\")\n"
+"var list: HTMLElement = label.query_selector(\"#quests\")\n"
+"if item != null and list != null:\n"
+"\titem.set_attribute(\"data-quest\", \"intro\")\n"
+"\titem.set_text_content(\"Find the entrance\")\n"
+"\tlist.append_child(item)\n"
+"[/codeblock]"
+msgstr ""
+"在当前控件的布局中创建尚未插入的元素。若源文档等待解析，会先完成解析，因此可以在首次排版前准备新元素并查询其父元素。标签名无效或源文档解析失败时返回 [code]null[/code]。参见 [method HTMLLayout.create_element]。\n"
+"[codeblock]\n"
+"var item: HTMLElement = label.create_element(\"li\")\n"
+"var list: HTMLElement = label.query_selector(\"#quests\")\n"
+"if item != null and list != null:\n"
+"\titem.set_attribute(\"data-quest\", \"intro\")\n"
+"\titem.set_text_content(\"Find the entrance\")\n"
+"\tlist.append_child(item)\n"
+"[/codeblock]"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Replaces the children with literal text and invalidates the replaced descendants' handles. Empty "
+"text clears the children."
+msgstr "将子内容替换为纯文本，并使被替换的后代元素句柄失效。空文本会清空子内容。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Returns a snapshot of the element's HTML attributes. Keys and values are strings. An explicitly "
+"empty attribute has an empty string value."
+msgstr "返回元素 HTML 属性的快照，键和值均为字符串。显式指定的空属性值为空字符串。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Returns a snapshot of the element's [code]data-*[/code] attributes, using the same key conversion"
+" as HTML dataset. For example, [code]data-item-id[/code] becomes [code]itemId[/code]."
+msgstr ""
+"返回元素 [code]data-*[/code] 属性的快照，键名沿用 HTML dataset 的转换规则。例如 [code]data-item-id[/code] 对应 "
+"[code]itemId[/code]。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Returns a snapshot of the matching descendants in document order, with each element included "
+"once. [code]:scope[/code] refers to this element. Use [code]:scope > .title[/code] to select "
+"direct children with the given class. See [method HTMLLayout.query_selector_all] for selector "
+"syntax."
+msgstr ""
+"按文档顺序返回匹配的后代元素快照，每个元素只出现一次。[code]:scope[/code] 指当前元素。可用 [code]:scope > .title[/code] "
+"选择带指定类名的直接子元素。选择器语法见 [method HTMLLayout.query_selector_all]。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Returns the class names in attribute order. Class names are case-sensitive and appear once in the"
+" result."
+msgstr "按属性中出现的顺序返回类名。类名区分大小写，重复的类名只出现一次。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Returns the closest matching ancestor, starting with this element. [code]:scope[/code] refers to "
+"this element. Returns [code]null[/code] if nothing matches."
+msgstr "从当前元素开始向父级查找，返回最近的匹配项。[code]:scope[/code] 指当前元素。无匹配时返回 [code]null[/code]。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Returns the first matching descendant in document order, or [code]null[/code]. See [method "
+"query_selector_all] for the query scope."
+msgstr "按文档顺序返回第一个匹配的后代元素。无匹配时返回 [code]null[/code]。查询范围见 [method query_selector_all]。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns whether the element has the given case-sensitive class name."
+msgstr "返回元素是否包含指定的类名，区分大小写。"
+
+#. doc_classes/HTMLElement.xml
+msgid "Returns whether this element matches the selector. [code]:scope[/code] refers to this element."
+msgstr "返回当前元素是否匹配选择器。[code]:scope[/code] 指当前元素。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Serializes the current children as HTML, including text and comments. CSS-generated content is "
+"excluded. Escaping and attribute order can differ from the original source."
+msgstr "将当前子内容序列化为 HTML，包含文本和注释，跳过 CSS 生成的内容。转义形式和属性顺序可能与源文本不同。"
+
+#. doc_classes/HTMLElement.xml
+msgid ""
+"Toggles the given class name when [param force] is [code]null[/code]. Pass [code]true[/code] to "
+"add it or [code]false[/code] to remove it. Use [method has_class] to read the resulting state."
+msgstr ""
+"[param force] 为 [code]null[/code] 时切换指定类名。传入 [code]true[/code] 添加类名，传入 [code]false[/code] 移除类名。用 "
+"[method has_class] 查询操作后的状态。"

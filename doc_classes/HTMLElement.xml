@@ -1,18 +1,47 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="HTMLElement" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<brief_description>
-		A read-only handle to an element in a parsed HTML layout.
+		A handle to an element in a parsed HTML layout.
 	</brief_description>
 	<description>
-		Obtain a handle from [method HTMLLayout.query_selector] or [method HTMLLabel.query_selector]. A handle belongs to one layout and stays valid across viewport resizes. Parsing again, clearing the layout, or freeing its owner invalidates it. An invalid handle returns empty results or the supplied attribute default. Use these methods on the main thread.
+		Obtain a handle from [method HTMLLayout.query_selector] or [method HTMLLabel.query_selector]. A handle belongs to one layout and stays valid across viewport resizes. While a handle is held, querying or hitting the same element in that layout returns the same object. Parsing again, clearing the layout, or freeing its owner invalidates it. An invalid handle returns empty results or the supplied attribute default. Use these methods on the main thread.
+		Edits affect this layout only. Other views of the same [HTMLDocument] and the source resource are unaffected. Queries and attribute reads see edits immediately. Geometry is available after the next layout pass. [HTMLLabel] batches edits and emits [signal HTMLLabel.layout_changed] when the new layout is ready. A standalone [HTMLLayout] with a previous viewport reflows on a deferred call, or can be laid out immediately with [method HTMLLayout.layout].
+		Editing methods return [constant OK] on success and [constant ERR_INVALID_PARAMETER] for an invalid handle or invalid arguments.
 	</description>
 	<methods>
+		<method name="add_class">
+			<return type="int" enum="Error" />
+			<param index="0" name="class_name" type="String" />
+			<description>
+				Adds a case-sensitive class name if it is absent. The name must be a single non-empty token without ASCII whitespace.
+			</description>
+		</method>
+		<method name="append_child">
+			<return type="int" enum="Error" />
+			<param index="0" name="child" type="HTMLElement" />
+			<description>
+				Appends [param child] to the end of this element's children and preserves the subtree's handles. Accepts both unattached elements from [method HTMLLayout.create_element] and existing elements from the same layout. Cycles, moving the document root, and inserting elements into tags that cannot contain them are rejected.
+			</description>
+		</method>
+		<method name="closest" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns the closest matching ancestor, starting with this element. [code]:scope[/code] refers to this element. Returns [code]null[/code] if nothing matches.
+			</description>
+		</method>
 		<method name="get_attribute" qualifiers="const">
 			<return type="String" />
 			<param index="0" name="name" type="String" />
 			<param index="1" name="default_value" type="String" default="&quot;&quot;" />
 			<description>
 				Returns the attribute value, or [param default_value] if the attribute is absent. Attribute names are ASCII case-insensitive. An explicitly empty attribute returns an empty string.
+			</description>
+		</method>
+		<method name="get_attributes" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns a snapshot of the element's HTML attributes. Keys and values are strings. An explicitly empty attribute has an empty string value.
 			</description>
 		</method>
 		<method name="get_bounding_rect" qualifiers="const">
@@ -27,16 +56,34 @@
 				Returns the direct child elements in document order. Text nodes, comments, and CSS-generated pseudo-elements are excluded.
 			</description>
 		</method>
+		<method name="get_class_list" qualifiers="const">
+			<return type="PackedStringArray" />
+			<description>
+				Returns the class names in attribute order. Class names are case-sensitive and appear once in the result.
+			</description>
+		</method>
 		<method name="get_client_rects" qualifiers="const">
 			<return type="Rect2[]" />
 			<description>
 				Returns the element's border-box fragments in document pixel coordinates, before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box.
 			</description>
 		</method>
+		<method name="get_dataset" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns a snapshot of the element's [code]data-*[/code] attributes, using the same key conversion as HTML dataset. For example, [code]data-item-id[/code] becomes [code]itemId[/code].
+			</description>
+		</method>
+		<method name="get_inner_html" qualifiers="const">
+			<return type="String" />
+			<description>
+				Serializes the current children as HTML, including text and comments. CSS-generated content is excluded. Escaping and attribute order can differ from the original source.
+			</description>
+		</method>
 		<method name="get_parent" qualifiers="const">
 			<return type="HTMLElement" />
 			<description>
-				Returns the parent element, or [code]null[/code] at the document root.
+				Returns the parent element, or [code]null[/code] if this element has no parent.
 			</description>
 		</method>
 		<method name="get_tag_name" qualifiers="const">
@@ -58,10 +105,88 @@
 				Returns whether the element has an attribute with the given name, including an empty attribute.
 			</description>
 		</method>
+		<method name="has_class" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="class_name" type="String" />
+			<description>
+				Returns whether the element has the given case-sensitive class name.
+			</description>
+		</method>
 		<method name="is_valid" qualifiers="const">
 			<return type="bool" />
 			<description>
 				Returns whether the handle still refers to an element in its original parsed layout.
+			</description>
+		</method>
+		<method name="matches" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns whether this element matches the selector. [code]:scope[/code] refers to this element.
+			</description>
+		</method>
+		<method name="query_selector" qualifiers="const">
+			<return type="HTMLElement" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns the first matching descendant in document order, or [code]null[/code]. See [method query_selector_all] for the query scope.
+			</description>
+		</method>
+		<method name="query_selector_all" qualifiers="const">
+			<return type="HTMLElement[]" />
+			<param index="0" name="selector" type="String" />
+			<description>
+				Returns a snapshot of the matching descendants in document order, with each element included once. [code]:scope[/code] refers to this element. Use [code]:scope > .title[/code] to select direct children with the given class. See [method HTMLLayout.query_selector_all] for selector syntax.
+			</description>
+		</method>
+		<method name="remove">
+			<return type="int" enum="Error" />
+			<description>
+				Removes this element and its subtree from their parent and invalidates their handles. Calling this method on an unattached element with no parent leaves it available for insertion. The document root cannot be removed.
+			</description>
+		</method>
+		<method name="remove_attribute">
+			<return type="int" enum="Error" />
+			<param index="0" name="name" type="String" />
+			<description>
+				Removes the named HTML attribute, if present. Attribute names are ASCII case-insensitive.
+			</description>
+		</method>
+		<method name="remove_class">
+			<return type="int" enum="Error" />
+			<param index="0" name="class_name" type="String" />
+			<description>
+				Removes the given class name if present. See [method add_class] for the name rules.
+			</description>
+		</method>
+		<method name="set_attribute">
+			<return type="int" enum="Error" />
+			<param index="0" name="name" type="String" />
+			<param index="1" name="value" type="String" />
+			<description>
+				Adds or updates the named HTML attribute. The value is stored as literal text. An empty value leaves the attribute present.
+			</description>
+		</method>
+		<method name="set_inner_html">
+			<return type="int" enum="Error" />
+			<param index="0" name="html" type="String" />
+			<description>
+				Parses [param html] in the context of this element and replaces its children. The replaced descendants' handles become invalid. Empty HTML clears the children. Use [method set_text_content] to insert literal text.
+			</description>
+		</method>
+		<method name="set_text_content">
+			<return type="int" enum="Error" />
+			<param index="0" name="text" type="String" />
+			<description>
+				Replaces the children with literal text and invalidates the replaced descendants' handles. Empty text clears the children.
+			</description>
+		</method>
+		<method name="toggle_class">
+			<return type="int" enum="Error" />
+			<param index="0" name="class_name" type="String" />
+			<param index="1" name="force" type="Variant" default="null" />
+			<description>
+				Toggles the given class name when [param force] is [code]null[/code]. Pass [code]true[/code] to add it or [code]false[/code] to remove it. Use [method has_class] to read the resulting state.
 			</description>
 		</method>
 	</methods>

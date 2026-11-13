@@ -69,13 +69,43 @@ if not Path(litehtml, "include", "litehtml.h").is_file() or not Path(gumbo, "inc
     Exit(1)
 
 html_env = env.Clone()
-html_env.Append(CPPPATH=[f"{litehtml}/include", f"{litehtml}/include/litehtml", f"{gumbo}/include"])
+litehtml_headers = "src/gen/html/include"
+
+
+def expose_litehtml_editing(target, source, env):
+    header = Path(str(source[0]))
+    text = header.read_text(encoding="utf-8")
+    name = header.stem
+    declaration = {
+        "document": "class document : public std::enable_shared_from_this<document>",
+        "element": "class element : public std::enable_shared_from_this<element>",
+        "html_tag": "class html_tag : public element",
+    }[name] + "\n\t{"
+    if text.count(declaration) != 1:
+        raise ValueError(f"Update the DocRender editing adapter for {header}")
+    text = text.replace(declaration, declaration + "\n\t\tfriend struct docrender_editor;")
+    Path(str(target[0])).write_text(text, encoding="utf-8", newline="\n")
+
+
+# Stage the headers so both litehtml and DocRender see the same class declarations.
+staged_headers = []
+for header in Glob(f"{litehtml}/include/*.h") + Glob(f"{litehtml}/include/litehtml/*.h"):
+    header_path = Path(str(header))
+    relative_path = header_path.relative_to(f"{litehtml}/include")
+    if header_path.stem in ("document", "element", "html_tag"):
+        staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
+                                          header, expose_litehtml_editing)
+    else:
+        staged_headers += html_env.Install(f"{litehtml_headers}/{relative_path.parent.as_posix()}", header)
+
+html_env.Append(CPPPATH=[litehtml_headers, f"{litehtml_headers}/litehtml", f"{gumbo}/include"])
 # litehtml uses C++ exceptions during HTML encoding detection.
 enable_cpp_exceptions(html_env)
 if html_env.get("is_msvc", False):
     html_env.AppendUnique(CXXFLAGS=["/permissive-"])
 html_object = html_env.StaticObject if env["platform"] == "ios" else html_env.SharedObject
-sources += html_object(html_sources)
+html_objects = html_object(html_sources)
+sources += html_objects
 
 gumbo_env = env.Clone()
 gumbo_env.Append(CPPPATH=[f"{gumbo}/include", f"{gumbo}/include/gumbo"])
@@ -90,7 +120,11 @@ for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp"
                                      (gumbo_object, Glob(f"{gumbo}/*.c"))):
     for source in library_sources:
         source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
-        sources += build_object(f"src/gen/html/{source_path.as_posix()}{env['OBJSUFFIX']}", source)
+        objects = build_object(f"src/gen/html/{source_path.as_posix()}{env['OBJSUFFIX']}", source)
+        if build_object is html_object:
+            html_objects += objects
+        sources += objects
+html_env.Depends(html_objects, staged_headers)
 
 microtex = "src/thirdparty/microtex"
 tinyxml2 = "src/thirdparty/tinyxml2"

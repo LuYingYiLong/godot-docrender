@@ -10,6 +10,7 @@
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/style_box.hpp>
 #include <godot_cpp/classes/v_scroll_bar.hpp>
+#include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
 #include <algorithm>
@@ -63,7 +64,7 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 		const Vector2 point = motion->get_position();
 		const bool moved = (point - visible_rect.position).distance_squared_to(pressed_position) > DRAG_DEADZONE * DRAG_DEADZONE;
 		if (!visible_rect.has_point(point) || moved) {
-			pressed_link = 0;
+			cancel_click();
 		}
 		if (selecting && (moved || selection_dragged)) {
 			selection_dragged = true;
@@ -82,10 +83,13 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 		return;
 	}
 	const Vector2 point = button->get_position();
-	const HTMLLayout::LinkHit hit = visible_rect.has_point(point) ? label->layout->find_link_at(point) : HTMLLayout::LinkHit{};
+	Ref<HTMLElement> element;
+	const HTMLLayout::LinkHit hit = visible_rect.has_point(point)
+		? label->layout->find_link_at(point, &element) : HTMLLayout::LinkHit{};
 	if (button->is_pressed()) {
 		pressed_position = point - visible_rect.position;
 		pressed_link = hit.id;
+		pressed_element = element;
 		selecting = label->selection_enabled && visible_rect.has_point(point);
 		selection_dragged = false;
 		if (selecting) {
@@ -97,8 +101,10 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 		return;
 	}
 
-	const bool clicked = !selection_dragged && pressed_link != 0 && pressed_link == hit.id &&
+	const bool clicked = !selection_dragged && !button->is_canceled() &&
 		(point - visible_rect.position).distance_squared_to(pressed_position) <= DRAG_DEADZONE * DRAG_DEADZONE;
+	const bool link_clicked = clicked && pressed_link != 0 && pressed_link == hit.id;
+	const bool element_clicked = clicked && element.is_valid() && pressed_element == element;
 	if (selecting) {
 		if (selection_dragged && !button->is_canceled()) {
 			selection_caret = label->layout->hit_test_text(point.clamp(visible_rect.position, visible_rect.get_end()));
@@ -107,17 +113,23 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 		accept_event();
 	}
 	cancel_press();
-	if (clicked && !button->is_canceled()) {
+	const ObjectID label_id(label->get_instance_id());
+	if (link_clicked) {
 		if (hit.uri.begins_with("#")) {
 			label->scroll_to_anchor(docrender::decode_html_fragment(hit.uri.substr(1)));
 		}
 		label->emit_signal("link_pressed", hit.uri);
 	}
+	if (element_clicked && element->is_valid()) {
+		if (auto* target = Object::cast_to<HTMLLabel>(ObjectDB::get_instance(label_id))) {
+			target->emit_signal("element_clicked", element);
+		}
+	}
 }
 
 void HTMLLabelCanvas::_notification(int p_what) {
 	if (p_what == NOTIFICATION_MOUSE_EXIT) {
-		pressed_link = 0;
+		cancel_click();
 		set_default_cursor_shape(CURSOR_ARROW);
 	}
 	else if (p_what == NOTIFICATION_EXIT_TREE || p_what == NOTIFICATION_FOCUS_EXIT) {
@@ -143,10 +155,15 @@ void HTMLLabelCanvas::_notification(int p_what) {
 }
 
 void HTMLLabelCanvas::cancel_press() {
-	pressed_link = 0;
+	cancel_click();
 	selecting = false;
 	selection_dragged = false;
 	set_process_internal(false);
+}
+
+void HTMLLabelCanvas::cancel_click() {
+	pressed_link = 0;
+	pressed_element.unref();
 }
 
 void HTMLLabelCanvas::update_cursor(const Vector2& p_point) {
@@ -174,6 +191,7 @@ void HTMLLabel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scroll_offset"), &HTMLLabel::get_scroll_offset);
 	ClassDB::bind_method(D_METHOD("set_scroll_offset", "offset"), &HTMLLabel::set_scroll_offset);
 	ClassDB::bind_method(D_METHOD("scroll_to_anchor", "id", "align"), &HTMLLabel::scroll_to_anchor, DEFVAL(0.0f));
+	ClassDB::bind_method(D_METHOD("create_element", "tag_name"), &HTMLLabel::create_element);
 	ClassDB::bind_method(D_METHOD("query_selector", "selector"), &HTMLLabel::query_selector);
 	ClassDB::bind_method(D_METHOD("query_selector_all", "selector"), &HTMLLabel::query_selector_all);
 	ClassDB::bind_method(D_METHOD("get_element_by_id", "id"), &HTMLLabel::get_element_by_id);
@@ -191,6 +209,9 @@ void HTMLLabel::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "stylesheet", PROPERTY_HINT_MULTILINE_TEXT), "set_stylesheet", "get_stylesheet");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "selection_enabled"), "set_selection_enabled", "is_selection_enabled");
 	ADD_SIGNAL(MethodInfo("link_pressed", PropertyInfo(Variant::STRING, "uri")));
+	ADD_SIGNAL(MethodInfo("element_clicked", PropertyInfo(Variant::OBJECT, "element", PROPERTY_HINT_NONE,
+		String(), PROPERTY_USAGE_DEFAULT, HTMLElement::get_class_static())));
+	ADD_SIGNAL(MethodInfo("layout_changed"));
 }
 
 void HTMLLabel::_notification(int p_what) {
@@ -215,7 +236,7 @@ void HTMLLabel::set_document(const Ref<HTMLDocument>& p_document) {
 	}
 	document = p_document;
 	if (document.is_valid()) {
-		document->connect("changed", callable_mp(this, &HTMLLabel::document_changed).bind(document->get_instance_id()), CONNECT_DEFERRED);
+		document->connect("changed", callable_mp(this, &HTMLLabel::document_changed).bind(document->get_instance_id()));
 	}
 	source_changed();
 }
@@ -289,6 +310,11 @@ bool HTMLLabel::scroll_to_anchor(const String& p_id, float p_align) {
 	}
 	const Rect2* anchor = layout->get_anchor_rects().getptr(p_id);
 	return anchor && scroll_to_rect(*anchor, p_align);
+}
+
+Ref<HTMLElement> HTMLLabel::create_element(const String& p_tag_name) {
+	parse_pending_source();
+	return layout->create_element(p_tag_name);
 }
 
 Ref<HTMLElement> HTMLLabel::query_selector(const String& p_selector) const {
@@ -432,28 +458,46 @@ void HTMLLabel::document_changed(uint64_t p_document_id) {
 	}
 }
 
+void HTMLLabel::parse_pending_source() {
+	if (!source_dirty) {
+		return;
+	}
+	source_dirty = false;
+	layout_updated = true;
+	if (document.is_valid()) {
+		layout = document->create_layout();
+		parsed = layout->get_render_error().is_empty();
+	}
+	else {
+		parsed = layout->parse(text, base_dir, stylesheet) == OK;
+	}
+	layout->set_edit_callback(callable_mp(this, &HTMLLabel::on_layout_edited));
+}
+
+void HTMLLabel::on_layout_edited() {
+	layout_updated = true;
+	if (canvas) {
+		canvas->cancel_press();
+		clear_selection();
+	}
+	queue_refresh();
+}
+
 void HTMLLabel::refresh() {
 	refresh_queued = false;
 	if (!is_inside_tree()) {
 		return;
 	}
-	canvas->pressed_link = 0;
+	canvas->cancel_click();
 	if (!pending_scroll_offset) {
 		pending_scroll_offset = get_scroll_offset();
 	}
 
-	if (source_dirty) {
-		source_dirty = false;
-		if (document.is_valid()) {
-			layout = document->create_layout();
-			parsed = layout->get_render_error().is_empty();
-		}
-		else {
-			parsed = layout->parse(text, base_dir, stylesheet) == OK;
-		}
-	}
+	parse_pending_source();
+	const bool document_updated = layout_updated;
+	layout_updated = false;
 	if (!parsed) {
-		update_view({}, {}, false, false, layout->get_render_error());
+		update_view({}, {}, false, false, document_updated, layout->get_render_error());
 		return;
 	}
 
@@ -469,18 +513,18 @@ void HTMLLabel::refresh() {
 		const Vector2 gutters(vertical ? vertical_bar_width : 0, horizontal ? horizontal_bar_height : 0);
 		const Vector2i viewport((available - gutters).floor());
 		if (viewport.x <= 0 || viewport.y <= 0) {
-			update_view({}, {}, false, false);
+			update_view({}, {}, false, false, document_updated);
 			return;
 		}
 		if (layout->layout(viewport) != OK) {
-			update_view({}, {}, false, false, layout->get_render_error());
+			update_view({}, {}, false, false, document_updated, layout->get_render_error());
 			return;
 		}
 		const Vector2i size = layout->get_content_size();
 		const bool next_horizontal = horizontal || size.x > viewport.x;
 		const bool next_vertical = vertical || size.y > viewport.y;
 		if (next_horizontal == horizontal && next_vertical == vertical) {
-			update_view(viewport, size, horizontal, vertical);
+			update_view(viewport, size, horizontal, vertical, document_updated);
 			return;
 		}
 		horizontal = next_horizontal;
@@ -489,7 +533,9 @@ void HTMLLabel::refresh() {
 }
 
 void HTMLLabel::update_view(const Vector2i& p_viewport, const Vector2i& p_content,
-	bool p_scroll_horizontal, bool p_scroll_vertical, const String& p_error) {
+	bool p_scroll_horizontal, bool p_scroll_vertical, bool p_document_updated, const String& p_error) {
+	layout_signal_pending |= p_document_updated || viewport_size != p_viewport ||
+		content_size != p_content || render_error != p_error;
 	viewport_size = p_viewport;
 	content_size = p_content;
 	const int64_t text_length = layout->get_plain_text().length();
@@ -519,15 +565,22 @@ void HTMLLabel::apply_scroll_offset(const Vector2i& p_offset) {
 }
 
 void HTMLLabel::apply_pending_scroll() {
-	if (is_inside_tree() && !refresh_queued && pending_scroll_offset) {
+	if (!is_inside_tree() || refresh_queued) {
+		return;
+	}
+	if (pending_scroll_offset) {
 		const Vector2i offset = *pending_scroll_offset;
 		pending_scroll_offset.reset();
 		apply_scroll_offset(offset);
 	}
+	if (layout_signal_pending && !refresh_queued) {
+		layout_signal_pending = false;
+		emit_signal("layout_changed");
+	}
 }
 
 void HTMLLabel::on_scroll_changed(double) {
-	canvas->pressed_link = 0;
+	canvas->cancel_click();
 	canvas->queue_redraw();
 }
 

@@ -105,6 +105,10 @@ namespace docrender {
 		void record(litehtml::document& p_document, const godot::Vector2i& p_content_size);
 		const std::vector<PaintRun>& get_paint_runs() const;
 		const godot::String& get_plain_text() const;
+		const litehtml::string_map* get_source_attributes(const litehtml::element& p_element) const;
+		void set_source_attribute(const litehtml::element::ptr& p_element, const char* p_name, const char* p_value);
+		void forget_source_attributes(const litehtml::element& p_element);
+		void reset_stylesheet_reads();
 		int64_t hit_test_text(const godot::Vector2& p_point) const;
 		godot::TypedArray<godot::Rect2> get_selection_rects(int64_t p_from, int64_t p_to) const;
 		static bool is_hit_visible(const litehtml::render_item& p_item, const godot::Vector2& p_position);
@@ -121,6 +125,11 @@ namespace docrender {
 			godot::Ref<godot::TextLine> shape(const char* p_text);
 		};
 
+		struct SourceAttributes {
+			std::weak_ptr<litehtml::element> element;
+			litehtml::string_map values;
+		};
+
 		godot::String base_dir;
 		godot::Dictionary textures;
 		godot::Dictionary local_stylesheets;
@@ -130,6 +139,7 @@ namespace docrender {
 		godot::Vector2i viewport_size;
 		godot::Ref<godot::Font> default_font;
 		godot::HashMap<godot::String, godot::Ref<godot::Texture2D>> images;
+		godot::HashMap<const litehtml::element*, SourceAttributes> source_attributes;
 		std::vector<PaintRun> paint_runs;
 		std::vector<Clip> clips;
 		godot::String plain_text;

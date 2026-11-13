@@ -17,6 +17,7 @@
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <litehtml/document.h>
 #include <litehtml/el_image.h>
+#include <litehtml/html_tag.h>
 #include <litehtml/render_image.h>
 
 #include <algorithm>
@@ -34,6 +35,26 @@ namespace docrender {
 		constexpr float CSS_DPI = 96.0f;
 		constexpr int MAX_ROUNDED_CLIPS = 16;
 		Ref<Shader> paint_shader;
+
+		class RawTextElement final : public html_tag {
+			bool stylesheet;
+
+		public:
+			RawTextElement(const document::ptr& p_document, bool p_stylesheet) :
+				html_tag(p_document), stylesheet(p_stylesheet) {}
+
+			void parse_attributes() override {
+				if (stylesheet) {
+					std::string text;
+					get_text(text);
+					get_document()->add_stylesheet(text.c_str(), nullptr, get_attr("media"));
+				}
+			}
+
+			void compute_styles(bool) override {
+				css_w().set_display(display_none);
+			}
+		};
 
 		const char* PAINT_SHADER_CODE = R"SHADER(
 shader_type canvas_item;
@@ -386,9 +407,48 @@ void fragment() {
 		}
 	}
 
-	litehtml::element::ptr LiteHTMLContainer::create_element(const char* p_tag, const litehtml::string_map&,
+	litehtml::element::ptr LiteHTMLContainer::create_element(const char* p_tag, const litehtml::string_map& p_attributes,
 		const std::shared_ptr<litehtml::document>& p_document) {
-		return fit_images && std::string_view(p_tag) == "img" ? std::make_shared<FittedImageElement>(p_document) : nullptr;
+		if (!p_attributes.empty()) {
+			// The inner call selects litehtml's normal element type. The outer call applies the attributes.
+			const auto element = p_document->create_element(p_tag, {});
+			if (element) {
+				source_attributes.insert(element.get(), SourceAttributes{ element, p_attributes });
+			}
+			return element;
+		}
+		const std::string_view tag(p_tag);
+		if (tag == "style" || tag == "script") {
+			return std::make_shared<RawTextElement>(p_document, tag == "style");
+		}
+		return fit_images && tag == "img" ? std::make_shared<FittedImageElement>(p_document) : nullptr;
+	}
+
+	const litehtml::string_map* LiteHTMLContainer::get_source_attributes(const litehtml::element& p_element) const {
+		const auto* source = source_attributes.getptr(&p_element);
+		return source && !source->element.expired() ? &source->values : nullptr;
+	}
+
+	void LiteHTMLContainer::set_source_attribute(const litehtml::element::ptr& p_element, const char* p_name, const char* p_value) {
+		auto* source = source_attributes.getptr(p_element.get());
+		if (p_value) {
+			if (!source || source->element.expired()) {
+				source_attributes.insert(p_element.get(), SourceAttributes{ p_element, {} });
+				source = source_attributes.getptr(p_element.get());
+			}
+			source->values[p_name] = p_value;
+		}
+		else if (source) {
+			source->values.erase(p_name);
+		}
+	}
+
+	void LiteHTMLContainer::forget_source_attributes(const litehtml::element& p_element) {
+		source_attributes.erase(&p_element);
+	}
+
+	void LiteHTMLContainer::reset_stylesheet_reads() {
+		stylesheet_reads = 0;
 	}
 
 	void LiteHTMLContainer::set_viewport(const Vector2i& p_size) {
