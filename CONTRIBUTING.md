@@ -11,7 +11,7 @@ git submodule update --init --recursive
 python -m pip install scons
 ```
 
-The submodules provide godot-cpp, MicroTeX and its fonts, TinyXML-2, and litehtml v0.10 with bundled Gumbo. SCons compiles litehtml and Gumbo into the extension on each target. Open the solution to browse the project in Visual Studio. [Visual Studio solution](Godot-DocRender.sln)
+The submodules provide godot-cpp, MicroTeX and its fonts, TinyXML-2, and litehtml v0.10 with bundled Gumbo. SCons compiles litehtml and Gumbo into the extension on each target. Run a build before opening the solution in Visual Studio so IntelliSense can find the generated godot-cpp bindings and staged litehtml headers. [Visual Studio solution](Godot-DocRender.sln)
 
 ## Install optional SDKs
 

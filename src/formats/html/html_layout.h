@@ -77,32 +77,60 @@ public:
 	~HTMLLayout() override;
 	static void release_paint_shader();
 
-	godot::Error parse(const godot::String& p_html, const godot::String& p_base_dir = "res://", const godot::String& p_stylesheet = ""); // 解析 HTML 和附加样式，替换当前布局的文档
-	godot::Error parse_source(const godot::String& p_html, const godot::String& p_base_dir,
-		const godot::String& p_stylesheet, const godot::Dictionary& p_textures, bool p_fit_images = false,
-		const godot::String& p_default_stylesheet = {}, const Fonts& p_fonts = {},
-		const godot::Dictionary& p_local_stylesheets = {});
-	godot::Error layout(const godot::Vector2i& p_viewport_size); // 按给定视口尺寸排版并更新几何
-	godot::Vector2i get_content_size() const; // 返回最近一次成功排版的内容尺寸
-	godot::String get_plain_text() const; // 返回排版后的可复制文本
-	int64_t hit_test_text(const godot::Vector2& p_position) const; // 返回离指定文档坐标最近的文本光标偏移
-	godot::TypedArray<godot::Rect2> get_selection_rects(int64_t p_from, int64_t p_to) const; // 返回文本范围在文档坐标中的可见选区矩形
-	void draw(godot::CanvasItem* p_canvas, const godot::Vector2& p_position = {}, const godot::Rect2& p_clip = {}); // 在画布绘制回调中按给定位置和裁剪区域绘制 HTML
-	void draw_with_highlights(godot::CanvasItem* p_canvas, const godot::Vector2& p_position, const godot::Rect2& p_clip,
-		const godot::Vector2i& p_selection, const godot::StyleBox* p_selection_style, const godot::Color& p_selection_color,
-		const godot::Vector2i& p_search = {}, const godot::StyleBox* p_search_style = nullptr);
-	godot::String get_link_at(const godot::Vector2& p_position) const; // 返回指定文档坐标处链接的原始 href
-	LinkHit find_link_at(const godot::Vector2& p_position, godot::Ref<HTMLElement>* r_element = nullptr) const;
-	godot::Rect2 get_anchor_rect(const godot::String& p_id) const; // 返回指定 HTML ID 的锚点矩形
+	godot::Error parse(const godot::String& p_html,
+		const godot::String& p_base_dir = "res://",
+		const godot::String& p_stylesheet = ""
+	);																				// 解析 HTML 和附加样式，替换当前布局的文档
+	godot::Error parse_source(const godot::String& p_html,
+		const godot::String& p_base_dir,
+		const godot::String& p_stylesheet,
+		const godot::Dictionary& p_textures,
+		bool p_fit_images = false,
+		const godot::String& p_default_stylesheet = {},
+		const Fonts& p_fonts = {},
+		const godot::Dictionary& p_local_stylesheets = {}
+	);
+	godot::Error layout(const godot::Vector2i& p_viewport_size);					// 按给定视口尺寸排版并更新几何
+	godot::Vector2i get_content_size() const;										// 返回最近一次成功排版的内容尺寸
+	godot::String get_plain_text() const;											// 返回排版后的可复制文本
+	int64_t hit_test_text(const godot::Vector2& p_position) const;					// 返回离指定文档坐标最近的文本光标偏移
+	godot::TypedArray<godot::Rect2> get_selection_rects(
+		int64_t p_from,
+		int64_t p_to
+	) const;																		// 返回文本范围在文档坐标中的可见选区矩形
+	void draw(godot::CanvasItem* p_canvas,
+		const godot::Vector2& p_position = {},
+		const godot::Rect2& p_clip = {}
+	);																				// 在画布绘制回调中按给定位置和裁剪区域绘制 HTML
+	void draw_with_highlights(
+		godot::CanvasItem* p_canvas,
+		const godot::Vector2& p_position,
+		const godot::Rect2& p_clip,
+		const godot::Vector2i& p_selection,
+		const godot::StyleBox* p_selection_style,
+		const godot::Color& p_selection_color,
+		const godot::Vector2i& p_search = {},
+		const godot::StyleBox* p_search_style = nullptr
+	);
+	godot::String get_link_at(const godot::Vector2& p_position) const;				// 返回指定文档坐标处链接的原始 href
+	LinkHit find_link_at(
+		const godot::Vector2& p_position,
+		godot::Ref<HTMLElement>* r_element = nullptr
+	) const;
+	godot::Rect2 get_anchor_rect(const godot::String& p_id) const;					// 返回指定 HTML ID 的锚点矩形
 	const godot::HashMap<godot::String, godot::Rect2>& get_anchor_rects() const;
-	godot::Ref<HTMLElement> create_element(const godot::String& p_tag_name); // 创建同一布局中尚未插入文档的元素
-	godot::Ref<HTMLElement> query_selector(const godot::String& p_selector) const; // 按文档顺序返回第一个匹配元素
-	godot::TypedArray<HTMLElement> query_selector_all(const godot::String& p_selector) const; // 按文档顺序返回所有匹配元素的去重数组
-	godot::Ref<HTMLElement> get_element_by_id(const godot::String& p_id) const; // 按区分大小写的 HTML ID 查找第一个元素
+	godot::Ref<HTMLElement> create_element(const godot::String& p_tag_name);		// 创建同一布局中尚未插入文档的元素
+	godot::Ref<HTMLElement> query_selector(const godot::String& p_selector) const;	// 按文档顺序返回第一个匹配元素
+	godot::TypedArray<HTMLElement> query_selector_all(
+		const godot::String& p_selector
+	) const;																		// 按文档顺序返回所有匹配元素的去重数组
+	godot::Ref<HTMLElement> get_element_by_id(const godot::String& p_id) const;		// 按区分大小写的 HTML ID 查找第一个元素
 	godot::Ref<HTMLElement> get_element_at(const godot::Vector2& p_position) const; // 返回文档坐标处考虑裁剪后的最上层元素
-	std::optional<godot::Rect2> get_element_scroll_bounds(const godot::Ref<HTMLElement>& p_element) const;
-	godot::String get_render_error() const; // 返回最近的解析或排版错误
-	void clear(); // 清空文档及排版结果并使元素句柄失效
+	std::optional<godot::Rect2> get_element_scroll_bounds(
+		const godot::Ref<HTMLElement>& p_element
+	) const;
+	godot::String get_render_error() const;											// 返回最近的解析或排版错误
+	void clear();																	// 清空文档及排版结果并使元素句柄失效
 };
 
 #endif
