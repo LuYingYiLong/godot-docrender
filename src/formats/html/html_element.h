@@ -46,6 +46,7 @@ public:
 	godot::TypedArray<HTMLElement> get_children() const;							// 按文档顺序返回直接子元素
 	godot::TypedArray<godot::Rect2> get_client_rects() const;						// 返回各排版片段在文档坐标中的边框盒
 	godot::Rect2 get_bounding_rect() const;											// 返回包围所有排版片段的矩形
+	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const;				// 返回本元素的 CSS 声明诊断快照
 
 	// 同一布局内的同一元素复用仍在使用的句柄，重新解析后旧句柄失效
 	godot::Ref<HTMLElement> query_selector(const godot::String& p_selector) const;	// 返回第一个匹配的后代元素，:scope 指向当前元素

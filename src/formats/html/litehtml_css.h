@@ -7,12 +7,30 @@
 namespace litehtml {
 	struct property_value;
 
-	enum class css_source_kind { none, inline_style, style_element, stylesheet, local_stylesheet };
-	enum class css_diagnostic_kind { unknown_property, unsupported_value, not_rendered };
+	enum class css_source_kind {
+		none,
+		inline_style,
+		style_element,
+		stylesheet,
+		local_stylesheet
+	};
+	enum class css_diagnostic_kind {
+		unknown_property,
+		unsupported_value,
+		not_rendered
+	};
 
 	struct css_source {
 		css_source_kind kind = css_source_kind::none;
 		string path;
+	};
+
+	struct css_diagnostic {
+		css_diagnostic_kind kind;
+		string property;
+		string value;
+		css_source source;
+		std::vector<std::pair<string_id, int>> drawing_values;
 	};
 
 	struct css_declaration_origin {
@@ -22,7 +40,7 @@ namespace litehtml {
 
 	struct css_declaration_result {
 		bool accepted = false;
-		bool not_rendered = false;
+		std::vector<std::pair<string_id, int>> drawing_values;
 
 		void accept(string_id p_name, const property_value& p_value);
 	};

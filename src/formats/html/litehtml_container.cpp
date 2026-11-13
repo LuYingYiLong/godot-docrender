@@ -776,6 +776,8 @@ void fragment() {
 	void LiteHTMLContainer::begin_css_diagnostics() {
 		css_diagnostics.clear();
 		css_diagnostic_keys.clear();
+		element_diagnostics.clear();
+		diagnostic_runs.clear();
 	}
 
 	void LiteHTMLContainer::set_css_source_kind(litehtml::css_source_kind p_kind) {
@@ -783,7 +785,19 @@ void fragment() {
 	}
 
 	TypedArray<Dictionary> LiteHTMLContainer::get_css_diagnostics() const {
-		return css_diagnostics.duplicate(true);
+		TypedArray<Dictionary> result;
+		for (const Dictionary& entry : css_diagnostics) {
+			result.append(entry.duplicate());
+		}
+		return result;
+	}
+
+	const std::vector<int64_t>* LiteHTMLContainer::get_element_diagnostics(const element& p_element) const {
+		return element_diagnostics.getptr(&p_element);
+	}
+
+	const Dictionary& LiteHTMLContainer::get_css_diagnostic(int64_t p_index) const {
+		return css_diagnostics[p_index];
 	}
 
 	css_source LiteHTMLContainer::get_css_source(const litehtml::string& p_base, bool p_inline) const {
@@ -799,30 +813,36 @@ void fragment() {
 		return { css_source_kind::local_stylesheet, p_base.substr(p_base.find_last_of('\n') + 1) };
 	}
 
-	void LiteHTMLContainer::report_css_diagnostic(css_diagnostic_kind p_kind, const litehtml::string& p_property,
-		const litehtml::string& p_value, const css_source& p_source) {
+	void LiteHTMLContainer::report_css_diagnostic(const css_diagnostic& p_diagnostic, const html_tag* p_element) {
 		if (!css_diagnostics_enabled) {
 			return;
 		}
 		static constexpr const char* kinds[] = { "unknown_property", "unsupported_value", "not_rendered" };
 		static constexpr const char* sources[] = { "", "inline_style", "style_element", "stylesheet", "local_stylesheet" };
-		const String kind = kinds[static_cast<int>(p_kind)];
-		const String source = sources[static_cast<int>(p_source.kind)];
-		const String property = String::utf8(p_property.c_str());
-		const String value = String::utf8(p_value.c_str());
-		const String path = String::utf8(p_source.path.c_str());
-	const String key = vformat("%s/%s/%d/%d/%s%s%s", kind, source, property.length(), path.length(), property, path, value);
-		if (css_diagnostic_keys.has(key)) {
-			return;
+		const String kind = kinds[static_cast<int>(p_diagnostic.kind)];
+		const String source = sources[static_cast<int>(p_diagnostic.source.kind)];
+		const String property = String::utf8(p_diagnostic.property.c_str());
+		const String value = String::utf8(p_diagnostic.value.c_str());
+		const String path = String::utf8(p_diagnostic.source.path.c_str());
+		const String key = vformat("%s/%s/%d/%d/%s%s%s", kind, source, property.length(), path.length(), property, path, value);
+		const int64_t* existing = css_diagnostic_keys.getptr(key);
+		const int64_t index = existing ? *existing : static_cast<int64_t>(css_diagnostics.size());
+		if (!existing) {
+			css_diagnostic_keys.insert(key, index);
+			Dictionary entry;
+			entry["kind"] = kind;
+			entry["property"] = property;
+			entry["value"] = value;
+			entry["source"] = source;
+			entry["path"] = path;
+			css_diagnostics.push_back(entry);
 		}
-		css_diagnostic_keys.insert(key);
-		Dictionary entry;
-		entry["kind"] = kind;
-		entry["property"] = property;
-		entry["value"] = value;
-		entry["source"] = source;
-		entry["path"] = path;
-		css_diagnostics.append(entry);
+		if (p_element) {
+			auto& entries = element_diagnostics[p_element];
+			if (std::find(entries.begin(), entries.end(), index) == entries.end()) {
+				entries.push_back(index);
+			}
+		}
 	}
 
 	void LiteHTMLContainer::set_viewport(const Vector2i& p_size) {
@@ -833,6 +853,7 @@ void fragment() {
 		clips.clear();
 		painted_text.clear();
 		paint_runs.clear();
+		diagnostic_runs.clear();
 		const litehtml::position bounds(0, 0, std::max(p_content_size.x, viewport_size.x),
 			std::max(p_content_size.y, viewport_size.y));
 		p_document.draw(0, 0, 0, &bounds);
@@ -863,6 +884,39 @@ void fragment() {
 				}
 			}
 		}
+	}
+
+	void LiteHTMLContainer::record_css_diagnostic(const render_item& p_item, const Rect2& p_box) {
+		std::vector<RoundedRect> overflow;
+		for (auto parent = p_item.parent(); parent; parent = parent->parent()) {
+			const auto& css = parent->css();
+			if (css.get_overflow() > overflow_visible && css.get_display() != display_inline) {
+				overflow.push_back(get_overflow_clip(*parent));
+			}
+		}
+		for (auto it = overflow.rbegin(); it != overflow.rend(); ++it) {
+			const Rect2 bounds = clips.empty() ? it->rect : clips.back().bounds.intersection(it->rect);
+			const Ref<ShaderMaterial> material = clips.empty() ? Ref<ShaderMaterial>() : clips.back().material;
+			clips.push_back({ bounds, *it, material });
+			if (it->has_radius() && bounds.has_area()) {
+				clips.back().material = create_material();
+			}
+		}
+
+		const Color color(1.0f, 0.56f, 0.10f, 0.95f);
+		const Vector2 end = p_box.get_end();
+		const real_t stroke = std::min<real_t>(2.0, std::min(p_box.size.x, p_box.size.y) * 0.5);
+		for (const Rect2& edge : {
+			Rect2(p_box.position.x, p_box.position.y, p_box.size.x, stroke),
+			Rect2(p_box.position.x, end.y - stroke, p_box.size.x, stroke),
+			Rect2(p_box.position.x, p_box.position.y + stroke, stroke, p_box.size.y - 2 * stroke),
+			Rect2(end.x - stroke, p_box.position.y + stroke, stroke, p_box.size.y - 2 * stroke),
+		}) {
+			if (edge.has_area()) {
+				add_command_to(diagnostic_runs, Fill{ edge, color });
+			}
+		}
+		clips.clear();
 	}
 
 	void LiteHTMLContainer::index_text(const litehtml::element::ptr& p_element, String& r_separator) {
@@ -1104,6 +1158,10 @@ void fragment() {
 	}
 
 	void LiteHTMLContainer::add_command(Command p_command, Ref<ShaderMaterial> p_material) {
+		add_command_to(paint_runs, std::move(p_command), std::move(p_material));
+	}
+
+	void LiteHTMLContainer::add_command_to(std::vector<PaintRun>& r_runs, Command p_command, Ref<ShaderMaterial> p_material) {
 		std::optional<Rect2> clip;
 		if (!clips.empty()) {
 			if (!clips.back().bounds.has_area()) {
@@ -1114,10 +1172,10 @@ void fragment() {
 				p_material = clips.back().material;
 			}
 		}
-		if (paint_runs.empty() || paint_runs.back().clip != clip || paint_runs.back().material != p_material) {
-			paint_runs.push_back({ clip, p_material, {} });
+		if (r_runs.empty() || r_runs.back().clip != clip || r_runs.back().material != p_material) {
+			r_runs.push_back({ clip, p_material, {} });
 		}
-		paint_runs.back().commands.push_back(std::move(p_command));
+		r_runs.back().commands.push_back(std::move(p_command));
 	}
 
 	void LiteHTMLContainer::fill_rect(const Rect2& p_rect, const Color& p_color) {

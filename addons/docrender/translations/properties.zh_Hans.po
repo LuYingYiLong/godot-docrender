@@ -219,9 +219,5 @@ msgid "Css Diagnostics Enabled"
 msgstr "启用 CSS 诊断"
 
 #. src/nodes/html_label.cpp
-msgid "Css Diagnostics Summary"
-msgstr "CSS 诊断摘要"
-
-#. src/nodes/html_label.cpp
 msgid "Debug"
 msgstr "调试"

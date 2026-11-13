@@ -68,6 +68,12 @@
 				Returns the element's border-box fragments in document pixel coordinates, before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box.
 			</description>
 		</method>
+		<method name="get_css_diagnostics" qualifiers="const">
+			<return type="Dictionary[]" />
+			<description>
+				Returns the CSS declaration diagnostics associated with this element in the current layout. See [method HTMLLayout.get_css_diagnostics] for the dictionary fields.
+			</description>
+		</method>
 		<method name="get_dataset" qualifiers="const">
 			<return type="Dictionary" />
 			<description>

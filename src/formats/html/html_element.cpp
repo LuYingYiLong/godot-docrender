@@ -94,6 +94,7 @@ void HTMLElement::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_children"), &HTMLElement::get_children);
 	ClassDB::bind_method(D_METHOD("get_client_rects"), &HTMLElement::get_client_rects);
 	ClassDB::bind_method(D_METHOD("get_bounding_rect"), &HTMLElement::get_bounding_rect);
+	ClassDB::bind_method(D_METHOD("get_css_diagnostics"), &HTMLElement::get_css_diagnostics);
 	ClassDB::bind_method(D_METHOD("query_selector", "selector"), &HTMLElement::query_selector);
 	ClassDB::bind_method(D_METHOD("query_selector_all", "selector"), &HTMLElement::query_selector_all);
 	ClassDB::bind_method(D_METHOD("matches", "selector"), &HTMLElement::matches);
@@ -191,6 +192,15 @@ Rect2 HTMLElement::get_bounding_rect() const {
 		bounds = bounds.merge(boxes[i]);
 	}
 	return bounds;
+}
+
+TypedArray<Dictionary> HTMLElement::get_css_diagnostics() const {
+	if (const auto* layout = get_owner()) {
+		if (const auto node = element.lock()) {
+			return layout->get_css_diagnostics_for(*node);
+		}
+	}
+	return {};
 }
 
 Ref<HTMLElement> HTMLElement::query_selector(const String& p_selector) const {

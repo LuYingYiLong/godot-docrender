@@ -2888,11 +2888,11 @@ msgstr ""
 
 #. doc_classes/HTMLLayout.xml
 msgid ""
-"Collects CSS declaration diagnostics. Enable this before [method parse] to collect initial results, or "
+"Collects CSS declaration diagnostics and outlines affected elements when drawing. Enable this before [method parse] to collect initial results, or "
 "call [method layout] after enabling it on an existing document. Disabling it clears the results immediately. "
 "See [method get_css_diagnostics]."
 msgstr ""
-"收集 CSS 声明诊断。在 [method parse] 前启用可以收集初次解析的结果。对已有文档启用后，可调用 [method layout]。"
+"收集 CSS 声明诊断，并在绘制时标出受影响的元素。在 [method parse] 前启用可以收集初次解析的结果。对已有文档启用后，可调用 [method layout]。"
 "关闭后立即清空结果。见 [method get_css_diagnostics]。"
 
 #. doc_classes/HTMLLabel.xml
@@ -2902,10 +2902,10 @@ msgstr "返回当前布局的 CSS 诊断副本。字典字段见 [method HTMLLay
 
 #. doc_classes/HTMLLabel.xml
 msgid ""
-"Collects CSS declaration diagnostics and shows their summary in the Inspector's Debug group after the next layout update. "
-"Disabling it clears the results immediately."
-msgstr "收集 CSS 声明诊断，并在下一次布局更新后在检查器的调试分组显示摘要。关闭后立即清空结果。"
+"Outlines visible elements with CSS declaration diagnostics. Hover over an outlined element to read its diagnostics in an HTML tooltip. "
+"Disabling this clears the outlines and results."
+msgstr "为存在 CSS 声明诊断的可见元素绘制边框。悬停在标出的元素上，可在 HTML 提示面板中查看详情。关闭后清除边框和结果。"
 
-#. doc_classes/HTMLLabel.xml
-msgid "Read-only summary of the current CSS declaration diagnostics."
-msgstr "当前 CSS 声明诊断的只读摘要。"
+#. doc_classes/HTMLElement.xml
+msgid "Returns the CSS declaration diagnostics associated with this element in the current layout. See [method HTMLLayout.get_css_diagnostics] for the dictionary fields."
+msgstr "返回当前布局中与本元素关联的 CSS 声明诊断。字典字段见 [method HTMLLayout.get_css_diagnostics]。"

@@ -3,6 +3,7 @@
 #include "formats/html/html_document.h"
 
 #include <godot_cpp/classes/control.hpp>
+#include <godot_cpp/core/object_id.hpp>
 
 #include <optional>
 
@@ -25,10 +26,13 @@ class HTMLLabelCanvas : public godot::Control {
 	int64_t selection_caret = 0;
 	bool selecting = false;
 	bool selection_dragged = false;
+	mutable godot::ObjectID diagnostic_panel_id;
+	mutable godot::String diagnostic_panel_text;
 
 	void cancel_press();
 	void cancel_click();
 	void update_cursor(const std::optional<godot::Vector2>& p_point);
+	void refresh_diagnostic_tooltip(const std::optional<godot::Vector2>& p_point);
 
 protected:
 	static void _bind_methods() {}
@@ -37,6 +41,8 @@ protected:
 public:
 	void _draw() override;
 	bool _has_point(const godot::Vector2& p_point) const override;
+	godot::String _get_tooltip(const godot::Vector2& p_position) const override;
+	godot::Object* _make_custom_tooltip(const godot::String& p_for_text) const override;
 	void _gui_input(const godot::Ref<godot::InputEvent>& p_event) override;
 };
 
@@ -93,14 +99,12 @@ class HTMLLabel : public godot::Control {
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
-	void _validate_property(godot::PropertyInfo& p_property) const;
 
 public:
 	HTMLLabel();
 	void set_css_diagnostics_enabled(bool p_enabled); // 设置是否收集 CSS 声明诊断
 	bool is_css_diagnostics_enabled() const; // 返回是否收集 CSS 声明诊断
 	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const; // 返回 CSS 声明诊断的快照
-	godot::String get_css_diagnostics_summary() const; // 返回供检查器显示的诊断摘要
 
 	godot::PackedStringArray _get_configuration_warnings() const override;
 

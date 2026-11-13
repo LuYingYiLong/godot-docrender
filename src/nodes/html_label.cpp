@@ -11,6 +11,7 @@
 #include <godot_cpp/classes/style_box.hpp>
 #include <godot_cpp/classes/v_scroll_bar.hpp>
 #include <godot_cpp/classes/viewport.hpp>
+#include <godot_cpp/classes/window.hpp>
 #include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
@@ -65,6 +66,61 @@ void HTMLLabelCanvas::_draw() {
 
 bool HTMLLabelCanvas::_has_point(const Vector2& p_point) const {
 	return label && label->get_visible_rect().has_point(p_point);
+}
+
+String HTMLLabelCanvas::_get_tooltip(const Vector2& p_position) const {
+	return !selecting && _has_point(p_position) ? label->layout->get_css_diagnostic_tooltip(p_position) : String();
+}
+
+Object* HTMLLabelCanvas::_make_custom_tooltip(const String& p_for_text) const {
+	if (p_for_text.is_empty() || !label || !label->is_css_diagnostics_enabled()) {
+		return nullptr;
+	}
+	const Vector2 viewport_size = get_viewport_rect().size;
+	const int width = std::max(1, int(std::min<real_t>(380.0, viewport_size.x * 0.8)));
+	const int max_height = std::max(1, int(std::min<real_t>(320.0, viewport_size.y * 0.6)));
+	const String css = R"CSS(
+		body { margin: 0; padding: 8px 12px; background: #23272e; color: #f5f5f5; font-size: 13px; }
+		.element { font-weight: bold; padding-bottom: 6px; }
+		.diagnostic { border-top: 1px solid #51565f; padding: 6px 0; }
+		.kind { color: #ffba65; }
+		.source { color: #b8bdc7; font-size: 12px; }
+	)CSS";
+	const String html = "<!doctype html>" + p_for_text;
+	// Size the tooltip from its HTML before Godot shrinks the popup to its minimum size.
+	Ref<HTMLLayout> measure;
+	measure.instantiate();
+	if (measure->parse(html, "res://", css) != OK || measure->layout(Vector2i(width, max_height)) != OK) {
+		return nullptr;
+	}
+	HTMLLabel* panel = memnew(HTMLLabel);
+	panel->set_name("CSSDiagnostics");
+	panel->set_auto_translate_mode(AUTO_TRANSLATE_MODE_DISABLED);
+	panel->set_selection_enabled(false);
+	panel->set_stylesheet(css);
+	panel->set_text(html);
+	panel->set_custom_minimum_size(Vector2(width, std::clamp(measure->get_content_size().y, 1, max_height)));
+	diagnostic_panel_id = ObjectID(panel->get_instance_id());
+	diagnostic_panel_text = p_for_text;
+	return panel;
+}
+
+void HTMLLabelCanvas::refresh_diagnostic_tooltip(const std::optional<Vector2>& p_point) {
+	if (diagnostic_panel_id == ObjectID()) {
+		return;
+	}
+	auto* panel = Object::cast_to<HTMLLabel>(ObjectDB::get_instance(diagnostic_panel_id));
+	if (panel && p_point && _get_tooltip(*p_point) == diagnostic_panel_text) {
+		return;
+	}
+	diagnostic_panel_id = ObjectID();
+	diagnostic_panel_text = String();
+	// Godot owns the popup. Hide it when its contents change without mouse motion.
+	if (panel) {
+		if (auto* popup = Object::cast_to<Window>(panel->get_parent())) {
+			popup->hide();
+		}
+	}
 }
 
 void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
@@ -246,7 +302,6 @@ void HTMLLabel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_css_diagnostics_enabled", "enabled"), &HTMLLabel::set_css_diagnostics_enabled);
 	ClassDB::bind_method(D_METHOD("is_css_diagnostics_enabled"), &HTMLLabel::is_css_diagnostics_enabled);
 	ClassDB::bind_method(D_METHOD("get_css_diagnostics"), &HTMLLabel::get_css_diagnostics);
-	ClassDB::bind_method(D_METHOD("get_css_diagnostics_summary"), &HTMLLabel::get_css_diagnostics_summary);
 	ClassDB::bind_method(D_METHOD("get_scroll_offset"), &HTMLLabel::get_scroll_offset);
 	ClassDB::bind_method(D_METHOD("set_scroll_offset", "offset"), &HTMLLabel::set_scroll_offset);
 	ClassDB::bind_method(D_METHOD("scroll_to_anchor", "id", "align"), &HTMLLabel::scroll_to_anchor, DEFVAL(0.0f));
@@ -269,8 +324,6 @@ void HTMLLabel::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "selection_enabled"), "set_selection_enabled", "is_selection_enabled");
 	ADD_GROUP("Debug", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "css_diagnostics_enabled"), "set_css_diagnostics_enabled", "is_css_diagnostics_enabled");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "css_diagnostics_summary", PROPERTY_HINT_MULTILINE_TEXT, "",
-		PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY), "", "get_css_diagnostics_summary");
 	ADD_SIGNAL(MethodInfo("link_pressed", PropertyInfo(Variant::STRING, "uri")));
 	ADD_SIGNAL(MethodInfo("element_clicked", PropertyInfo(Variant::OBJECT, "element", PROPERTY_HINT_NONE,
 		String(), PROPERTY_USAGE_DEFAULT, HTMLElement::get_class_static())));
@@ -385,7 +438,10 @@ void HTMLLabel::set_css_diagnostics_enabled(bool p_enabled) {
 	if (p_enabled) {
 		queue_refresh();
 	}
-	notify_property_list_changed();
+	else if (canvas) {
+		canvas->queue_redraw();
+		canvas->refresh_diagnostic_tooltip(std::nullopt);
+	}
 }
 
 bool HTMLLabel::is_css_diagnostics_enabled() const {
@@ -394,24 +450,6 @@ bool HTMLLabel::is_css_diagnostics_enabled() const {
 
 TypedArray<Dictionary> HTMLLabel::get_css_diagnostics() const {
 	return layout->get_css_diagnostics();
-}
-
-String HTMLLabel::get_css_diagnostics_summary() const {
-	const auto diagnostics = get_css_diagnostics();
-	PackedStringArray lines;
-	for (int64_t index = 0; index < diagnostics.size(); ++index) {
-		const Dictionary entry = diagnostics[index];
-		const String path = entry["path"];
-		const String source = path.is_empty() ? String(entry["source"]) : path;
-		lines.append(vformat("[%s] %s: %s (%s)", entry["kind"], entry["property"], entry["value"], source));
-	}
-	return String("\n").join(lines);
-}
-
-void HTMLLabel::_validate_property(PropertyInfo& p_property) const {
-	if (p_property.name == StringName("css_diagnostics_summary") && !is_css_diagnostics_enabled()) {
-		p_property.usage &= ~PROPERTY_USAGE_EDITOR;
-	}
 }
 
 Vector2i HTMLLabel::get_scroll_offset() const {
@@ -571,6 +609,7 @@ void HTMLLabel::source_changed() {
 	layout->clear();
 	pending_scroll_offset = Vector2i();
 	if (canvas) {
+		canvas->refresh_diagnostic_tooltip(std::nullopt);
 		canvas->cancel_press();
 		clear_selection();
 	}
@@ -775,6 +814,7 @@ void HTMLLabel::update_interaction() {
 	hover_passes_remaining = 0;
 	hover_reflow = false;
 	canvas->update_cursor(point);
+	canvas->refresh_diagnostic_tooltip(point);
 	if (layout_signal_pending && !refresh_queued) {
 		layout_signal_pending = false;
 		emit_signal("layout_changed");

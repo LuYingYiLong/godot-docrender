@@ -11,10 +11,14 @@ namespace litehtml {
 			case _border_right_style_:
 			case _border_bottom_style_:
 			case _border_left_style_:
-				not_rendered |= p_value.is<int>() && p_value.get<int>() >= border_style_groove;
+				if (p_value.is<int>() && p_value.get<int>() >= border_style_groove) {
+					drawing_values.emplace_back(p_name, p_value.get<int>());
+				}
 				break;
 			case _text_emphasis_style_:
-				not_rendered |= p_value.is<string>() && lowcase(p_value.get<string>()) != "none";
+				if (p_value.is<string>() && lowcase(p_value.get<string>()) != "none") {
+					drawing_values.emplace_back(p_name, 0);
+				}
 				break;
 			default:
 				break;

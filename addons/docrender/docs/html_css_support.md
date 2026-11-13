@@ -17,7 +17,8 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 
 | Area | Support |
 | --- | --- |
-| Layout | Block and inline layout, lists, tables, Flexbox, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Grid, Flexbox `gap`, and sticky positioning are unsupported. |
+| Layout | Block and inline layout, lists, tables, Flexbox, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Grid and sticky positioning are unsupported. |
+| Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
 | Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. Percentages depend on the property. `calc()`, `min()`, `max()`, and `clamp()` length expressions are unsupported. |
 | Colors | Named and hex colors, `rgb()` and `hsl()` variants, and `currentColor` where applicable. `oklch()` and `color-mix()` are unsupported. |
 | Backgrounds | Solid colors, local images, and linear, radial, and conic gradients. |
@@ -27,11 +28,13 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 
 ## Declaration diagnostics
 
-Enable **Debug → CSS Diagnostics Enabled** in the `HTMLLabel` Inspector, or set `css_diagnostics_enabled` on an `HTMLLabel` or `HTMLLayout` from GDScript. `get_css_diagnostics()` returns one entry per distinct diagnostic, with the property, value, and source. A local stylesheet also includes its `res://` path.
+The editor's HTML source preview outlines visible elements with CSS declaration diagnostics. Hover over an outlined element to read the details in an HTML tooltip. For your own `HTMLLabel`, enable **Debug → CSS Diagnostics Enabled** in the Inspector or set `css_diagnostics_enabled` from GDScript. The same setting on a standalone `HTMLLayout` enables outlines in `draw()`.
+
+`HTMLElement.get_css_diagnostics()` returns the declarations associated with that element. `HTMLLabel.get_css_diagnostics()` and `HTMLLayout.get_css_diagnostics()` include the full document's results, including declarations in rules that match no visible element. Each entry includes the property, value, and source. Local stylesheets also include their `res://` path.
 
 | Kind | Example |
 | --- | --- |
-| `unknown_property` | `gap: 8px` |
+| `unknown_property` | `grid-template-columns: 1fr 1fr` |
 | `unsupported_value` | `width: calc(100% - 1em)` |
 | `not_rendered` | `border-top-style: groove` |
 

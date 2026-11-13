@@ -18,6 +18,7 @@ namespace godot {
 
 		HTMLLabel* label = memnew(HTMLLabel);
 		label->set_name("HTMLPreview");
+		label->set_css_diagnostics_enabled(true);
 		panel->add_child(label);
 		return panel;
 	}

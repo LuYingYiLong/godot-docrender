@@ -33,7 +33,12 @@ class HTMLLayout : public godot::RefCounted {
 	std::unique_ptr<State> state;
 	uint64_t parse_version = 0;
 
-	enum class SelectorQuery { FIRST, ALL, SELF, CLOSEST };
+	enum class SelectorQuery {
+		FIRST,
+		ALL,
+		SELF,
+		CLOSEST
+	};
 
 	bool initialize_document(const godot::CharString& p_html);
 	godot::Error reflow(const godot::Vector2i& p_viewport_size);
@@ -58,21 +63,31 @@ class HTMLLayout : public godot::RefCounted {
 	godot::Ref<HTMLElement> wrap_hit_element(std::shared_ptr<litehtml::element> p_element) const;
 	bool update_hover(const std::optional<godot::Vector2>& p_position);
 	std::string_view get_cursor_at(const godot::Vector2& p_position, bool& r_over_link) const;
+	void record_css_diagnostics();
+	godot::TypedArray<godot::Dictionary> get_css_diagnostics_for(const litehtml::element& p_element) const;
+	godot::String get_css_diagnostic_tooltip(const godot::Vector2& p_position) const;
 
 	void _on_canvas_redraw(uint64_t p_id);
 	static void finish_canvas_redraw(uint64_t p_layout_id, uint64_t p_canvas_id, uint64_t p_redraw_id);
 	void _detach_canvas(uint64_t p_id);
-	void submit_draw_commands(godot::CanvasItem& p_canvas, const godot::Vector2& p_position, const godot::Rect2& p_clip,
-		const godot::Vector2i& p_selection, const godot::StyleBox* p_selection_style, const godot::Color& p_selection_color,
-		const godot::Vector2i& p_search, const godot::StyleBox* p_search_style);
+	void submit_draw_commands(
+		godot::CanvasItem& p_canvas,
+		const godot::Vector2& p_position,
+		const godot::Rect2& p_clip,
+		const godot::Vector2i& p_selection,
+		const godot::StyleBox* p_selection_style,
+		const godot::Color& p_selection_color,
+		const godot::Vector2i& p_search,
+		const godot::StyleBox* p_search_style
+	);
 
 protected:
 	static void _bind_methods();
 
 public:
-	void set_css_diagnostics_enabled(bool p_enabled); // 设置是否收集 CSS 声明诊断
-	bool is_css_diagnostics_enabled() const; // 返回是否收集 CSS 声明诊断
-	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const; // 返回最近一轮样式计算的诊断快照
+	void set_css_diagnostics_enabled(bool p_enabled);								// 设置是否收集 CSS 声明诊断
+	bool is_css_diagnostics_enabled() const;										// 返回是否收集 CSS 声明诊断
+	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const;				// 返回最近一轮样式计算的诊断快照
 
 	struct Fonts {
 		godot::Ref<godot::Font> text;

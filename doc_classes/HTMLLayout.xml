@@ -138,7 +138,7 @@
 	</methods>
 	<members>
 		<member name="css_diagnostics_enabled" type="bool" setter="set_css_diagnostics_enabled" getter="is_css_diagnostics_enabled" default="false">
-			Collects CSS declaration diagnostics. Enable this before [method parse] to collect initial results, or call [method layout] after enabling it on an existing document. Disabling it clears the results immediately. See [method get_css_diagnostics].
+			Collects CSS declaration diagnostics and outlines affected elements when drawing. Enable this before [method parse] to collect initial results, or call [method layout] after enabling it on an existing document. Disabling it clears the results immediately. See [method get_css_diagnostics].
 		</member>
 	</members>
 </class>

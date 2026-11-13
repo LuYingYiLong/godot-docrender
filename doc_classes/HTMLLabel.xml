@@ -125,10 +125,7 @@
 			Project resource directory used to resolve relative image paths for [member text]. See [method HTMLLayout.parse] for the supported paths and image formats.
 		</member>
 		<member name="css_diagnostics_enabled" type="bool" setter="set_css_diagnostics_enabled" getter="is_css_diagnostics_enabled" default="false">
-			Collects CSS declaration diagnostics and shows their summary in the Inspector's Debug group after the next layout update. Disabling it clears the results immediately.
-		</member>
-		<member name="css_diagnostics_summary" type="String" setter="" getter="get_css_diagnostics_summary">
-			Read-only summary of the current CSS declaration diagnostics.
+			Outlines visible elements with CSS declaration diagnostics. Hover over an outlined element to read its diagnostics in an HTML tooltip. Disabling this clears the outlines and results.
 		</member>
 		<member name="document" type="HTMLDocument" setter="set_document" getter="get_document">
 			The HTML resource to display. Its source and styles take priority over the local properties. Set this to [code]null[/code] to use [member text], [member base_dir], and [member stylesheet].

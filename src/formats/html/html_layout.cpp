@@ -450,6 +450,7 @@ Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
 	}
 	collect_anchors(*document->root(), state->render_items, state->anchors);
 	state->container->record(*document, size);
+	record_css_diagnostics();
 	state->content_size = size;
 	return OK;
 }
@@ -493,7 +494,8 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 	const Vector2i& p_selection, const StyleBox* p_selection_style, const Color& p_selection_color,
 	const Vector2i& p_search, const StyleBox* p_search_style) {
 	const auto& runs = state->container->get_paint_runs();
-	if (runs.empty()) {
+	const auto& diagnostic_runs = state->container->get_diagnostic_runs();
+	if (runs.empty() && diagnostic_runs.empty()) {
 		return;
 	}
 	const uint64_t instance_id = p_canvas.get_instance_id();
@@ -521,7 +523,7 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 	RID target;
 	std::optional<Rect2> previous_clip;
 	Ref<ShaderMaterial> previous_material;
-	for (const auto& run : runs) {
+	const auto submit_run = [&](const LiteHTMLContainer::PaintRun& run) {
 		std::optional<Rect2> clip;
 		if (run.clip) {
 			clip = Rect2(run.clip->position + p_position, run.clip->size);
@@ -530,7 +532,7 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 			clip = clip ? clip->intersection(p_clip) : p_clip;
 		}
 		if (clip && !clip->has_area()) {
-			continue;
+			return;
 		}
 
 		if (!target.is_valid() || clip != previous_clip || run.material != previous_material) {
@@ -557,6 +559,15 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 			previous_material = run.material;
 		}
 		run.draw(server, target, run.material.is_valid() ? Vector2() : p_position, text_server.ptr(), search, selection);
+	};
+	for (const auto& run : runs) {
+		submit_run(run);
+	}
+	if (!diagnostic_runs.empty()) {
+		target = RID();
+		for (const auto& run : diagnostic_runs) {
+			submit_run(run);
+		}
 	}
 }
 
@@ -1085,6 +1096,9 @@ void HTMLLayout::set_css_diagnostics_enabled(bool p_enabled) {
 			queue_reflow();
 		}
 	}
+	else if (!p_enabled) {
+		queue_canvas_redraws();
+	}
 }
 
 bool HTMLLayout::is_css_diagnostics_enabled() const {
@@ -1093,6 +1107,70 @@ bool HTMLLayout::is_css_diagnostics_enabled() const {
 
 TypedArray<Dictionary> HTMLLayout::get_css_diagnostics() const {
 	return state->container ? state->container->get_css_diagnostics() : TypedArray<Dictionary>();
+}
+
+TypedArray<Dictionary> HTMLLayout::get_css_diagnostics_for(const litehtml::element& p_element) const {
+	TypedArray<Dictionary> result;
+	if (state->container && state->pending_update != State::Update::STYLE) {
+		if (const auto* entries = state->container->get_element_diagnostics(p_element)) {
+			for (const auto index : *entries) {
+				result.append(state->container->get_css_diagnostic(index).duplicate());
+			}
+		}
+	}
+	return result;
+}
+
+void HTMLLayout::record_css_diagnostics() {
+	if (!state->css_diagnostics_enabled) {
+		return;
+	}
+	visit_elements(state->document->root(), [&](const litehtml::element::ptr& p_element) {
+		const auto* items = state->render_items.getptr(p_element.get());
+		if (items && state->container->get_element_diagnostics(*p_element)) {
+			for (const auto& item : *items) {
+				if (!item->is_visible()) {
+					continue;
+				}
+				visit_boxes(*item, false, [&](const Rect2& p_box) {
+					if (p_box.has_area()) {
+						state->container->record_css_diagnostic(*item, p_box);
+					}
+				});
+			}
+		}
+		return false;
+	});
+}
+
+String HTMLLayout::get_css_diagnostic_tooltip(const Vector2& p_position) const {
+	if (!state->css_diagnostics_enabled) {
+		return {};
+	}
+	for (auto node = find_html_ancestor(hit_test_element(p_position)); node; node = find_html_ancestor(node->parent())) {
+		const auto* entries = state->container->get_element_diagnostics(*node);
+		if (!entries) {
+			continue;
+		}
+		String element = String::utf8(node->get_tagName());
+		if (const char* id = get_element_attribute(*node, "id"); id && *id) {
+			element += "#" + String::utf8(id);
+		}
+		String html = "<div class='element'>" + element.xml_escape() + "</div>";
+		for (const auto index : *entries) {
+			const Dictionary& entry = state->container->get_css_diagnostic(index);
+			const String path = entry["path"];
+			const String source = path.is_empty() ? String(entry["source"]) : path;
+			const String kind = entry["kind"];
+			const String property = entry["property"];
+			const String value = entry["value"];
+			html += "<div class='diagnostic'><div class='kind'>" + kind.xml_escape() + "</div>" +
+				"<div>" + property.xml_escape() + ": " + value.xml_escape() + "</div>" +
+				"<div class='source'>" + source.xml_escape() + "</div></div>";
+		}
+		return html;
+	}
+	return {};
 }
 
 void HTMLLayout::clear() {
