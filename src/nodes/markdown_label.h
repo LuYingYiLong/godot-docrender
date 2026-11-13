@@ -141,6 +141,10 @@ private:
 	int32_t rendered_block_count = 0;
 	float content_height = 1.0f;
 	float layout_width = 0.0f;
+	int32_t layout_height = 0;
+	int32_t layout_html_height = 0;
+	Ref<HTMLLayout> pressed_html_layout;
+	uintptr_t pressed_html_link = 0;
 	Dictionary anchor_offsets;
 	HashMap<String, float> footnote_reference_offsets;
 	HashMap<String, float> footnote_definition_offsets;
@@ -177,7 +181,9 @@ private:
 	void draw_span_decorations(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, const std::vector<MarkdownInlineSpan>& p_spans, int64_t p_global_start, bool p_draw_code_backgrounds, bool p_draw_link_underlines);
 	void draw_paragraph_text(const Ref<TextParagraph>& p_paragraph, const Rect2& p_text_rect, const std::vector<MarkdownInlineSpan>& p_spans, int64_t p_global_start, const Color& p_default_color);
 	Rect2 get_visible_content_rect() const;
+	Rect2 get_html_visible_rect() const;
 	bool is_rect_visible(const Rect2& p_rect, const Rect2& p_visible_rect) const;
+	Ref<HTMLLayout> html_at_position(const Vector2& p_position, Vector2& r_local_position) const;
 	int64_t hit_test_document(const Vector2& p_position) const;
 	String link_uri_at_position(const Vector2& p_position) const;
 	String link_uri_at_character(int64_t p_character) const;
@@ -199,12 +205,14 @@ public:
 	~MarkdownLabelCanvas();
 
 	void _gui_input(const Ref<InputEvent>& p_event) override;
+	void _draw() override;
 	Variant _get_drag_data(const Vector2& p_at_position) override;
 	Vector2 _get_minimum_size() const override;
 
 	void set_label(MarkdownLabel* p_label);
 	void set_markdown_text(const String& p_text);
-	String resolve_image_uri(const String& p_uri) const;
+	String resolve_image_uri(const String& p_uri, bool p_html) const;
+	int32_t get_layout_height() const;
 	void append_text_incremental(const String& p_delta);
 	void finish_stream();
 	void clear_document();
@@ -255,6 +263,7 @@ private:
 
 	String raw_text;
 	String image_base_dir;
+	String html_file_base_dir;
 	ScrollContainer* scroll_container = nullptr;
 	MarginContainer* margin_container = nullptr;
 	MarkdownLabelCanvas* canvas = nullptr;
@@ -262,6 +271,7 @@ private:
 	int32_t extra_font_size = 0;
 	bool open_external_links = true;
 	bool parse_latex = false;
+	bool parse_html = false;
 	bool parse_gfm = true;
 	bool parse_mermaid = false;
 	bool selection_enabled = true;
@@ -284,6 +294,8 @@ private:
 	void ensure_controls();
 	void apply_theme_settings();
 	void apply_scroll_settings();
+	void set_markdown_source(const String& p_text, const String& p_html_base_dir);
+	String get_html_base_dir() const;
 	void update_scroll_following();
 	void scroll_to_following();
 	void on_scroll_value_changed(double p_value);
@@ -299,6 +311,8 @@ public:
 	String get_markdown_text() const;
 	void set_image_base_dir(const String& p_dir);
 	void set_parse_latex(bool p_enabled);
+	void set_parse_html(bool p_enabled);
+	bool is_parsing_html() const;
 	bool is_parsing_latex() const;
 	void set_parse_gfm(bool p_enabled);
 	bool is_parsing_gfm() const;

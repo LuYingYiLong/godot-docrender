@@ -1,11 +1,14 @@
 #ifndef DOCRENDER_LITEHTML_CONTAINER_H
 #define DOCRENDER_LITEHTML_CONTAINER_H
 
-#include <godot_cpp/classes/font.hpp>
+#include "html_layout.h"
+
 #include <godot_cpp/classes/text_line.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/rect2.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 
 #include <litehtml/document_container.h>
@@ -16,6 +19,8 @@
 
 namespace godot {
 	class RenderingServer;
+	class StyleBox;
+	class TextServer;
 }
 
 namespace docrender {
@@ -29,6 +34,16 @@ namespace docrender {
 			godot::Ref<godot::TextLine> line;
 			godot::Vector2 position;
 			godot::Color color;
+			int64_t offset = -1;
+			int64_t length = 0;
+		};
+
+		struct TextRun {
+			godot::Ref<godot::TextLine> line;
+			godot::Rect2 rect;
+			godot::Rect2 visible_rect;
+			int64_t offset;
+			int64_t length;
 		};
 
 		struct Image {
@@ -48,18 +63,29 @@ namespace docrender {
 		using Command = std::variant<Fill, Text, Image, Circle>;
 
 	public:
+		struct Highlight {
+			int64_t from = 0;
+			int64_t to = 0;
+			const godot::StyleBox* style = nullptr;
+			godot::Color color;
+		};
+
 		struct PaintRun {
 			std::optional<godot::Rect2> clip;
 			std::vector<Command> commands;
 
-			void draw(godot::RenderingServer& p_server, const godot::RID& p_canvas, const godot::Vector2& p_offset) const;
+			void draw(godot::RenderingServer& p_server, const godot::RID& p_canvas, const godot::Vector2& p_offset,
+				const godot::TextServer* p_text_server, const Highlight& p_search, const Highlight& p_selection) const;
 		};
 
-		explicit LiteHTMLContainer(const godot::String& p_base_dir);
-		static std::optional<godot::String> normalize_resource_path(const godot::String& p_path);
+		LiteHTMLContainer(const godot::String& p_base_dir, const godot::Dictionary& p_textures, bool p_fit_images,
+			const HTMLLayout::Fonts& p_fonts);
 		void set_viewport(const godot::Vector2i& p_size);
 		void record(litehtml::document& p_document, const godot::Vector2i& p_content_size);
 		const std::vector<PaintRun>& get_paint_runs() const;
+		const godot::String& get_plain_text() const;
+		int64_t hit_test_text(const godot::Vector2& p_point) const;
+		godot::TypedArray<godot::Rect2> get_selection_rects(int64_t p_from, int64_t p_to) const;
 
 	private:
 		struct FontData {
@@ -73,11 +99,19 @@ namespace docrender {
 		};
 
 		godot::String base_dir;
+		godot::Dictionary textures;
+		bool fit_images;
+		HTMLLayout::Fonts fonts;
 		godot::Vector2i viewport_size;
 		godot::Ref<godot::Font> default_font;
 		godot::HashMap<godot::String, godot::Ref<godot::Texture2D>> images;
 		std::vector<PaintRun> paint_runs;
 		std::vector<godot::Rect2> clips;
+		godot::String plain_text;
+		std::vector<TextRun> text_runs;
+		godot::HashMap<godot::Vector2, std::vector<Text*>> painted_text;
+
+		void index_text(const litehtml::element::ptr& p_element, godot::String& r_separator);
 
 		godot::Ref<godot::Texture2D> load_texture(const char* p_src);
 		void add_command(Command p_command);
@@ -116,10 +150,8 @@ namespace docrender {
 		void on_anchor_click(const char*, const litehtml::element::ptr&) override {}
 		void on_mouse_event(const litehtml::element::ptr&, litehtml::mouse_event) override {}
 		void set_cursor(const char*) override {}
-		litehtml::element::ptr create_element(const char*, const litehtml::string_map&,
-			const std::shared_ptr<litehtml::document>&) override {
-			return {};
-		}
+		litehtml::element::ptr create_element(const char* p_tag, const litehtml::string_map&,
+			const std::shared_ptr<litehtml::document>& p_document) override;
 
 		void draw_linear_gradient(litehtml::uint_ptr, const litehtml::background_layer&,
 			const litehtml::background_layer::linear_gradient&) override {

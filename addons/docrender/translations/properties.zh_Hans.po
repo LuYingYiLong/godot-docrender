@@ -165,7 +165,7 @@ msgstr "滚动跟随"
 msgid "Scroll Following Visible Characters"
 msgstr "滚动跟随可见字符"
 
-#. src/nodes/markdown_label.cpp
+#. src/nodes/html_label.cpp src/nodes/markdown_label.cpp
 msgid "Selection Enabled"
 msgstr "启用文本选择"
 
@@ -205,3 +205,11 @@ msgstr "主题模式"
 #. src/nodes/latex_label_3d.cpp
 msgid "Vertical Alignment"
 msgstr "垂直对齐"
+
+#. src/nodes/html_label.cpp
+msgid "Document"
+msgstr "文档"
+
+#. src/nodes/markdown_label.cpp
+msgid "Parse Html"
+msgstr "解析 HTML"

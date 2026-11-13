@@ -23,12 +23,14 @@ msgstr "渲染 Markdown 文本的 Control 节点，支持滚动、选择、搜�
 
 #. doc_classes/MarkdownLabel.xml
 msgid ""
-"Activates the given link URI. Emits the [signal link_pressed] signal. If [member "
-"open_external_links] is [code]true[/code] and the URI starts with [code]http://[/code] or "
-"[code]https://[/code], opens it in the system default browser."
+"Activates the given link URI. A [code]#id[/code] link scrolls to the matching anchor before "
+"emitting [signal link_pressed]. If [member open_external_links] is [code]true[/code] and the URI "
+"starts with [code]http://[/code] or [code]https://[/code], opens it in the system default "
+"browser."
 msgstr ""
-"激活指定的链接 URI，并发出 [signal link_pressed] 信号。当 [member open_external_links] 为 [code]true[/code]，且 URI"
-" 以 [code]http://[/code] 或 [code]https://[/code] 开头时，使用系统默认浏览器打开。"
+"激活指定的链接 URI。[code]#id[/code] 链接会先滚动到对应锚点，再发出 [signal link_pressed] 信号。当 "
+"[member open_external_links] 为 [code]true[/code]，且 URI 以 [code]http://[/code] 或 "
+"[code]https://[/code] 开头时，使用系统默认浏览器打开。"
 
 #. doc_classes/MarkdownLabel.xml
 msgid ""
@@ -534,6 +536,10 @@ msgid ""
 "- LaTeX math when [member parse_latex] is enabled\n"
 "- Mermaid diagrams when [member parse_mermaid] is enabled\n"
 "\n"
+"Markdown images and HTML [code]<img>[/code] elements shrink proportionally to fit the available "
+"content width and height. With [member fit_content] enabled, the control grows vertically with "
+"its content.\n"
+"\n"
 "[b]Streaming:[/b] When [member streaming_enabled] is [code]true[/code], [method append_text] "
 "performs incremental re-parsing of only the unstable tail region (controlled by [member "
 "max_unstable_lines]). Enable [member deferred_layout_enabled] to coalesce streaming layout "
@@ -561,6 +567,8 @@ msgstr ""
 "- 表格\n"
 "- 启用 [member parse_latex] 时支持 LaTeX 数学公式\n"
 "- 启用 [member parse_mermaid] 时支持 Mermaid 图表\n"
+"\n"
+"Markdown 图片和 HTML [code]<img>[/code] 元素会等比缩小至可用内容宽高以内。开启 [member fit_content] 时，控件高度随内容增长。\n"
 "\n"
 "[b]流式输出：[/b] 当 [member streaming_enabled] 为 [code]true[/code] 时，[method append_text] "
 "仅增量解析尚未稳定的末尾区域，其范围由 [member max_unstable_lines] 控制。启用 [member deferred_layout_enabled] "
@@ -703,8 +711,10 @@ msgid ""
 msgstr "控件将已渲染内容的高度作为最小高度时，返回 [code]true[/code]。"
 
 #. doc_classes/MarkdownLabel.xml
-msgid "Returns [code]true[/code] if the document contains a heading with the given anchor ID."
-msgstr "文档中存在具有给定锚点 ID 的标题时，返回 [code]true[/code]。"
+msgid ""
+"Returns [code]true[/code] if the document contains a Markdown heading anchor or a laid-out HTML "
+"element with the given ID."
+msgstr "文档中存在指定 ID 的 Markdown 标题锚点或已排版的 HTML 元素时，返回 [code]true[/code]。"
 
 #. doc_classes/MarkdownLabel.xml
 msgid ""
@@ -851,8 +861,8 @@ msgid ""
 msgstr "返回内部垂直滚动条。控件尚未创建时返回 [code]null[/code]。"
 
 #. doc_classes/MarkdownLabel.xml
-msgid "Returns the list of all heading anchor IDs in the document."
-msgstr "返回文档中所有标题的锚点 ID。"
+msgid "Returns the list of Markdown heading anchors and IDs from laid-out HTML blocks in the document."
+msgstr "返回文档中的 Markdown 标题锚点和已排版的 HTML 块内的元素 ID。"
 
 #. doc_classes/MarkdownLabel.xml
 msgid ""
@@ -933,12 +943,14 @@ msgstr ""
 
 #. doc_classes/MarkdownLabel.xml
 msgid ""
-"Scrolls to the heading with the given anchor ID. [param align] controls where the anchor appears "
-"in the viewport: [code]0.0[/code] (top) to [code]1.0[/code] (bottom). Returns [code]false[/code] "
-"if the anchor does not exist."
-msgstr ""
-"滚动到指定锚点 ID 对应的标题。[param align] 控制锚点在视口中的位置，从 [code]0.0[/code]（顶部）到 [code]1.0[/code]（底部）。锚点不存在时返回 "
-"[code]false[/code]。"
+"Scrolls to the first Markdown heading or laid-out HTML element with the given anchor ID. Pass the"
+" case-sensitive ID without [code]#[/code]. [param align] ranges from [code]0.0[/code] at the top "
+"of the viewport to [code]1.0[/code] at the bottom. With [member fit_content] enabled, this "
+"scrolls the nearest ancestor [ScrollContainer] with vertical scrolling enabled, when present. "
+"Returns [code]false[/code] if the anchor does not exist."
+msgstr "滚动到第一个具有指定锚点 ID 的 Markdown 标题或已排版的 HTML 元素。ID 区分大小写，传入时省略 [code]#[/code]。"
+"[param align] 从视口顶部的 [code]0.0[/code] 到底部的 [code]1.0[/code]。启用 [member fit_content] 后，"
+"会滚动最近的启用了垂直滚动的祖先 [ScrollContainer]。锚点不存在时返回 [code]false[/code]。"
 
 #. doc_classes/MarkdownLabel.xml
 msgid ""
@@ -951,7 +963,7 @@ msgstr ""
 "表示区分大小写，[code]2[/code] 表示匹配整个单词，[code]4[/code] 表示向后搜索。返回匹配位置的行列坐标 [Vector2i]，没有匹配时返回 "
 "[code]Vector2i(-1, -1)[/code]。匹配结果会在控件中高亮显示。"
 
-#. doc_classes/MarkdownLabel.xml
+#. doc_classes/HTMLLabel.xml doc_classes/MarkdownLabel.xml
 msgid "Selects all text in the document."
 msgstr "选中文档中的所有文本。"
 
@@ -2295,7 +2307,7 @@ msgstr "写入原始输入字节，再追加修改。需要已打开的 PDF、�
 msgid "Writes a full PDF copy and preserves existing encryption."
 msgstr "写入完整 PDF 副本并保留已有加密。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Draws the current layout during [method CanvasItem._draw]. Both the top-left drawing position and"
 " the optional axis-aligned clip rectangle are in the canvas item's local coordinates. The default"
@@ -2305,47 +2317,48 @@ msgstr ""
 "在 [method CanvasItem._draw] "
 "中绘制当前布局。绘制起点为左上角，与可选的轴对齐裁剪矩形均使用画布项的局部坐标。默认裁剪仅应用文档的裁剪规则。首次成功布局前，此方法不绘制内容。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid "Parses and lays out a static HTML document for drawing on a [CanvasItem]."
 msgstr "解析并排版静态 HTML 文档，以便在 [CanvasItem] 上绘制。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid "Releases the document, layout, and drawing resources, and clears the last error."
 msgstr "释放文档、布局及绘制资源，并清除上次错误。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Replaces the document and resets its layout. An empty string creates an empty document. Styles "
 "come from inline attributes, [code]<style>[/code] elements, and the optional stylesheet text. "
-"Images can be imported PNG, JPEG, or WebP textures addressed by a relative path within the base "
-"directory or by an absolute [code]res://[/code] path. A missing or unsupported image is skipped. "
+"Images can be imported PNG, JPEG, WebP, or SVG textures. Relative paths are resolved from [param "
+"base_dir] and may use [code]../[/code] within the project. Absolute [code]res://[/code] paths are "
+"also supported. A missing or unsupported image is skipped. "
 "Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside "
 "[code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed."
 msgstr ""
-"替换文档并重置布局。空字符串会创建空文档。样式来自内联属性、[code]<style>[/code] 元素及可选的样式表文本。图片可使用已导入的 PNG、JPEG 或 WebP "
-"纹理，相对路径必须位于基目录内，也可使用绝对 [code]res://[/code] 路径。缺失或不受支持的图片会被跳过。成功时返回 [constant OK]，基目录不在 "
+"替换文档并重置布局。空字符串会创建空文档。样式来自内联属性、[code]<style>[/code] 元素及可选的样式表文本。图片可使用已导入的 PNG、JPEG、WebP 或 SVG "
+"纹理。相对路径以 [param base_dir] 为基准，可用 [code]../[/code] 访问项目内的上级目录，也支持绝对 [code]res://[/code] 路径。缺失或不受支持的图片会被跳过。成功时返回 [constant OK]，基目录不在 "
 "[code]res://[/code] 中时返回 [constant ERR_INVALID_PARAMETER]，无法解析文档时返回 [constant ERR_PARSE_ERROR]。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Returns the content size in pixels from the most recent successful layout of the current "
 "document. Returns [constant Vector2i.ZERO] before layout and for an empty document."
 msgstr "返回当前文档最近一次成功布局的内容尺寸，单位为像素。布局前或文档为空时返回 [constant Vector2i.ZERO]。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Returns the diagnostic message from the last failed parse or layout. A successful parse or layout"
 " clears the message."
 msgstr "返回最近一次解析或布局失败的诊断消息。成功解析或布局后清除该消息。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Returns the original [code]href[/code] of the link at a point in document coordinates, or an "
 "empty string. Subtract the drawing position from the canvas-local point and apply any caller-"
 "supplied clip before querying. The caller handles navigation."
 msgstr "返回文档坐标中指定点命中的链接的原始 [code]href[/code]，没有链接时返回空字符串。查询前，从画布局部坐标中减去绘制起点，并检查调用方指定的裁剪区域。导航由调用方处理。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Updates media queries and lays out the current document using the viewport width and height in "
 "pixels. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for nonpositive "
@@ -2355,7 +2368,7 @@ msgstr ""
 "更新媒体查询并按视口的像素宽高布局当前文档。成功时返回 [constant OK]，尺寸非正数时返回 [constant ERR_INVALID_PARAMETER]，尚未成功解析时返回 "
 "[constant ERR_UNCONFIGURED]，布局结果无法表示时返回 [constant ERR_INVALID_DATA]。"
 
-#. doc_classes/HTMLDocument.xml
+#. doc_classes/HTMLLayout.xml
 msgid ""
 "Use [method parse] to load an HTML document or fragment and [method layout] to set its viewport "
 "size. Call [method draw] from the target [CanvasItem]'s [method CanvasItem._draw] callback. Call "
@@ -2370,24 +2383,6 @@ msgstr ""
 "支持块布局和行内布局、列表、表格、文字、纯色背景和边框、本地图片及矩形溢出裁剪。文字使用项目主题的默认字体或 Godot 的回退字体。请在主线程中使用渲染器。"
 
 #. doc_classes/HTMLLabel.xml
-msgid ""
-"Additional CSS passed to [method HTMLDocument.parse] alongside inline styles and "
-"[code]<style>[/code] elements."
-msgstr "与内联样式及 [code]<style>[/code] 元素一起传给 [method HTMLDocument.parse] 的附加 CSS。"
-
-#. doc_classes/HTMLLabel.xml
-msgid ""
-"Displays [member text] using [HTMLDocument]. Give the control a size with anchors, offsets, or a "
-"parent [Container]. The document wraps to the available width, and scrollbars appear as needed to"
-" reach overflowing content.\n"
-"Source changes are applied on a deferred update and reset the scroll position. Resizing "
-"recalculates the layout and clamps the current scroll offset. Connect [signal link_pressed] to "
-"handle navigation."
-msgstr ""
-"使用 [HTMLDocument] 显示 [member text]。通过锚点、偏移或父级 [Container] 为控件分配尺寸。文档按可用宽度换行，滚动条按需出现，以便查看溢出的内容。\n"
-"源内容变更会延迟应用并重置滚动位置。调整尺寸会重新布局，并将当前滚动偏移限制在可滚动范围内。连接 [signal link_pressed] 以处理导航。"
-
-#. doc_classes/HTMLLabel.xml
 msgid "Displays a scrollable HTML document."
 msgstr "显示可滚动的 HTML 文档。"
 
@@ -2396,12 +2391,6 @@ msgid ""
 "Emitted when the left mouse button is pressed and released over the same visible link without "
 "dragging or scrolling. [param uri] is the link's original [code]href[/code]."
 msgstr "左键在同一可见链接上按下和松开，且期间没有拖动或滚动时发出。[param uri] 为链接原始的 [code]href[/code]。"
-
-#. doc_classes/HTMLLabel.xml
-msgid ""
-"Project resource directory used to resolve relative image paths. See [method HTMLDocument.parse] "
-"for the supported paths and image formats."
-msgstr "用于解析相对图片路径的项目资源目录。支持的路径和图片格式见 [method HTMLDocument.parse]。"
 
 #. doc_classes/HTMLLabel.xml
 msgid "Returns the horizontal and vertical scroll offset in pixels from the start of the document."
@@ -2428,3 +2417,163 @@ msgstr "设置水平和垂直滚动偏移，单位为像素，取值限制在可
 #. doc_classes/HTMLLabel.xml
 msgid "The HTML document or fragment to display."
 msgstr "要显示的 HTML 文档或片段。"
+
+#. doc_classes/HTMLDocument.xml
+msgid "A shareable source document for static HTML."
+msgstr "可共享的静态 HTML 源文档。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Additional CSS for [member text], passed to [method HTMLLayout.parse] alongside inline styles and"
+" [code]<style>[/code] elements."
+msgstr "[member text] 的附加 CSS，与内联样式和 [code]<style>[/code] 元素一起传给 [method HTMLLayout.parse]。"
+
+#. doc_classes/HTMLDocument.xml
+msgid "Additional CSS for this document."
+msgstr "此文档的附加 CSS。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Displays [member document] or inline [member text] using [HTMLLayout]. Give the control a size "
+"with anchors, offsets, or a parent [Container]. The document wraps to the available width, and "
+"scrollbars appear as needed to reach overflowing content.\n"
+"Source changes are applied on a deferred update and reset the scroll position. Resizing "
+"recalculates the layout and clamps the current scroll offset. Clicking a [code]#id[/code] link "
+"scrolls to the matching HTML element. Connect [signal link_pressed] to handle other links.\n"
+"Drag to select rendered text. The focused control supports the standard select-all and copy "
+"shortcuts. The theme color [code]selection_color[/code] sets the selection highlight."
+msgstr ""
+"使用 [HTMLLayout] 显示 [member document] 或内联的 [member text]。通过锚点、偏移或父级 [Container] "
+"为控件分配尺寸。文档按可用宽度换行，滚动条按需出现，以便查看溢出的内容。\n"
+"源内容变更会延迟应用并重置滚动位置。调整尺寸会重新布局，并将当前滚动偏移限制在可滚动范围内。"
+"点击 [code]#id[/code] 链接会滚动到对应的 HTML 元素。连接 [signal link_pressed] 可处理其他链接。\n"
+"拖动鼠标可选中渲染后的文字。控件获得焦点时支持标准的全选和复制快捷键。主题颜色 [code]selection_color[/code] 控制选区高亮。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Clears the text selection."
+msgstr "清除文本选区。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Returns the selected plain text, or an empty string if nothing is selected."
+msgstr "返回选中的纯文本。没有选区时返回空字符串。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Enables text selection. Disabling it clears the current selection."
+msgstr "启用文本选择。关闭时清除当前选区。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Returns the laid-out text in document order. Block boundaries and explicit line breaks are "
+"represented by newlines, and table cells are separated by tabs. Soft wrapping does not add "
+"newlines. Returns an empty string before layout."
+msgstr "按文档顺序返回排版后的文本。块边界和显式换行以换行符表示，表格单元格以制表符分隔。自动折行不会添加换行符。排版前返回空字符串。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Returns highlight rectangles in document coordinates for the character range from [param from] "
+"up to [param to]. Offsets refer to [method get_plain_text] and are clamped to its length. "
+"Rectangles are clipped to the HTML layout's visible regions."
+msgstr "返回从 [param from] 到 [param to]（不含）的字符范围在文档坐标中的高亮矩形。偏移量基于 [method get_plain_text]，并限制在文本长度内。矩形按 HTML 排版的可见区域裁剪。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Returns the nearest caret offset in [method get_plain_text] for a point in document coordinates. "
+"Returns [code]0[/code] when there is no text."
+msgstr "返回文档坐标中指定点在 [method get_plain_text] 内对应的最近光标偏移量。没有文本时返回 [code]0[/code]。"
+
+#. doc_classes/MarkdownLabel.xml
+msgid ""
+"If [code]true[/code], renders raw HTML blocks using [HTMLLayout], including blocks inside quotes "
+"and list items. Supports inline bold, italic, strikethrough, code, highlights, line breaks, "
+"links, and [code]span[/code] styles for text color and background color. Selection, copying, and "
+"search include rendered HTML text alongside Markdown text. Clicking a link in HTML emits [signal "
+"link_pressed]. The editor's Markdown preview enables this property.\n"
+"HTML blocks use the theme's [code]text_font[/code], [code]text_font_color[/code], "
+"[code]text_font_size[/code] (including [member extra_font_size]), and [code]link_color[/code] as "
+"defaults. The theme's [code]bold_font[/code], [code]italic_font[/code], "
+"[code]bold_italic_font[/code], [code]code_text_font[/code], and [code]code_block_font[/code] are "
+"used for matching text styles when configured. CSS still controls the text style.\n"
+"Inline [code]<img>[/code] uses the same project image paths and formats as [HTMLLayout]. It "
+"supports [code]src[/code], [code]alt[/code], [code]title[/code], and positive integer "
+"[code]width[/code] and [code]height[/code] in pixels. With a single dimension, the image keeps "
+"its aspect ratio."
+msgstr ""
+"为 [code]true[/code] 时，使用 [HTMLLayout] 渲染原始 HTML 块，包括引用和列表项内的 HTML 块。支持行内粗体、斜体、删除线、代码、高亮、换行、链接和 "
+"[code]span[/code] 的文字颜色及背景色样式。渲染后的 HTML 文字和 Markdown 文字都支持选择、复制和搜索。点击 HTML 链接会发出 [signal "
+"link_pressed]。编辑器的 Markdown 预览会开启此属性。\n"
+"HTML 块默认使用主题的 [code]text_font[/code]、[code]text_font_color[/code]、[code]text_font_size[/code]（含 [member "
+"extra_font_size]）和 [code]link_color[/code]。配置 [code]bold_font[/code]、[code]italic_font[/code]、"
+"[code]bold_italic_font[/code]、[code]code_text_font[/code] 和 [code]code_block_font[/code] 后，对应的文字样式会使用这些字体。"
+"文字样式仍由 CSS 控制。\n"
+"行内 [code]<img>[/code] 与 [HTMLLayout] 支持相同的项目图片路径和格式。支持 "
+"[code]src[/code]、[code]alt[/code]、[code]title[/code]，以及以像素为单位的正整数 [code]width[/code] 和 "
+"[code]height[/code]。只指定一个尺寸时，图片会保持宽高比。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Load an imported [code].html[/code] or [code].htm[/code] file, or create an [HTMLDocument] and "
+"set its [member text]. Assign the resource to [member HTMLLabel.document] for automatic display. "
+"Use [method create_layout] when drawing directly.\n"
+"Scripts that previously called [code]HTMLDocument.new().parse(html)[/code] should call "
+"[code]HTMLLayout.new().parse(html)[/code]. Each [HTMLLayout] keeps its own parsed document, "
+"viewport, and drawing state.\n"
+"Imported documents include local image dependencies from all media query branches. In a "
+"selected-scenes export preset, add [code]addons/docrender/docrender.gdextension[/code] to the "
+"include filter so the exported project can load DocRender classes."
+msgstr ""
+"加载已导入的 [code].html[/code] 或 [code].htm[/code] 文件，也可以创建 [HTMLDocument] 并设置其 [member text]。将资源赋给 "
+"[member HTMLLabel.document] 即可自动显示。直接绘制时使用 [method create_layout]。\n"
+"原来调用 [code]HTMLDocument.new().parse(html)[/code] 的脚本请改用 "
+"[code]HTMLLayout.new().parse(html)[/code]。每个 [HTMLLayout] 独立持有解析结果、视口和绘制状态。\n"
+"导入的文档包含所有媒体查询分支的本地图片依赖。在仅导出选定场景的预设中，将 "
+"[code]addons/docrender/docrender.gdextension[/code] 加入包含筛选器，使导出的项目可以加载 DocRender 的类。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"Parses a snapshot of this resource into a new [HTMLLayout]. Call [method HTMLLayout.layout] with "
+"the target viewport size, then [method HTMLLayout.draw] to display it. See [method "
+"HTMLLayout.get_render_error] for parse or layout errors."
+msgstr ""
+"将此资源的快照解析为新的 [HTMLLayout]。使用目标视口尺寸调用 [method HTMLLayout.layout]，再用 [method HTMLLayout.draw] "
+"显示。解析或布局错误见 [method HTMLLayout.get_render_error]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Project resource directory used to resolve relative image paths for [member text]. See [method "
+"HTMLLayout.parse] for the supported paths and image formats."
+msgstr "用于解析 [member text] 相对图片路径的项目资源目录。支持的路径和图片格式见 [method HTMLLayout.parse]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"The HTML resource to display. Its source and styles take priority over the local properties. Set "
+"this to [code]null[/code] to use [member text], [member base_dir], and [member stylesheet]."
+msgstr ""
+"要显示的 HTML 资源。资源的源内容和样式优先于本地属性。设为 [code]null[/code] 时使用 [member text]、[member base_dir] 和 [member "
+"stylesheet]。"
+
+#. doc_classes/HTMLDocument.xml
+msgid ""
+"The project directory used for relative image paths. Imported resources use the source file's "
+"directory."
+msgstr "用于解析相对图片路径的项目目录。导入的资源使用原始文件所在目录。"
+
+#. doc_classes/HTMLDocument.xml
+msgid "The source HTML document or fragment."
+msgstr "HTML 源文档或片段。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Returns the bounds of the first laid-out element with the given case-sensitive HTML "
+"[code]id[/code], in document coordinates. Pass the ID without [code]#[/code]. Returns an empty "
+"rectangle if the element has no layout or the ID is absent."
+msgstr "返回第一个具有指定 HTML [code]id[/code] 的已排版元素的边界，使用文档坐标。ID 区分大小写，传入时省略 [code]#[/code]。"
+"元素尚未排版或 ID 不存在时返回空矩形。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Scrolls to a laid-out element by its case-sensitive HTML ID. Pass the ID without [code]#[/code]. "
+"The vertical alignment ranges from [code]0.0[/code] at the top to [code]1.0[/code] at the bottom "
+"and is clamped to the scrollable range. Returns [code]false[/code] if the ID is absent or the "
+"layout is pending."
+msgstr "按区分大小写的 HTML ID 滚动到已排版的元素，传入 ID 时省略 [code]#[/code]。垂直对齐从顶部的 [code]0.0[/code] "
+"到底部的 [code]1.0[/code]，实际偏移限制在可滚动范围内。ID 不存在或布局尚未完成时返回 [code]false[/code]。"

@@ -8,6 +8,8 @@
 
 Add a `MarkdownLabel` to a scene and set its `text` property. It supports selection, search, links, and streaming text. 
 
+Enable `parse_html` to render HTML blocks and supported inline tags in Markdown. To display a standalone `.html` or `.htm` file, assign the imported `HTMLDocument` to an `HTMLLabel`.
+
 ### <img src="addons/docrender/icons/latex_label.svg" width=18 /> <img src="addons/docrender/icons/latex_label_3d.svg" width=18 /> <img src="addons/docrender/icons/mermaid_label.svg" width=18 /> LaTeX formulas and Mermaid diagrams
 
 Display them in Markdown or in standalone nodes. Use `LatexLabel` in UI, `LatexLabel3D` in 3D scenes, and `MermaidLabel` for diagrams on Windows x64 with the Merman backend. 

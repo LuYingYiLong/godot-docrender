@@ -1,6 +1,7 @@
 #pragma once
 
 #include "docrender_editor_translations.h"
+#include "editor/importers/html_document_importer.h"
 #include "editor/importers/latex_document_importer.h"
 #include "editor/importers/mermaid_document_importer.h"
 #include "editor/importers/pdf_texture_importer.h"
@@ -33,6 +34,7 @@ namespace godot {
 		};
 
 		DocRenderEditorTranslations editor_translations;
+		Ref<HTMLDocumentImporter> html_importer;
 		Ref<LatexDocumentImporter> latex_importer;
 		Ref<MermaidDocumentImporter> mermaid_importer;
 		Ref<PDFTextureImporter> pdf_importer;

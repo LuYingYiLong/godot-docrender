@@ -1,4 +1,7 @@
 #include "markdown_parser.h"
+#include "markdown_html.h"
+
+#include "formats/html/html_markup.h"
 
 #include <algorithm>
 #include <climits>
@@ -420,6 +423,154 @@ namespace {
 		return !is_blank_line(line);
 	}
 
+	struct ListMarker {
+		int32_t indent = 0;
+		int32_t content_column = 0;
+		int32_t start_number = 1;
+		char32_t marker = 0;
+		MarkdownBlockType type = MARKDOWN_BLOCK_UNORDERED_LIST;
+		bool checked = false;
+		String text;
+	};
+
+	static int32_t list_indent_columns(const String& p_line) {
+		int32_t columns = 0;
+		const int32_t indent = get_indent(p_line);
+		for (int32_t i = 0; i < indent; ++i) {
+			columns += p_line[i] == '\t' ? 4 - columns % 4 : 1;
+		}
+		return columns;
+	}
+
+	static std::optional<ListMarker> read_list_marker(const String& p_line, bool p_gfm) {
+		ListMarker item;
+		const String trimmed = trim_left_indent(p_line);
+		if (trimmed.is_empty()) {
+			return std::nullopt;
+		}
+		item.indent = list_indent_columns(p_line);
+		int32_t end = 0;
+		while (end < trimmed.length() && end < 9 && trimmed[end] >= '0' && trimmed[end] <= '9') {
+			++end;
+		}
+		if (end > 0 && end < trimmed.length() && (trimmed[end] == '.' || trimmed[end] == ')')) {
+			item.type = MARKDOWN_BLOCK_ORDERED_LIST;
+			item.start_number = static_cast<int32_t>(trimmed.substr(0, end).to_int());
+			item.marker = trimmed[end++];
+		}
+		else if (end == 0 && (trimmed[0] == '-' || trimmed[0] == '+' || trimmed[0] == '*') && !is_thematic_break(p_line)) {
+			item.marker = trimmed[end++];
+		}
+		else {
+			return std::nullopt;
+		}
+		if (end < trimmed.length() && trimmed[end] != ' ' && trimmed[end] != '\t') {
+			return std::nullopt;
+		}
+		int32_t padding = 0;
+		int32_t text_start = end;
+		while (text_start < trimmed.length() && (trimmed[text_start] == ' ' || trimmed[text_start] == '\t')) {
+			padding += trimmed[text_start++] == '\t' ? 4 - ((item.indent + end + padding) % 4) : 1;
+		}
+		if (text_start == trimmed.length()) {
+			padding = 1;
+		}
+		else if (padding > 4) {
+			padding = 1;
+			text_start = end + 1;
+		}
+		item.content_column = item.indent + end + padding;
+		item.text = trimmed.substr(text_start);
+		if (item.type == MARKDOWN_BLOCK_UNORDERED_LIST && p_gfm && item.text.length() >= 4 &&
+			item.text[0] == '[' && item.text[2] == ']' && (item.text[3] == ' ' || item.text[3] == '\t')) {
+			const char32_t check = item.text[1];
+			if (check == ' ' || check == 'x' || check == 'X') {
+				item.type = MARKDOWN_BLOCK_TASK_LIST;
+				item.checked = check != ' ';
+				item.text = item.text.substr(4);
+			}
+		}
+		return item;
+	}
+
+	static String strip_list_indent(const String& p_line, int32_t p_columns) {
+		int32_t index = 0;
+		int32_t columns = 0;
+		while (index < p_line.length() && columns < p_columns) {
+			const char32_t c = p_line[index++];
+			columns += c == '\t' ? 4 - columns % 4 : 1;
+		}
+		return String(" ").repeat(std::max(0, columns - p_columns)) + p_line.substr(index);
+	}
+
+	static bool has_html_block(const std::vector<MarkdownBlock>& p_blocks) {
+		for (const MarkdownBlock& block : p_blocks) {
+			if (block.type == MARKDOWN_BLOCK_HTML || !block.list_items.empty() || has_html_block(block.children)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// The regular list path remains useful for text-only items. Collect child blocks
+	// when a list contains raw HTML, preserving the list's marker and source ranges.
+	static std::optional<MarkdownBlock> parse_html_list(const std::vector<String>& p_lines, int32_t p_start,
+		int32_t p_limit, const MarkdownParseOptions& p_options, int32_t& r_scan_end) {
+		const auto first = read_list_marker(p_lines[p_start], p_options.parse_gfm);
+		if (!first) {
+			return std::nullopt;
+		}
+		MarkdownBlock list;
+		list.line = p_start + 1;
+		list.type = first->type;
+		list.list_start = first->start_number;
+		list.indent = first->indent / 2;
+		int32_t index = p_start;
+		bool contains_html = false;
+		bool contains_continuation = false;
+		while (index < p_limit) {
+			const auto marker = read_list_marker(p_lines[index], p_options.parse_gfm);
+			if (!marker || marker->indent != first->indent || marker->marker != first->marker || marker->type != first->type) {
+				break;
+			}
+			MarkdownListItem item;
+			item.line = index + 1;
+			item.checked = marker->checked;
+			String source = marker->text;
+			++index;
+			while (index < p_limit) {
+				int32_t next = index;
+				while (next < p_limit && is_blank_line(p_lines[next])) {
+					++next;
+				}
+				if (next == p_limit || list_indent_columns(p_lines[next]) < marker->content_column) {
+					break;
+				}
+				contains_continuation = true;
+				while (index < next) {
+					source += "\n";
+					++index;
+				}
+				source += "\n";
+				source += strip_list_indent(p_lines[index], marker->content_column);
+				++index;
+			}
+			item.end_line = index;
+			item.children = parse_markdown_blocks(source, nullptr, INT_MAX, p_options);
+			contains_html = contains_html || has_html_block(item.children);
+			list.list_items.push_back(std::move(item));
+			list.end_line = index;
+			while (index < p_limit && is_blank_line(p_lines[index])) {
+				++index;
+			}
+		}
+		r_scan_end = index;
+		if (!contains_html && !contains_continuation) {
+			return std::nullopt;
+		}
+		return list;
+	}
+
 	static String strip_code_fence_indent(const String& p_text, int32_t p_indent) {
 		if (p_indent <= 0 || p_text.is_empty()) {
 			return p_text;
@@ -476,14 +627,14 @@ namespace {
 
 } // namespace
 
-std::vector<String> split_lines(const String& p_text) {
+std::vector<String> split_lines(const String& p_text, bool p_keep_trailing_space) {
 	const String normalized = p_text.replace("\r\n", "\n").replace("\r", "\n");
 	const PackedStringArray split = normalized.split("\n", true);
 	std::vector<String> lines;
 
 	lines.reserve(split.size());
 	for (int32_t i = 0; i < split.size(); i++) {
-		lines.push_back(split[i].rstrip(" \t"));
+		lines.push_back(p_keep_trailing_space ? split[i] : split[i].rstrip(" \t"));
 	}
 
 	return lines;
@@ -521,6 +672,12 @@ uint64_t compute_block_hash(const MarkdownBlock& p_block) {
 	for (const MarkdownBlock& child : p_block.children) {
 		to_hash += "|c" + String::num_uint64(compute_block_hash(child));
 	}
+	for (const MarkdownListItem& item : p_block.list_items) {
+		to_hash += item.checked ? "|checked" : "|item";
+		for (const MarkdownBlock& child : item.children) {
+			to_hash += "|c" + String::num_uint64(compute_block_hash(child));
+		}
+	}
 
 	return to_hash.hash();
 }
@@ -538,7 +695,8 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const Mar
 	auto append_span = [&result](const MarkdownInlineSpan& span) {
 		if (!result.spans.empty()) {
 			const MarkdownInlineSpan& last = result.spans.back();
-			if (last.latex.is_empty() && span.latex.is_empty() && last.link_uri == span.link_uri && last.image_uri == span.image_uri && last.image_title == span.image_title && last.footnote_id == span.footnote_id && last.footnote_number == span.footnote_number && last.footnote_ref == span.footnote_ref && last.bold == span.bold && last.italic == span.italic && last.code == span.code && last.strikethrough == span.strikethrough && last.highlight == span.highlight && last.custom_color == span.custom_color && (!last.custom_color || last.color == span.color) && last.end == span.start) {
+			if (last.latex.is_empty() && span.latex.is_empty() && !last.html_image && !span.html_image && last.link_uri == span.link_uri && last.image_uri == span.image_uri && last.image_title == span.image_title && last.footnote_id == span.footnote_id && last.footnote_number == span.footnote_number && last.footnote_ref == span.footnote_ref && last.bold == span.bold && last.italic == span.italic && last.code == span.code && last.strikethrough == span.strikethrough && last.highlight == span.highlight && last.custom_color == span.custom_color && (!last.custom_color || last.color == span.color) &&
+				last.custom_background == span.custom_background && (!last.custom_background || last.background_color == span.background_color) && last.end == span.start) {
 				result.spans.back().text += span.text;
 				result.spans.back().end = span.end;
 				return;
@@ -547,12 +705,15 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const Mar
 		result.spans.push_back(span);
 		};
 
-	auto emit_plain = [&](size_t start, size_t end) {
+	auto emit_plain = [&](size_t start, size_t end, bool p_decode = true) {
 		if (end <= start) {
 			return;
 		}
 		MarkdownInlineSpan span;
 		span.text = String::utf8(raw.data() + start, static_cast<int64_t>(end - start));
+		if (p_options.parse_html && p_decode) {
+			span.text = docrender::decode_html_entities(span.text);
+		}
 		span.start = static_cast<int64_t>(output.length());
 		output += span.text;
 		span.end = static_cast<int64_t>(output.length());
@@ -571,11 +732,19 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const Mar
 	};
 
 	auto find_format_close = [&](size_t start, const std::string& marker) -> size_t {
-		if (!p_options.parse_latex) {
+		if (!p_options.parse_latex && !p_options.parse_html) {
 			return raw.find(marker, start);
 		}
 		for (size_t i = start; i < len; i++) {
-			if (!skip_inline_latex(i) && raw.compare(i, marker.length(), marker) == 0) {
+			if (skip_inline_latex(i)) {
+				continue;
+			}
+			docrender::MarkdownHTMLTag tag;
+			if (p_options.parse_html && raw[i] == '<' && docrender::scan_markdown_html_tag(raw, i, tag)) {
+				i = tag.end - 1;
+				continue;
+			}
+			if (raw.compare(i, marker.length(), marker) == 0) {
 				return i;
 			}
 		}
@@ -594,6 +763,11 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const Mar
 		int32_t bracket_depth = 1;
 		for (size_t i = start; i < len; i++) {
 			if (skip_inline_latex(i)) {
+				continue;
+			}
+			docrender::MarkdownHTMLTag tag;
+			if (p_options.parse_html && raw[i] == '<' && docrender::scan_markdown_html_tag(raw, i, tag)) {
+				i = tag.end - 1;
 				continue;
 			}
 			unsigned char byte = static_cast<unsigned char>(raw[i]);
@@ -641,9 +815,99 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const Mar
 
 		if (raw[pos] == '\\' && pos + 1 < len) {
 			const char32_t next = raw[pos + 1];
-			if (next == '\\' || next == '`' || next == '*' || next == '_' || next == '{' || next == '}' || next == '[' || next == ']' || next == '(' || next == ')' || next == '#' || next == '+' || next == '-' || next == '.' || next == '!' || next == '|' || (p_options.parse_latex && next == '$')) {
+			if (next == '\\' || next == '`' || next == '*' || next == '_' || next == '{' || next == '}' || next == '[' || next == ']' || next == '(' || next == ')' || next == '#' || next == '+' || next == '-' || next == '.' || next == '!' || next == '|' || (p_options.parse_latex && next == '$') || (p_options.parse_html && (next == '<' || next == '&'))) {
 				emit_plain(pos + 1, pos + 2);
 				pos += 2;
+				continue;
+			}
+		}
+
+		if (p_options.parse_html && raw[pos] == '<') {
+			docrender::MarkdownHTMLTag tag;
+			if (docrender::scan_markdown_html_tag(raw, pos, tag)) {
+				const std::string& name = tag.name;
+				if (!tag.closing && name == "img") {
+					MarkdownInlineSpan span;
+					span.html_image = true;
+					span.image_uri = docrender::decode_html_entities(tag.image.src, true);
+					span.image_title = docrender::decode_html_entities(tag.image.title, true);
+					span.image_size = tag.image.size;
+					span.text = docrender::decode_html_entities(tag.image.alt, true);
+					if (span.text.is_empty()) {
+						span.text = String::chr(0xfffc);
+					}
+					span.start = output.length();
+					output += span.text;
+					span.end = output.length();
+					append_span(span);
+					pos = tag.end;
+					continue;
+				}
+				if (!tag.closing && name == "br") {
+					MarkdownInlineSpan span;
+					span.text = "\n";
+					span.start = output.length();
+					output += span.text;
+					span.end = output.length();
+					append_span(span);
+					pos = tag.end;
+					continue;
+				}
+				const bool bold = name == "b" || name == "strong";
+				const bool italic = name == "i" || name == "em";
+				const bool strike = name == "s" || name == "del";
+				const bool code = name == "code";
+				const bool highlight = name == "mark";
+				const bool link = name == "a" && !tag.href.is_empty();
+				const bool styled = name == "span";
+				size_t close_end = 0;
+				const size_t close = !tag.closing && !tag.self_closing && (bold || italic || strike || code || highlight || link || styled)
+					? docrender::find_markdown_html_close(raw, tag, close_end) : std::string::npos;
+				if (close == std::string::npos) {
+					emit_plain(pos, tag.end, false);
+					pos = tag.end;
+					continue;
+				}
+
+				const String inner = String::utf8(raw.data() + tag.end, close - tag.end);
+				MarkdownInlineSpanParseResult parsed;
+				if (code) {
+					parsed.output_text = docrender::decode_html_entities(inner);
+					MarkdownInlineSpan span;
+					span.text = parsed.output_text;
+					span.end = span.text.length();
+					parsed.spans.push_back(span);
+				}
+				else {
+					parsed = parse_inline_spans(inner, p_options);
+				}
+				const docrender::HTMLInlineColors colors = styled
+					? docrender::parse_html_inline_colors(docrender::decode_html_entities(tag.style, true)) : docrender::HTMLInlineColors{};
+				const String uri = link ? docrender::decode_html_entities(tag.href, true) : String();
+				const int64_t start = output.length();
+				output += parsed.output_text;
+				for (MarkdownInlineSpan& span : parsed.spans) {
+					span.start += start;
+					span.end += start;
+					span.bold |= bold;
+					span.italic |= italic;
+					span.strikethrough |= strike;
+					span.code |= code;
+					span.highlight |= highlight;
+					if (link && span.link_uri.is_empty()) {
+						span.link_uri = uri;
+					}
+					if (colors.text && !span.custom_color) {
+						span.custom_color = true;
+						span.color = *colors.text;
+					}
+					if (colors.background && !span.custom_background) {
+						span.custom_background = true;
+						span.background_color = *colors.background;
+					}
+					append_span(span);
+				}
+				pos = close_end;
 				continue;
 			}
 		}
@@ -946,6 +1210,7 @@ MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const Mar
 
 MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state, int32_t p_max_lines, const MarkdownParseOptions& p_options) {
 	std::vector<String> lines = split_lines(p_text);
+	const std::vector<String> html_source_lines = p_options.parse_html ? split_lines(p_text, true) : std::vector<String>();
 	MarkdownParseResult result;
 	std::vector<MarkdownBlock>& blocks = result.blocks;
 
@@ -974,6 +1239,7 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 	int32_t max_index = std::min<int32_t>(static_cast<int32_t>(lines.size()), p_max_lines);
 	int32_t index = 0;
 	int32_t latex_scan_boundary = 0;
+	int32_t html_list_scan_end = 0;
 
 	auto flush_paragraph = [&]() {
 		if (!paragraph_accumulator.is_empty()) {
@@ -993,13 +1259,16 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			block.type = MARKDOWN_BLOCK_BLOCKQUOTE;
 			String text;
 			for (int32_t i = 0; i < static_cast<int32_t>(blockquote_lines.size()); i++) {
-				if (!text.is_empty()) {
+				if (i > 0 && (p_options.parse_html || !text.is_empty())) {
 					text += "\n";
 				}
 				text += blockquote_lines[i];
 			}
 			block.text = text;
 			block.line = blockquote_line;
+			if (p_options.parse_html) {
+				block.end_line = blockquote_line + static_cast<int32_t>(blockquote_lines.size()) - 1;
+			}
 			block.level = 1;
 			for (int32_t di = 0; di < static_cast<int32_t>(blockquote_depths.size()); di++) {
 				block.item_levels.push_back(blockquote_depths[di]);
@@ -1137,6 +1406,42 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 			code_line = index + 1;
 			index++;
 			continue;
+		}
+
+		if (p_options.parse_html) {
+			if (const auto range = docrender::scan_markdown_html_block(lines, index, max_index, !paragraph_accumulator.is_empty())) {
+				flush_all();
+				state.in_list = false;
+				state.in_blockquote = false;
+				MarkdownBlock block;
+				block.type = MARKDOWN_BLOCK_HTML;
+				block.line = index + 1;
+				block.end_line = range->end;
+				if (range->open) {
+					state.unclosed_html_line = block.line;
+				}
+				for (; index < range->end; ++index) {
+					if (!block.text.is_empty()) {
+						block.text += "\n";
+					}
+					block.text += html_source_lines[index];
+				}
+				blocks.push_back(std::move(block));
+				continue;
+			}
+			if (index >= html_list_scan_end) {
+				if (auto list = parse_html_list(html_source_lines, index, max_index, p_options, html_list_scan_end)) {
+					flush_all();
+					state.in_list = false;
+					state.in_blockquote = false;
+					if (html_list_scan_end == max_index) {
+						state.unclosed_html_line = list->line;
+					}
+					index = list->end_line;
+					blocks.push_back(std::move(*list));
+					continue;
+				}
+			}
 		}
 
 		if (p_options.parse_latex && get_indent(line) <= 3) {
@@ -1352,6 +1657,9 @@ MarkdownParseResult parse_markdown_document(const String& p_text, const Markdown
 		// Blockquote
 		String blockquote_content;
 		if (is_blockquote_line(line, blockquote_content)) {
+			if (p_options.parse_html) {
+				is_blockquote_line(html_source_lines[index], blockquote_content);
+			}
 			flush_paragraph();
 			flush_list();
 			if (!state.in_blockquote) {
@@ -1476,15 +1784,19 @@ std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const Mar
 }
 
 int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std::vector<String>& p_lines, const MarkdownParserState& p_state, int32_t p_max_unstable_lines) {
-	auto include_latex_block_start = [&](int32_t p_start) {
+	auto include_open_block_start = [&](int32_t p_start) {
 		if (p_state.unclosed_latex_line > 0) {
 			p_start = std::min(p_start, p_state.unclosed_latex_line - 1);
+		}
+		if (p_state.unclosed_html_line > 0) {
+			p_start = std::min(p_start, p_state.unclosed_html_line - 1);
 		}
 		const auto next = std::upper_bound(p_blocks.begin(), p_blocks.end(), p_start + 1,
 			[](int32_t p_line, const MarkdownBlock& p_block) { return p_line < p_block.line; });
 		if (next != p_blocks.begin()) {
 			const MarkdownBlock& block = *(next - 1);
-			if (block.type == MARKDOWN_BLOCK_LATEX && p_start + 1 <= block.end_line) {
+			if ((block.type == MARKDOWN_BLOCK_LATEX || block.type == MARKDOWN_BLOCK_HTML || !block.list_items.empty() ||
+				block.type == MARKDOWN_BLOCK_BLOCKQUOTE) && p_start + 1 <= block.end_line) {
 				return block.line - 1;
 			}
 		}
@@ -1494,7 +1806,7 @@ int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std:
 	if (p_state.in_fenced_code || p_state.in_list || p_state.in_blockquote) {
 		for (int32_t i = static_cast<int32_t>(p_blocks.size()) - 1; i >= 0; i--) {
 			if ((p_state.in_fenced_code && p_blocks[i].type == MARKDOWN_BLOCK_CODE) || (p_state.in_list && (p_blocks[i].type == MARKDOWN_BLOCK_UNORDERED_LIST || p_blocks[i].type == MARKDOWN_BLOCK_ORDERED_LIST)) || (p_state.in_blockquote && p_blocks[i].type == MARKDOWN_BLOCK_BLOCKQUOTE)) {
-				return include_latex_block_start(std::max<int32_t>(0, p_blocks[i].line - 1));
+				return include_open_block_start(std::max<int32_t>(0, p_blocks[i].line - 1));
 			}
 		}
 	}
@@ -1504,14 +1816,14 @@ int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std:
 	}
 
 	if (p_blocks.back().type == MARKDOWN_BLOCK_TABLE) {
-		return include_latex_block_start(std::max<int32_t>(0, p_blocks.back().line - 1));
+		return include_open_block_start(std::max<int32_t>(0, p_blocks.back().line - 1));
 	}
 
 	int32_t last_block_line = p_blocks.back().line - 1;
 	int32_t tail_lines = std::min<int32_t>(p_max_unstable_lines, static_cast<int32_t>(p_lines.size()) - last_block_line);
 	int32_t reparse_start = std::max<int32_t>(0, static_cast<int32_t>(p_lines.size()) - tail_lines);
 
-	return include_latex_block_start(reparse_start);
+	return include_open_block_start(reparse_start);
 }
 
 void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock>& r_blocks, MarkdownParserState& r_state, const MarkdownParseOptions& p_options) {
@@ -1519,7 +1831,7 @@ void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<
 
 	r_state.reset();
 
-	std::vector<String> lines = split_lines(p_raw_text);
+	std::vector<String> lines = split_lines(p_raw_text, p_options.parse_html);
 	String tail_text;
 	for (int32_t i = p_reparse_line; i < static_cast<int32_t>(lines.size()); i++) {
 		if (i > p_reparse_line) {
@@ -1541,6 +1853,9 @@ void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<
 	r_state = tail_result.state;
 	if (r_state.unclosed_latex_line > 0) {
 		r_state.unclosed_latex_line += p_reparse_line;
+	}
+	if (r_state.unclosed_html_line > 0) {
+		r_state.unclosed_html_line += p_reparse_line;
 	}
 	r_state.stable_block_count = static_cast<int32_t>(r_blocks.size() + tail_blocks.size());
 	r_state.stable_source_offset = p_raw_text.length();

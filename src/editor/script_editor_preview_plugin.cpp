@@ -181,7 +181,7 @@ namespace godot {
 		}
 		CodeEdit* source = tab ? Object::cast_to<CodeEdit>(tab->get_base_editor()) : nullptr;
 		const String path = source ? get_document_path(tab, source) : String();
-		const bool matches_source = path.get_extension().nocasecmp_to(get_source_extension()) == 0;
+		const bool matches_source = supports_source_extension(path.get_extension().to_lower());
 		const PreviewTab* preview_tab = previews.getptr(tab_id);
 		if (!matches_source && !path.is_empty() && preview_tab != nullptr) {
 			// A tab can adopt a new extension after Save As.

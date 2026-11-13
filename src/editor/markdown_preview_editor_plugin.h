@@ -9,7 +9,7 @@ namespace godot {
 	protected:
 		static void _bind_methods() {}
 
-		const char* get_source_extension() const override { return "md"; }
+		bool supports_source_extension(const String& p_extension) const override { return p_extension == "md"; }
 		const char* get_menu_name() const override { return "MarkdownPreviewMenu"; }
 		Control* create_preview_panel() override;
 		void update_preview(CodeEdit* p_source, Control* p_preview, const String& p_path) override;

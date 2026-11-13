@@ -93,6 +93,12 @@
     <ClCompile Include="src\formats\html\html_document.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\html\html_layout.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\html_markup.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\html\litehtml_container.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
@@ -156,6 +162,9 @@
     <ClCompile Include="src\formats\markdown\markdown_parser.cpp">
       <Filter>Source Files\formats\markdown</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\markdown\markdown_html.cpp">
+      <Filter>Source Files\formats\markdown</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\mermaid\mermaid_render.cpp">
       <Filter>Source Files\formats\mermaid</Filter>
     </ClCompile>
@@ -186,8 +195,14 @@
     <ClCompile Include="src\editor\importers\mermaid_document_importer.cpp">
       <Filter>Source Files\editor\importers</Filter>
     </ClCompile>
+    <ClCompile Include="src\editor\importers\html_document_importer.cpp">
+      <Filter>Source Files\editor\importers</Filter>
+    </ClCompile>
     <ClCompile Include="src\editor\importers\pdf_texture_importer.cpp">
       <Filter>Source Files\editor\importers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\editor\html_preview_editor_plugin.cpp">
+      <Filter>Source Files\editor</Filter>
     </ClCompile>
     <ClCompile Include="src\editor\markdown_preview_editor_plugin.cpp">
       <Filter>Source Files\editor</Filter>
@@ -212,10 +227,19 @@
     <ClInclude Include="src\formats\markdown\markdown_parser.h">
       <Filter>Header Files\formats\markdown</Filter>
     </ClInclude>
+    <ClInclude Include="src\formats\markdown\markdown_html.h">
+      <Filter>Header Files\formats\markdown</Filter>
+    </ClInclude>
     <ClInclude Include="src\formats\mermaid\mermaid_render.h">
       <Filter>Header Files\formats\mermaid</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\html_document.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_layout.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_markup.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_container.h">
@@ -281,8 +305,14 @@
     <ClInclude Include="src\editor\importers\mermaid_document_importer.h">
       <Filter>Header Files\editor\importers</Filter>
     </ClInclude>
+    <ClInclude Include="src\editor\importers\html_document_importer.h">
+      <Filter>Header Files\editor\importers</Filter>
+    </ClInclude>
     <ClInclude Include="src\editor\importers\pdf_texture_importer.h">
       <Filter>Header Files\editor\importers</Filter>
+    </ClInclude>
+    <ClInclude Include="src\editor\html_preview_editor_plugin.h">
+      <Filter>Header Files\editor</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\markdown_preview_editor_plugin.h">
       <Filter>Header Files\editor</Filter>

@@ -11,6 +11,7 @@ namespace godot {
 	Control* MarkdownPreviewEditorPlugin::create_preview_panel() {
 		MarkdownLabel* label = memnew(MarkdownLabel);
 		label->set_name("MarkdownPreview");
+		label->set_parse_html(true);
 		label->set_parse_latex(true);
 		label->set_parse_mermaid(true);
 		return label;

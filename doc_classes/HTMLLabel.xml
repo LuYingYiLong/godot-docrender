@@ -4,10 +4,17 @@
 		Displays a scrollable HTML document.
 	</brief_description>
 	<description>
-		Displays [member text] using [HTMLDocument]. Give the control a size with anchors, offsets, or a parent [Container]. The document wraps to the available width, and scrollbars appear as needed to reach overflowing content.
-		Source changes are applied on a deferred update and reset the scroll position. Resizing recalculates the layout and clamps the current scroll offset. Connect [signal link_pressed] to handle navigation.
+		Displays [member document] or inline [member text] using [HTMLLayout]. Give the control a size with anchors, offsets, or a parent [Container]. The document wraps to the available width, and scrollbars appear as needed to reach overflowing content.
+		Source changes are applied on a deferred update and reset the scroll position. Resizing recalculates the layout and clamps the current scroll offset. Clicking a [code]#id[/code] link scrolls to the matching HTML element. Connect [signal link_pressed] to handle other links.
+		Drag to select rendered text. The focused control supports the standard select-all and copy shortcuts. The theme color [code]selection_color[/code] sets the selection highlight.
 	</description>
 	<methods>
+		<method name="clear_selection">
+			<return type="void" />
+			<description>
+				Clears the text selection.
+			</description>
+		</method>
 		<method name="get_content_size" qualifiers="const">
 			<return type="Vector2i" />
 			<description>
@@ -26,6 +33,26 @@
 				Returns the horizontal and vertical scroll offset in pixels from the start of the document.
 			</description>
 		</method>
+		<method name="get_selected_text" qualifiers="const">
+			<return type="String" />
+			<description>
+				Returns the selected plain text, or an empty string if nothing is selected.
+			</description>
+		</method>
+		<method name="scroll_to_anchor">
+			<return type="bool" />
+			<param index="0" name="id" type="String" />
+			<param index="1" name="align" type="float" default="0.0" />
+			<description>
+				Scrolls to a laid-out element by its case-sensitive HTML ID. Pass the ID without [code]#[/code]. The vertical alignment ranges from [code]0.0[/code] at the top to [code]1.0[/code] at the bottom and is clamped to the scrollable range. Returns [code]false[/code] if the ID is absent or the layout is pending.
+			</description>
+		</method>
+		<method name="select_all">
+			<return type="void" />
+			<description>
+				Selects all text in the document.
+			</description>
+		</method>
 		<method name="set_scroll_offset">
 			<return type="void" />
 			<param index="0" name="offset" type="Vector2i" />
@@ -36,10 +63,16 @@
 	</methods>
 	<members>
 		<member name="base_dir" type="String" setter="set_base_dir" getter="get_base_dir" default="&quot;res://&quot;">
-			Project resource directory used to resolve relative image paths. See [method HTMLDocument.parse] for the supported paths and image formats.
+			Project resource directory used to resolve relative image paths for [member text]. See [method HTMLLayout.parse] for the supported paths and image formats.
+		</member>
+		<member name="document" type="HTMLDocument" setter="set_document" getter="get_document">
+			The HTML resource to display. Its source and styles take priority over the local properties. Set this to [code]null[/code] to use [member text], [member base_dir], and [member stylesheet].
+		</member>
+		<member name="selection_enabled" type="bool" setter="set_selection_enabled" getter="is_selection_enabled" default="true">
+			Enables text selection. Disabling it clears the current selection.
 		</member>
 		<member name="stylesheet" type="String" setter="set_stylesheet" getter="get_stylesheet" default="&quot;&quot;">
-			Additional CSS passed to [method HTMLDocument.parse] alongside inline styles and [code]&lt;style&gt;[/code] elements.
+			Additional CSS for [member text], passed to [method HTMLLayout.parse] alongside inline styles and [code]&lt;style&gt;[/code] elements.
 		</member>
 		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
 			The HTML document or fragment to display.

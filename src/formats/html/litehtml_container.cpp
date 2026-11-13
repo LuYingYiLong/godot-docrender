@@ -1,17 +1,25 @@
 #include "litehtml_container.h"
 
+#include "html_markup.h"
+
 #include <godot_cpp/classes/font_variation.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/style_box.hpp>
+#include <godot_cpp/classes/text_server.hpp>
+#include <godot_cpp/classes/text_server_manager.hpp>
 #include <godot_cpp/classes/theme.hpp>
 #include <godot_cpp/classes/theme_db.hpp>
 #include <godot_cpp/classes/translation_server.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <litehtml/document.h>
+#include <litehtml/el_image.h>
+#include <litehtml/render_image.h>
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -38,13 +46,53 @@ namespace docrender {
 			return p_border.style == border_style_solid ? std::clamp(p_border.width, 0.0f, p_maximum) : 0.0f;
 		}
 
+		class FittedImageRenderItem : public render_item_image {
+		protected:
+			rendered_width _render(pixel_t p_x, pixel_t p_y, const containing_block_context& p_block,
+				formatting_context* p_context, bool p_second_pass) override {
+				const rendered_width rendered = render_item_image::_render(p_x, p_y, p_block, p_context, p_second_pass);
+				if (m_pos.width <= 0.0f || m_pos.height <= 0.0f) {
+					return rendered;
+				}
+				position viewport;
+				src_el()->get_document()->container()->get_viewport(viewport);
+				const pixel_t max_width = std::max(0.0f, std::min<pixel_t>(p_block.width, viewport.width) - content_offset_width());
+				const pixel_t max_height = std::max(0.0f, viewport.height - content_offset_height());
+				const pixel_t scale = std::min({ 1.0f, max_width / m_pos.width, max_height / m_pos.height });
+				m_pos.width *= scale;
+				m_pos.height *= scale;
+				src_el()->css_w().line_height_w().computed_value = height();
+				const pixel_t fitted_width = width();
+				return { fitted_width, fitted_width };
+			}
+
+		public:
+			using render_item_image::render_item_image;
+
+			std::shared_ptr<render_item> clone() override {
+				return std::make_shared<FittedImageRenderItem>(src_el());
+			}
+		};
+
+		class FittedImageElement : public el_image {
+		public:
+			using el_image::el_image;
+
+			std::shared_ptr<render_item> create_render_item(const std::shared_ptr<render_item>& p_parent) override {
+				auto item = std::make_shared<FittedImageRenderItem>(shared_from_this());
+				item->parent(p_parent);
+				return item;
+			}
+		};
+
 	} // namespace
 
-	LiteHTMLContainer::LiteHTMLContainer(const String& p_base_dir) :
-		base_dir(p_base_dir) {
+	LiteHTMLContainer::LiteHTMLContainer(const String& p_base_dir, const Dictionary& p_textures, bool p_fit_images,
+		const HTMLLayout::Fonts& p_fonts) :
+		base_dir(p_base_dir), textures(p_textures), fit_images(p_fit_images), fonts(p_fonts), default_font(p_fonts.text) {
 		ThemeDB* themes = ThemeDB::get_singleton();
 		const Ref<Theme> project_theme = themes->get_project_theme();
-		if (project_theme.is_valid()) {
+		if (default_font.is_null() && project_theme.is_valid()) {
 			default_font = project_theme->get_default_font();
 		}
 		if (default_font.is_null()) {
@@ -52,32 +100,9 @@ namespace docrender {
 		}
 	}
 
-	std::optional<String> LiteHTMLContainer::normalize_resource_path(const String& p_path) {
-		if (!p_path.begins_with("res://")) {
-			return std::nullopt;
-		}
-		const String relative = p_path.substr(6).replace("\\", "/");
-		if (relative.begins_with("/") || relative.contains(":") || relative.contains("?") || relative.contains("#")) {
-			return std::nullopt;
-		}
-
-		PackedStringArray components;
-		for (const String& component : relative.split("/", false)) {
-			if (component == "..") {
-				if (components.is_empty()) {
-					return std::nullopt;
-				}
-				components.remove_at(components.size() - 1);
-			}
-			else if (component != ".") {
-				// Windows may normalize trailing spaces and periods while opening paths.
-				if (component.ends_with(" ") || component.ends_with(".")) {
-					return std::nullopt;
-				}
-				components.append(component);
-			}
-		}
-		return "res://" + String("/").join(components);
+	litehtml::element::ptr LiteHTMLContainer::create_element(const char* p_tag, const litehtml::string_map&,
+		const std::shared_ptr<litehtml::document>& p_document) {
+		return fit_images && std::string_view(p_tag) == "img" ? std::make_shared<FittedImageElement>(p_document) : nullptr;
 	}
 
 	void LiteHTMLContainer::set_viewport(const Vector2i& p_size) {
@@ -90,13 +115,182 @@ namespace docrender {
 		const litehtml::position bounds(0, 0, std::max(p_content_size.x, viewport_size.x),
 			std::max(p_content_size.y, viewport_size.y));
 		p_document.draw(0, 0, 0, &bounds);
+		plain_text = String();
+		text_runs.clear();
+		for (PaintRun& run : paint_runs) {
+			for (Command& command : run.commands) {
+				if (Text* text = std::get_if<Text>(&command)) {
+					const Rect2 rect(text->position, text->line->get_size());
+					const Rect2 visible = run.clip ? rect.intersection(*run.clip) : rect;
+					if (visible.has_area() && text->length > 0) {
+						painted_text[text->position].push_back(text);
+					}
+				}
+			}
+		}
+		String separator;
+		index_text(p_document.root(), separator);
+		// Paint order can differ from document order for positioned or floating text.
+		// The DOM pass assigns offsets while the paint runs retain the exact clip geometry.
+		painted_text.clear();
+		for (const PaintRun& run : paint_runs) {
+			for (const Command& command : run.commands) {
+				if (const Text* text = std::get_if<Text>(&command); text && text->offset >= 0) {
+					const Rect2 rect(text->position, text->line->get_size());
+					const Rect2 visible = run.clip ? rect.intersection(*run.clip) : rect;
+					text_runs.push_back({ text->line, rect, visible, text->offset, text->length });
+				}
+			}
+		}
+	}
+
+	void LiteHTMLContainer::index_text(const litehtml::element::ptr& p_element, String& r_separator) {
+		if (!p_element || p_element->css().get_display() == display_none) {
+			return;
+		}
+		const auto display = p_element->css().get_display();
+		const bool visible = p_element->css().get_visibility() == visibility_visible;
+		if (p_element->is_break()) {
+			if (visible && !plain_text.is_empty()) {
+				if (r_separator == " " || r_separator == "\t") {
+					r_separator = String();
+				}
+				r_separator += "\n";
+			}
+			return;
+		}
+		if (display == display_inline_text) {
+			std::shared_ptr<render_item> item;
+			p_element->run_on_renderers([&](const std::shared_ptr<render_item>& p_item) {
+				item = p_item;
+				return false;
+			});
+			if (!visible || !item) {
+				return;
+			}
+			if (p_element->is_white_space()) {
+				if (r_separator.is_empty() && !plain_text.is_empty()) {
+					r_separator = " ";
+				}
+				return;
+			}
+			if (item->skip() || !p_element->parent()) {
+				return;
+			}
+			const auto font_handle = p_element->parent()->css().get_font();
+			if (!font_handle) {
+				return;
+			}
+			FontData& font = *reinterpret_cast<FontData*>(font_handle);
+			std::string value;
+			p_element->get_text(value);
+			if (value == "\t") {
+				value = "    ";
+			}
+			transform_text(value, p_element->css().get_text_transform());
+			const Ref<TextLine> line = font.shape(value.c_str());
+			position placement = item->get_placement();
+			placement.round();
+			const Vector2 point(placement.x, placement.y + font.ascent - line->get_line_ascent());
+			if (auto* candidates = painted_text.getptr(point)) {
+				for (Text* text : *candidates) {
+					if (text->offset < 0 && text->line == line) {
+						plain_text += r_separator;
+						r_separator = String();
+						text->offset = plain_text.length();
+						plain_text += String::utf8(value.c_str());
+						break;
+					}
+				}
+			}
+			return;
+		}
+		const bool block = display != display_inline && display != display_inline_block && display != display_inline_flex &&
+			display != display_inline_table && display != display_table_cell;
+		const int64_t start = plain_text.length();
+		const String preceding_separator = r_separator;
+		if (block && start > 0 && !r_separator.begins_with("\n")) {
+			r_separator = "\n";
+		}
+		for (const auto& child : p_element->children()) {
+			index_text(child, r_separator);
+		}
+		if (plain_text.length() > start) {
+			if (block && !r_separator.begins_with("\n")) {
+				r_separator = "\n";
+			}
+			else if (display == display_table_cell && !r_separator.begins_with("\n")) {
+				r_separator = "\t";
+			}
+		} else if (block) {
+			r_separator = preceding_separator;
+		}
 	}
 
 	const std::vector<LiteHTMLContainer::PaintRun>& LiteHTMLContainer::get_paint_runs() const {
 		return paint_runs;
 	}
 
-	void LiteHTMLContainer::PaintRun::draw(RenderingServer& p_server, const RID& p_canvas, const Vector2& p_offset) const {
+	const String& LiteHTMLContainer::get_plain_text() const {
+		return plain_text;
+	}
+
+	int64_t LiteHTMLContainer::hit_test_text(const Vector2& p_point) const {
+		const TextRun* closest = nullptr;
+		real_t best_y = std::numeric_limits<real_t>::infinity();
+		real_t best_x = best_y;
+		real_t top = best_y;
+		real_t bottom = -best_y;
+		for (const TextRun& run : text_runs) {
+			const Rect2& rect = run.visible_rect;
+			const Vector2 end = rect.get_end();
+			top = std::min(top, rect.position.y);
+			bottom = std::max(bottom, end.y);
+			const real_t dy = std::max({ rect.position.y - p_point.y, real_t(0), p_point.y - end.y });
+			const real_t dx = std::max({ rect.position.x - p_point.x, real_t(0), p_point.x - end.x });
+			if (dy < best_y || (dy == best_y && dx <= best_x)) {
+				closest = &run;
+				best_y = dy;
+				best_x = dx;
+			}
+		}
+		if (!closest || p_point.y < top) {
+			return 0;
+		}
+		if (p_point.y > bottom) {
+			return plain_text.length();
+		}
+		const real_t x = CLAMP(p_point.x, closest->visible_rect.position.x, closest->visible_rect.get_end().x);
+	return closest->offset + CLAMP(static_cast<int64_t>(closest->line->hit_test(x - closest->rect.position.x)), int64_t(0), closest->length);
+	}
+
+	TypedArray<Rect2> LiteHTMLContainer::get_selection_rects(int64_t p_from, int64_t p_to) const {
+		TypedArray<Rect2> result;
+		const Ref<TextServer> text_server = TextServerManager::get_singleton()->get_primary_interface();
+		if (text_server.is_null()) {
+			return result;
+		}
+		for (const TextRun& run : text_runs) {
+			const int64_t from = std::max<int64_t>(0, p_from - run.offset);
+			const int64_t to = std::min(run.length, p_to - run.offset);
+			if (from >= to) {
+				continue;
+			}
+			const auto ranges = text_server->shaped_text_get_selection(run.line->get_rid(), from, to);
+			for (int64_t i = 0; i < ranges.size(); ++i) {
+				const Vector2 range = ranges[i];
+				const Rect2 rect(run.rect.position + Vector2(range.x, 0), Vector2(range.y - range.x, run.rect.size.y));
+				const Rect2 visible = rect.intersection(run.visible_rect);
+				if (visible.has_area()) {
+					result.push_back(visible);
+				}
+			}
+		}
+		return result;
+	}
+
+	void LiteHTMLContainer::PaintRun::draw(RenderingServer& p_server, const RID& p_canvas, const Vector2& p_offset,
+		const TextServer* p_text_server, const Highlight& p_search, const Highlight& p_selection) const {
 		for (const Command& command : commands) {
 			std::visit([&](const auto& p_draw) {
 				using Draw = std::decay_t<decltype(p_draw)>;
@@ -105,6 +299,25 @@ namespace docrender {
 					p_server.canvas_item_add_rect(p_canvas, rect, p_draw.color);
 				}
 				else if constexpr (std::is_same_v<Draw, Text>) {
+					if (p_text_server && p_draw.offset >= 0) {
+						for (const Highlight* highlight : { &p_search, &p_selection }) {
+							const int64_t from = std::max<int64_t>(0, highlight->from - p_draw.offset);
+							const int64_t to = std::min(p_draw.length, highlight->to - p_draw.offset);
+							if (from < to) {
+								const auto ranges = p_text_server->shaped_text_get_selection(p_draw.line->get_rid(), from, to);
+								for (int64_t i = 0; i < ranges.size(); ++i) {
+									const Vector2 range = ranges[i];
+									const Rect2 rect(p_draw.position + p_offset + Vector2(range.x, 0),
+										Vector2(range.y - range.x, p_draw.line->get_size().y));
+									if (highlight->style) {
+										highlight->style->draw(p_canvas, rect);
+									} else {
+										p_server.canvas_item_add_rect(p_canvas, rect, highlight->color);
+									}
+								}
+							}
+						}
+					}
 					p_draw.line->draw(p_canvas, p_draw.position + p_offset, p_draw.color);
 				}
 				else if constexpr (std::is_same_v<Draw, Image>) {
@@ -174,10 +387,35 @@ namespace docrender {
 		Ref<Font> font = default_font;
 		const bool bold = p_description.weight >= 600;
 		const bool italic = p_description.style == font_style_italic;
-		if (bold || italic) {
+		bool code_family = false;
+		if (fonts.code.is_valid() || fonts.code_block.is_valid()) {
+			for (const String& family : String::utf8(p_description.family.c_str()).to_lower().split(",")) {
+				if (family == "monospace" && fonts.code.is_valid()) {
+					font = fonts.code;
+					code_family = true;
+					break;
+				}
+				if (family == "docrender-code-block" && fonts.code_block.is_valid()) {
+					font = fonts.code_block;
+					code_family = true;
+					break;
+				}
+				if (family == "sans-serif" || family == "serif") {
+					break;
+				}
+			}
+		}
+		Ref<Font> variant;
+		if (!code_family && (bold || italic)) {
+			variant = bold && italic ? fonts.bold_italic : (bold ? fonts.bold : fonts.italic);
+		}
+		if (variant.is_valid()) {
+			font = variant;
+		}
+		else if (bold || italic) {
 			Ref<FontVariation> variation;
 			variation.instantiate();
-			variation->set_base_font(default_font);
+			variation->set_base_font(font);
 			if (bold) {
 				variation->set_variation_embolden(0.6f);
 			}
@@ -215,7 +453,7 @@ namespace docrender {
 		const Ref<TextLine> line = font.shape(p_text);
 		const Vector2 top_left(p_position.x, p_position.y + font.ascent - line->get_line_ascent());
 		const Color color = to_color(p_color);
-		add_command(Text{ line, top_left, color });
+		add_command(Text{ line, top_left, color, -1, String::utf8(p_text).length() });
 
 		const int decoration = font.description.decoration_line;
 		if (decoration == text_decoration_line_none) {
@@ -269,26 +507,18 @@ namespace docrender {
 	}
 
 	Ref<Texture2D> LiteHTMLContainer::load_texture(const char* p_src) {
-		const String source = String::utf8(p_src).uri_decode().replace("\\", "/");
-		if (source.is_empty() || source.begins_with("/")) {
-			return {};
-		}
-
-		const bool absolute = source.begins_with("res://");
-		std::optional<String> normalized = normalize_resource_path(absolute ? source : "res://" + source);
-		if (!normalized) {
-			return {};
-		}
-		const String path = absolute ? *normalized : base_dir.path_join(normalized->substr(6));
-		const String extension = path.get_extension().to_lower();
-		if (extension != "png" && extension != "jpg" && extension != "jpeg" && extension != "webp") {
+		const String path = resolve_html_image_path(String::utf8(p_src), base_dir);
+		if (path.is_empty()) {
 			return {};
 		}
 		if (const Ref<Texture2D>* cached = images.getptr(path)) {
 			return *cached;
 		}
 
-		Ref<Texture2D> texture;
+		Ref<Texture2D> texture = textures.get(path, Variant());
+		if (texture.is_valid()) {
+			return texture;
+		}
 		ResourceLoader* loader = ResourceLoader::get_singleton();
 		if (loader->exists(path, "Texture2D")) {
 			texture = loader->load(path, "Texture2D");

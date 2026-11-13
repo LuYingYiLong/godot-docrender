@@ -19,7 +19,7 @@ namespace godot {
 	protected:
 		static void _bind_methods() {}
 
-		virtual const char* get_source_extension() const = 0;
+		virtual bool supports_source_extension(const String& p_extension) const = 0;
 		virtual const char* get_menu_name() const = 0;
 		virtual Control* create_preview_panel() = 0;
 		virtual void update_preview(CodeEdit* p_source, Control* p_preview, const String& p_path) = 0;

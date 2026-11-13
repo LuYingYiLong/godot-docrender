@@ -1,5 +1,6 @@
 #include "docrender_source_editor.h"
 
+#include "formats/html/html_document.h"
 #include "formats/latex/latex_document.h"
 #include "formats/mermaid/mermaid_document.h"
 
@@ -15,6 +16,7 @@
 #include <godot_cpp/classes/item_list.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/script_editor.hpp>
 #include <godot_cpp/classes/script_editor_base.hpp>
 #include <godot_cpp/classes/tab_container.hpp>
@@ -23,6 +25,7 @@
 
 namespace godot {
 	namespace {
+		Ref<HTMLDocumentImporter> startup_html_importer;
 		Ref<LatexDocumentImporter> startup_latex_importer;
 		Ref<MermaidDocumentImporter> startup_mermaid_importer;
 		Ref<PDFTextureImporter> startup_pdf_importer;
@@ -31,6 +34,9 @@ namespace godot {
 			const String extension = p_path.get_extension().to_lower();
 			if (extension == "tex") {
 				return LatexDocument::get_class_static();
+			}
+			if (extension == "html" || extension == "htm") {
+				return HTMLDocument::get_class_static();
 			}
 			return extension == "mmd" ? MermaidDocument::get_class_static() : StringName();
 		}
@@ -79,7 +85,14 @@ namespace godot {
 				}
 				Ref<ConfigFile> config;
 				config.instantiate();
-				if (config->load(sidecar) == OK && String(config->get_value("remap", "importer", "")) == "docrender.source") {
+				if (config->load(sidecar) != OK) {
+					continue;
+				}
+				const String importer = config->get_value("remap", "importer", "");
+				const int64_t version = config->get_value("remap", "importer_version", 0);
+				const bool outdated_html = importer == "docrender.html_document" &&
+					version < HTMLDocumentImporter::FORMAT_VERSION;
+				if (importer == "docrender.source" || outdated_html) {
 					r_paths.append(path);
 				}
 			}
@@ -106,6 +119,7 @@ namespace godot {
 		// creating editor plugins, so register the importers before that scan continues.
 		DocRenderSourceEditorPlugin* registrar = memnew(DocRenderSourceEditorPlugin);
 		registrar->install_importers();
+		startup_html_importer = registrar->html_importer;
 		startup_latex_importer = registrar->latex_importer;
 		startup_mermaid_importer = registrar->mermaid_importer;
 		startup_pdf_importer = registrar->pdf_importer;
@@ -113,6 +127,9 @@ namespace godot {
 	}
 
 	void DocRenderSourceEditorPlugin::install_importers() {
+		html_importer.instantiate();
+		html_importer->set_translation_domain("godot.editor");
+		add_import_plugin(html_importer);
 		latex_importer.instantiate();
 		mermaid_importer.instantiate();
 		latex_importer->set_translation_domain("godot.editor");
@@ -129,6 +146,8 @@ namespace godot {
 	void DocRenderSourceEditorPlugin::_enter_tree() {
 		editor_translations.load();
 		if (startup_latex_importer.is_valid()) {
+			html_importer = startup_html_importer;
+			startup_html_importer.unref();
 			latex_importer = startup_latex_importer;
 			mermaid_importer = startup_mermaid_importer;
 			pdf_importer = startup_pdf_importer;
@@ -139,13 +158,9 @@ namespace godot {
 			install_importers();
 		}
 
-		EditorFileSystem* filesystem = EditorInterface::get_singleton()->get_resource_filesystem();
 		const Callable import_sources = callable_mp(this, &DocRenderSourceEditorPlugin::import_existing_sources);
-		if (filesystem->is_scanning()) {
-			filesystem->connect("filesystem_changed", import_sources, CONNECT_DEFERRED | CONNECT_ONE_SHOT);
-		} else {
-			import_sources.call_deferred();
-		}
+		// Reimport opens a progress dialog, which requires a regular editor frame.
+		get_tree()->connect("process_frame", import_sources, CONNECT_ONE_SHOT);
 
 		const Dictionary version = Engine::get_singleton()->get_version_info();
 		if (int64_t(version["major"]) == 4 && int64_t(version["minor"]) == 7 && int64_t(version["patch"]) == 2) {
@@ -159,13 +174,12 @@ namespace godot {
 		}
 		EditorFileSystem* filesystem = EditorInterface::get_singleton()->get_resource_filesystem();
 		if (filesystem->is_scanning()) {
-			filesystem->connect("filesystem_changed", callable_mp(this, &DocRenderSourceEditorPlugin::import_existing_sources),
-				CONNECT_DEFERRED | CONNECT_ONE_SHOT);
+			get_tree()->connect("process_frame", callable_mp(this, &DocRenderSourceEditorPlugin::import_existing_sources), CONNECT_ONE_SHOT);
 			return;
 		}
 
-		// Godot falls back to the matching extension when the old importer name
-		// is missing and carries the UID forward from the existing .import file.
+		// The filesystem cache may skip checking a changed importer when the
+		// source and sidecar are unchanged. Reimport stale sources with their UIDs.
 		PackedStringArray paths;
 		collect_sources_for_import(filesystem->get_filesystem(), paths);
 		if (!paths.is_empty()) {
@@ -175,6 +189,8 @@ namespace godot {
 
 	void DocRenderSourceEditorPlugin::_exit_tree() {
 		detach_source_editor();
+		remove_import_plugin(html_importer);
+		html_importer.unref();
 		if (pdf_importer.is_valid()) {
 			remove_import_plugin(pdf_importer);
 			pdf_importer.unref();

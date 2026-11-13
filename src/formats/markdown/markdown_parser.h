@@ -1,5 +1,6 @@
 #pragma once
 
+#include "formats/html/html_layout.h"
 #include "formats/latex/tex_render.h"
 
 #include <godot_cpp/classes/font.hpp>
@@ -30,12 +31,15 @@ enum MarkdownBlockType {
 	MARKDOWN_BLOCK_TASK_LIST,
 	MARKDOWN_BLOCK_FOOTNOTES,
 	MARKDOWN_BLOCK_LATEX,
+	MARKDOWN_BLOCK_HTML,
 };
 
 struct MarkdownFootnoteDefinition {
 	String id;
 	String text;
 };
+
+struct MarkdownListItem;
 
 struct MarkdownBlock {
 	MarkdownBlockType type = MARKDOWN_BLOCK_PARAGRAPH;
@@ -56,6 +60,14 @@ struct MarkdownBlock {
 	std::vector<int32_t> item_levels;
 	std::vector<bool> task_checked;
 	std::vector<MarkdownBlock> children;
+	std::vector<MarkdownListItem> list_items;
+};
+
+struct MarkdownListItem {
+	int32_t line = 0;
+	int32_t end_line = 0;
+	bool checked = false;
+	std::vector<MarkdownBlock> children;
 };
 
 struct MarkdownInlineSpan {
@@ -69,14 +81,18 @@ struct MarkdownInlineSpan {
 	int64_t start = 0;
 	int64_t end = 0;
 	Color color;
+	Color background_color;
+	Vector2i image_size;
 	bool bold = false;
 	bool italic = false;
 	bool code = false;
 	bool strikethrough = false;
 	bool highlight = false;
 	bool custom_color = false;
+	bool custom_background = false;
 	bool footnote_ref = false;
 	bool display_math = false;
+	bool html_image = false;
 };
 
 struct MarkdownParagraphObjects {
@@ -108,13 +124,15 @@ struct MarkdownListMarker {
 	Ref<Texture2D> icon;
 };
 
-struct MarkdownBlockquoteLine {
+struct MarkdownContainerLine {
 	MarkdownBlockType type = MARKDOWN_BLOCK_PARAGRAPH;
 	Ref<TextParagraph> paragraph;
+	Ref<HTMLLayout> html_layout;
 	Ref<StyleBox> stylebox;
 	Rect2 rect;
 	Rect2 text_rect;
 	String text;
+	String anchor;
 	std::vector<MarkdownInlineSpan> spans;
 	MarkdownParagraphObjects objects;
 	std::vector<MarkdownListMarker> list_markers;
@@ -137,6 +155,7 @@ struct MarkdownCanvasItem {
 	MarkdownBlockType type = MARKDOWN_BLOCK_PARAGRAPH;
 	int32_t source_line = 0;
 	Ref<TextParagraph> paragraph;
+	Ref<HTMLLayout> html_layout;
 	Ref<TextParagraph> header_paragraph;
 	Ref<StyleBox> panel_stylebox;
 	Ref<StyleBox> header_stylebox;
@@ -171,7 +190,7 @@ struct MarkdownCanvasItem {
 	std::vector<MarkdownListMarker> list_markers;
 	std::vector<MarkdownTableCell> cells;
 	MarkdownParagraphObjects objects;
-	std::vector<MarkdownBlockquoteLine> quote_lines;
+	std::vector<MarkdownContainerLine> container_lines;
 	std::vector<String> footnote_ids;
 	std::vector<int32_t> footnote_numbers;
 	std::vector<int64_t> footnote_starts;
@@ -190,6 +209,7 @@ struct MarkdownParserState {
 	bool in_blockquote = false;
 	int32_t blockquote_depth = 0;
 	int32_t unclosed_latex_line = 0;
+	int32_t unclosed_html_line = 0;
 	int64_t stable_source_offset = 0;
 	int32_t stable_block_count = 0;
 
@@ -205,6 +225,7 @@ struct MarkdownParserState {
 		in_blockquote = false;
 		blockquote_depth = 0;
 		unclosed_latex_line = 0;
+		unclosed_html_line = 0;
 		stable_source_offset = 0;
 		stable_block_count = 0;
 	}
@@ -218,10 +239,11 @@ struct MarkdownParseResult {
 struct MarkdownParseOptions {
 	bool parse_latex = false;
 	bool parse_gfm = true;
+	bool parse_html = false;
 };
 
 // Parser functions
-std::vector<String> split_lines(const String& p_text);
+std::vector<String> split_lines(const String& p_text, bool p_keep_trailing_space = false);
 MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {});
 std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {});
 

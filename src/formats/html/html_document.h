@@ -1,48 +1,28 @@
-#ifndef DOCRENDER_HTML_DOCUMENT_H
-#define DOCRENDER_HTML_DOCUMENT_H
+#pragma once
 
-#include <godot_cpp/classes/ref_counted.hpp>
-#include <godot_cpp/variant/rect2.hpp>
-#include <godot_cpp/variant/vector2i.hpp>
+#include "html_layout.h"
 
-#include <cstdint>
-#include <memory>
+#include <godot_cpp/classes/resource.hpp>
 
-namespace godot {
-	class CanvasItem;
-}
+class HTMLDocument : public godot::Resource {
+	GDCLASS(HTMLDocument, godot::Resource)
 
-class HTMLDocument : public godot::RefCounted {
-	GDCLASS(HTMLDocument, godot::RefCounted)
-
-	struct State;
-	std::unique_ptr<State> state;
-
-	void _on_canvas_redraw(uint64_t p_id);
-	void _detach_canvas(uint64_t p_id);
+	godot::String text;
+	godot::String base_dir = "res://";
+	godot::String stylesheet;
+	godot::Dictionary textures;
 
 protected:
 	static void _bind_methods();
 
 public:
-	struct LinkHit {
-		godot::String uri;
-		uintptr_t id = 0;
-	};
-
-	HTMLDocument();
-	~HTMLDocument() override;
-
-	godot::Error parse(const godot::String& p_html, const godot::String& p_base_dir = "res://",
-		const godot::String& p_stylesheet = "");
-	godot::Error layout(const godot::Vector2i& p_viewport_size);
-	godot::Vector2i get_content_size() const;
-	void draw(godot::CanvasItem* p_canvas, const godot::Vector2& p_position = {},
-		const godot::Rect2& p_clip = {});
-	godot::String get_link_at(const godot::Vector2& p_position) const;
-	LinkHit find_link_at(const godot::Vector2& p_position) const;
-	godot::String get_render_error() const;
-	void clear();
+	void set_text(const godot::String& p_text);
+	godot::String get_text() const;
+	void set_base_dir(const godot::String& p_dir);
+	godot::String get_base_dir() const;
+	void set_stylesheet(const godot::String& p_stylesheet);
+	godot::String get_stylesheet() const;
+	void set_textures(const godot::Dictionary& p_textures);
+	godot::Dictionary get_textures() const;
+	godot::Ref<HTMLLayout> create_layout() const;
 };
-
-#endif

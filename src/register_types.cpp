@@ -1,6 +1,8 @@
 #include "register_types.h"
 
 #include "editor/docrender_source_editor.h"
+#include "editor/html_preview_editor_plugin.h"
+#include "editor/importers/html_document_importer.h"
 #include "editor/importers/latex_document_importer.h"
 #include "editor/importers/mermaid_document_importer.h"
 #include "editor/importers/pdf_texture_importer.h"
@@ -46,6 +48,7 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_CLASS(PDFTexture);
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
+		GDREGISTER_CLASS(HTMLLayout);
 		GDREGISTER_CLASS(HTMLDocument);
 		GDREGISTER_INTERNAL_CLASS(HTMLLabelCanvas);
 		GDREGISTER_CLASS(HTMLLabel);
@@ -61,11 +64,14 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 
 	else if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR && Engine::get_singleton()->is_editor_hint()) {
 		GDREGISTER_ABSTRACT_CLASS(ScriptEditorPreviewPlugin);
+		GDREGISTER_INTERNAL_CLASS(HTMLPreviewEditorPlugin);
 		GDREGISTER_INTERNAL_CLASS(MarkdownPreviewEditorPlugin);
 		GDREGISTER_INTERNAL_CLASS(MermaidPreviewEditorPlugin);
+		EditorPlugins::add_by_type<HTMLPreviewEditorPlugin>();
 		EditorPlugins::add_by_type<MarkdownPreviewEditorPlugin>();
 		EditorPlugins::add_by_type<MermaidPreviewEditorPlugin>();
 		GDREGISTER_INTERNAL_CLASS(LatexDocumentImporter);
+		GDREGISTER_INTERNAL_CLASS(HTMLDocumentImporter);
 		GDREGISTER_INTERNAL_CLASS(MermaidDocumentImporter);
 		if (PDFTextureImporter::is_supported()) {
 			GDREGISTER_INTERNAL_CLASS(PDFTextureImporter);
@@ -82,6 +88,7 @@ void uninitialize_docrender_module(ModuleInitializationLevel p_level) {
 		EditorPlugins::remove_by_type<DocRenderSourceEditorPlugin>();
 		EditorPlugins::remove_by_type<MermaidPreviewEditorPlugin>();
 		EditorPlugins::remove_by_type<MarkdownPreviewEditorPlugin>();
+		EditorPlugins::remove_by_type<HTMLPreviewEditorPlugin>();
 		editor_plugins_registered = false;
 	}
 	if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {

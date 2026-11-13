@@ -49,3 +49,8 @@ msgstr "仅预览"
 msgctxt "Godot DocRender"
 msgid "View Source"
 msgstr "查看源文件"
+
+#. src/editor/importers/html_document_importer.cpp:13
+msgctxt "Godot DocRender"
+msgid "HTML Document"
+msgstr "HTML 文档"

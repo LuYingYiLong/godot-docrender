@@ -20,6 +20,10 @@ class HTMLLabelCanvas : public godot::Control {
 	HTMLLabel* label = nullptr;
 	godot::Vector2 pressed_position;
 	uintptr_t pressed_link = 0;
+	int64_t selection_anchor = 0;
+	int64_t selection_caret = 0;
+	bool selecting = false;
+	bool selection_dragged = false;
 
 	void cancel_press();
 	void update_cursor(const godot::Vector2& p_point);
@@ -40,6 +44,7 @@ class HTMLLabel : public godot::Control {
 		friend class HTMLLabelCanvas;
 
 	godot::Ref<HTMLDocument> document;
+	godot::Ref<HTMLLayout> layout;
 	godot::ScrollContainer* scroll_container = nullptr;
 	HTMLLabelCanvas* canvas = nullptr;
 	godot::String text;
@@ -52,10 +57,12 @@ class HTMLLabel : public godot::Control {
 	bool source_dirty = true;
 	bool parsed = false;
 	bool refresh_queued = false;
+	bool selection_enabled = true;
 
 	void ensure_controls();
 	void queue_refresh();
 	void source_changed();
+	void document_changed(uint64_t p_document_id);
 	void refresh();
 	void update_view(const godot::Vector2i& p_viewport, const godot::Vector2i& p_content,
 		bool p_scroll_horizontal, bool p_scroll_vertical, const godot::String& p_error = {});
@@ -72,6 +79,8 @@ protected:
 public:
 	HTMLLabel();
 
+	void set_document(const godot::Ref<HTMLDocument>& p_document);
+	godot::Ref<HTMLDocument> get_document() const;
 	void set_text(const godot::String& p_text);
 	godot::String get_text() const;
 	void set_base_dir(const godot::String& p_base_dir);
@@ -82,5 +91,11 @@ public:
 	godot::String get_render_error() const;
 	godot::Vector2i get_scroll_offset() const;
 	void set_scroll_offset(const godot::Vector2i& p_offset);
+	bool scroll_to_anchor(const godot::String& p_id, float p_align = 0.0f);
+	void set_selection_enabled(bool p_enabled);
+	bool is_selection_enabled() const;
+	void select_all();
+	void clear_selection();
+	godot::String get_selected_text() const;
 	godot::PackedStringArray _get_configuration_warnings() const override;
 };
