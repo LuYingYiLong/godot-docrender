@@ -21,6 +21,7 @@
 #include <litehtml/render_image.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 #include <string_view>
@@ -70,6 +71,25 @@ uniform vec4 inner_radii_x;
 uniform vec4 inner_radii_y;
 uniform vec4 border_widths;
 uniform vec4 border_colors[4];
+uniform ivec4 border_styles;
+const int BORDER_DOTTED = 2;
+const int BORDER_DASHED = 3;
+const int BORDER_DOUBLE = 4;
+uniform vec4 double_outer_box;
+uniform vec4 double_outer_rx;
+uniform vec4 double_outer_ry;
+uniform vec4 double_inner_box;
+uniform vec4 double_inner_rx;
+uniform vec4 double_inner_ry;
+uniform vec4 border_center_box;
+uniform vec4 border_center_rx;
+uniform vec4 border_center_ry;
+uniform vec4 border_edge_starts;
+uniform vec4 border_edge_lengths;
+uniform vec4 border_arc_lengths;
+uniform vec4 border_periods;
+uniform vec4 border_pattern_starts;
+uniform bool border_pattern_continuous;
 
 uniform int gradient_type;
 uniform int stop_count;
@@ -85,21 +105,28 @@ void vertex() {
 	document_point = VERTEX;
 }
 
+int rounded_corner(vec2 from_start, vec2 from_end, vec4 rx, vec4 ry) {
+	if (from_start.x < rx.x && from_start.y < ry.x) {
+		return 0;
+	}
+	if (from_end.x < rx.y && from_start.y < ry.y) {
+		return 1;
+	}
+	if (from_end.x < rx.z && from_end.y < ry.z) {
+		return 2;
+	}
+	if (from_start.x < rx.w && from_end.y < ry.w) {
+		return 3;
+	}
+	return -1;
+}
+
 float box_coverage(vec2 p, vec4 box, vec4 rx, vec4 ry) {
 	vec2 from_start = p - box.xy;
 	vec2 from_end = box.zw - p;
 	vec2 near_edge = min(from_start, from_end);
 	float distance_to_edge = min(near_edge.x, near_edge.y);
-	int corner = -1;
-	if (from_start.x < rx.x && from_start.y < ry.x) {
-		corner = 0;
-	} else if (from_end.x < rx.y && from_start.y < ry.y) {
-		corner = 1;
-	} else if (from_end.x < rx.z && from_end.y < ry.z) {
-		corner = 2;
-	} else if (from_start.x < rx.w && from_end.y < ry.w) {
-		corner = 3;
-	}
+	int corner = rounded_corner(from_start, from_end, rx, ry);
 	if (corner >= 0 && rx[corner] > 0.0 && ry[corner] > 0.0) {
 		vec2 radius = vec2(rx[corner], ry[corner]);
 		vec2 edge = vec2(
@@ -111,6 +138,80 @@ float box_coverage(vec2 p, vec4 box, vec4 rx, vec4 ry) {
 	}
 	float aa = max(fwidth(distance_to_edge), 0.001);
 	return clamp(distance_to_edge / aa + 0.5, 0.0, 1.0);
+}
+
+// Approximate partial arc length with Simpson integration of the ellipse speed.
+float ellipse_arc_fraction(vec2 axes, float angle, vec2 direction) {
+	vec2 half_angle = vec2(sin(angle * 0.5), cos(angle * 0.5));
+	float arc = angle * (axes.y + 4.0 * length(axes * half_angle) + length(axes * direction));
+	float quarter_arc = (PI * 0.5) * (axes.y + 4.0 * length(axes * vec2(0.70710678)) + axes.x);
+	return arc / quarter_arc;
+}
+
+float border_path_distance(vec2 p, int side, float perimeter) {
+	vec2 start = p - border_center_box.xy;
+	vec2 end = border_center_box.zw - p;
+	int corner = rounded_corner(start, end, border_center_rx, border_center_ry);
+	if (corner >= 0 && border_center_rx[corner] > 0.0 && border_center_ry[corner] > 0.0) {
+		vec2 radius = vec2(border_center_rx[corner], border_center_ry[corner]);
+		vec2 edge = vec2(corner == 0 || corner == 3 ? start.x : end.x, corner < 2 ? start.y : end.y);
+		vec2 unit = (radius - edge) / radius;
+		vec2 along = corner % 2 == 0 ? unit : unit.yx;
+		float angle = atan(along.y, along.x);
+		vec2 axes = corner % 2 == 0 ? radius : radius.yx;
+		float fraction = ellipse_arc_fraction(axes, angle, normalize(along));
+		int previous_side = (corner + 3) % 4;
+		if (corner == 0) {
+			return perimeter + (fraction - 1.0) * border_arc_lengths[previous_side];
+		}
+		return border_edge_starts[previous_side] + border_edge_lengths[previous_side] +
+			fraction * border_arc_lengths[previous_side];
+	}
+	vec4 along = vec4(start.x, start.y, end.x, end.y);
+	vec4 tangent = vec4(border_center_rx.x, border_center_ry.y, border_center_rx.z, border_center_ry.w);
+	return border_edge_starts[side] + along[side] - tangent[side];
+}
+
+// Locate a dot's center on the rounded path, then measure the circle in document pixels.
+vec2 border_path_point(float distance_along, float perimeter) {
+	distance_along = mod(distance_along, max(perimeter, 0.001));
+	int side = 0;
+	for (int i = 1; i < 4; i++) {
+		if (distance_along >= border_edge_starts[i]) {
+			side = i;
+		}
+	}
+	vec2 start = border_center_box.xy;
+	vec2 end = border_center_box.zw;
+	vec4 tangent = vec4(border_center_rx.x, border_center_ry.y, border_center_rx.z, border_center_ry.w);
+	float edge = distance_along - border_edge_starts[side];
+	if (edge <= border_edge_lengths[side] || border_arc_lengths[side] == 0.0) {
+		float along = edge + tangent[side];
+		if (side == 0) { return vec2(start.x + along, start.y); }
+		if (side == 1) { return vec2(end.x, start.y + along); }
+		if (side == 2) { return vec2(end.x - along, end.y); }
+		return vec2(start.x, end.y - along);
+	}
+	int corner = (side + 1) % 4;
+	vec2 radius = vec2(border_center_rx[corner], border_center_ry[corner]);
+	vec2 axes = corner % 2 == 0 ? radius : radius.yx;
+	float fraction = (edge - border_edge_lengths[side]) / border_arc_lengths[side];
+	float low = 0.0;
+	float high = PI * 0.5;
+	for (int i = 0; i < 7; i++) {
+		float angle = (low + high) * 0.5;
+		vec2 angle_vector = vec2(sin(angle), cos(angle));
+		if (ellipse_arc_fraction(axes, angle, angle_vector) < fraction) {
+			low = angle;
+		} else {
+			high = angle;
+		}
+	}
+	float angle = (low + high) * 0.5;
+	vec2 unit = vec2(cos(angle), sin(angle));
+	vec2 offset = radius * (vec2(1.0) - (corner % 2 == 0 ? unit : unit.yx));
+	return vec2(corner == 0 || corner == 3 ? start.x + offset.x : end.x - offset.x,
+		corner < 2 ? start.y + offset.y : end.y - offset.y);
 }
 
 vec4 sample_gradient(float t) {
@@ -157,11 +258,51 @@ void fragment() {
 		vec2 a = document_point - box.xy;
 		vec2 b = box.zw - document_point;
 		vec4 distance = vec4(a.y, b.x, b.y, a.x) / max(border_widths, vec4(0.000001));
-		int side = 0;
-		for (int i = 1; i < 4; i++) {
-			if (distance[i] < distance[side]) {
+		int side = -1;
+		for (int i = 0; i < 4; i++) {
+			if (border_widths[i] > 0.0 && (side < 0 || distance[i] < distance[side])) {
 				side = i;
 			}
+		}
+		int style = border_styles[side];
+		if (style == BORDER_DOTTED || style == BORDER_DASHED) {
+			int path_side = side;
+			if (border_pattern_continuous) {
+				vec2 center_start = document_point - border_center_box.xy;
+				vec2 center_end = border_center_box.zw - document_point;
+				vec4 center_distance = vec4(center_start.y, center_end.x, center_end.y, center_start.x);
+				for (int i = 0; i < 4; i++) {
+					if (center_distance[i] < center_distance[path_side]) {
+						path_side = i;
+					}
+				}
+			}
+			float perimeter = border_edge_starts.w + border_edge_lengths.w + border_arc_lengths.w;
+			float path = border_path_distance(document_point, path_side, perimeter);
+			if (!border_pattern_continuous && side == 0 && path > border_edge_lengths.x + border_arc_lengths.x) {
+				path -= perimeter;
+			}
+			float period = border_periods[side];
+			float along = mod(path - border_pattern_starts[side], period) - period * 0.5;
+			// The document derivatives also work where the path wraps at a corner.
+			float aa = max(length(fwidth(document_point)), 0.001);
+			float edge = period * 0.3 - abs(along);
+			if (style == BORDER_DOTTED) {
+				float radius = min(border_widths[side], period) * 0.5;
+				float center = path - along;
+				float distance_to_dot = length(document_point - border_path_point(center, perimeter));
+				// An adjacent center can be closer around a sharp or elliptical corner.
+				if (border_pattern_continuous && distance_to_dot > radius - aa) {
+					float adjacent = center + (along < 0.0 ? -period : period);
+					distance_to_dot = min(distance_to_dot, length(document_point - border_path_point(adjacent, perimeter)));
+				}
+				edge = radius - distance_to_dot;
+			}
+			coverage = min(coverage, clamp(edge / aa + 0.5, 0.0, 1.0));
+		} else if (style == BORDER_DOUBLE) {
+			float outside_gap = 1.0 - box_coverage(document_point, double_outer_box, double_outer_rx, double_outer_ry);
+			float inside_gap = box_coverage(document_point, double_inner_box, double_inner_rx, double_inner_ry);
+			coverage = min(coverage, max(outside_gap, inside_gap));
 		}
 		COLOR *= border_colors[side];
 	} else if (gradient_type > 0) {
@@ -210,8 +351,33 @@ void fragment() {
 			return Vector4(p_rect.position.x, p_rect.position.y, p_rect.get_end().x, p_rect.get_end().y);
 		}
 
-		float solid_border_width(const border& p_border, float p_maximum) {
-			return p_border.style == border_style_solid ? std::clamp(p_border.width, 0.0f, p_maximum) : 0.0f;
+		enum BorderPaint { BORDER_NONE, BORDER_SOLID, BORDER_DOTTED, BORDER_DASHED, BORDER_DOUBLE };
+
+		BorderPaint get_border_paint(border_style p_style) {
+			switch (p_style) {
+				case border_style_solid: return BORDER_SOLID;
+				case border_style_dotted: return BORDER_DOTTED;
+				case border_style_dashed: return BORDER_DASHED;
+				case border_style_double: return BORDER_DOUBLE;
+				default: return BORDER_NONE;
+			}
+		}
+
+		float quarter_ellipse_length(float p_x, float p_y) {
+			const float sum = p_x + p_y;
+			if (sum == 0.0f) {
+				return 0.0f;
+			}
+			// Ramanujan's approximation, divided by four for each corner.
+			const float ratio = (p_x - p_y) / sum;
+			const float h = ratio * ratio;
+			return Math_PI * 0.25f * sum * (1.0f + 3.0f * h / (10.0f + std::sqrt(4.0f - 3.0f * h)));
+		}
+
+		float border_pattern_period(float p_length, float p_width, BorderPaint p_style) {
+			const float preferred = p_width * (p_style == BORDER_DOTTED ? 2.0f : 5.0f);
+			const float count = std::max(1.0f, std::round(p_length / preferred));
+			return std::max(0.001f, p_length / count);
 		}
 
 		class FittedImageRenderItem : public render_item_image {
@@ -1050,21 +1216,97 @@ void fragment() {
 		if (!rect.has_area()) {
 			return;
 		}
-		const float top = solid_border_width(p_borders.top, rect.size.y);
-		const float bottom = solid_border_width(p_borders.bottom, rect.size.y - top);
-		const float left = solid_border_width(p_borders.left, rect.size.x);
-		const float right = solid_border_width(p_borders.right, rect.size.x - left);
+		const std::array<const border*, 4> sides{ &p_borders.top, &p_borders.right, &p_borders.bottom, &p_borders.left };
+		std::array<BorderPaint, 4> styles;
+		for (int side = 0; side < 4; ++side) {
+			styles[side] = sides[side]->width > 0.0f ? get_border_paint(sides[side]->style) : BORDER_NONE;
+		}
+		const auto width = [&](int p_side, float p_maximum) {
+			return styles[p_side] == BORDER_NONE ? 0.0f : std::clamp(sides[p_side]->width, 0.0f, p_maximum);
+		};
+		const float top = width(0, rect.size.y);
+		const float bottom = width(2, rect.size.y - top);
+		const float left = width(3, rect.size.x);
+		const float right = width(1, rect.size.x - left);
+		if (top + right + bottom + left == 0.0f) {
+			return;
+		}
+		const Vector4 widths(top, right, bottom, left);
+		for (int side = 0; side < 4; ++side) {
+			if (widths[side] == 0.0f) {
+				styles[side] = BORDER_NONE;
+			}
+		}
 		const float inner_height = rect.size.y - top - bottom;
 		const Vector2 end = rect.get_end();
 		const RoundedRect outer(rect, p_borders.radius);
-		if (outer.has_radius() && top + right + bottom + left > 0.0f) {
-			const RoundedRect inner = outer.inset(Rect2(rect.position.x + left, rect.position.y + top, rect.size.x - left - right, inner_height));
+		const bool patterned = std::any_of(styles.begin(), styles.end(),
+			[](BorderPaint p_style) { return p_style == BORDER_DOTTED || p_style == BORDER_DASHED; });
+		const bool double_line = std::find(styles.begin(), styles.end(), BORDER_DOUBLE) != styles.end();
+		if (outer.has_radius() || patterned || double_line) {
+			const auto inset = [&](float p_fraction) {
+				const Vector2 leading(left * p_fraction, top * p_fraction);
+				const Vector2 trailing(right * p_fraction, bottom * p_fraction);
+				return outer.inset(Rect2(rect.position + leading, rect.size - leading - trailing));
+			};
+			const RoundedRect inner = inset(1.0f);
 			const Ref<ShaderMaterial> material = create_material(&outer);
 			material->set_shader_parameter("draw_border", true);
 			material->set_shader_parameter("inner_box", box_uniform(inner.rect));
 			material->set_shader_parameter("inner_radii_x", inner.radii_x);
 			material->set_shader_parameter("inner_radii_y", inner.radii_y);
-			material->set_shader_parameter("border_widths", Vector4(top, right, bottom, left));
+			material->set_shader_parameter("border_widths", widths);
+			if (patterned || double_line) {
+				material->set_shader_parameter("border_styles", Vector4i(styles[0], styles[1], styles[2], styles[3]));
+			}
+			if (double_line) {
+				const RoundedRect gap_outer = inset(1.0f / 3.0f);
+				const RoundedRect gap_inner = inset(2.0f / 3.0f);
+				material->set_shader_parameter("double_outer_box", box_uniform(gap_outer.rect));
+				material->set_shader_parameter("double_outer_rx", gap_outer.radii_x);
+				material->set_shader_parameter("double_outer_ry", gap_outer.radii_y);
+				material->set_shader_parameter("double_inner_box", box_uniform(gap_inner.rect));
+				material->set_shader_parameter("double_inner_rx", gap_inner.radii_x);
+				material->set_shader_parameter("double_inner_ry", gap_inner.radii_y);
+			}
+			if (patterned) {
+				const RoundedRect center = inset(0.5f);
+				const auto& rx = center.radii_x;
+				const auto& ry = center.radii_y;
+				const Vector4 edges = Vector4(center.rect.size.x - rx.x - rx.y, center.rect.size.y - ry.y - ry.z,
+					center.rect.size.x - rx.z - rx.w, center.rect.size.y - ry.w - ry.x).max(Vector4());
+				const Vector4 arcs(quarter_ellipse_length(rx.y, ry.y), quarter_ellipse_length(rx.z, ry.z),
+					quarter_ellipse_length(rx.w, ry.w), quarter_ellipse_length(rx.x, ry.x));
+				Vector4 starts;
+				float perimeter = 0.0f;
+				for (int side = 0; side < 4; ++side) {
+					starts[side] = perimeter;
+					perimeter += edges[side] + arcs[side];
+				}
+				const bool closed = outer.has_radius() && top > 0.0f && widths == Vector4(top, top, top, top) &&
+					std::all_of(styles.begin() + 1, styles.end(), [&](BorderPaint p_style) { return p_style == styles[0]; }) &&
+					std::all_of(sides.begin() + 1, sides.end(), [&](const border* p_side) { return p_side->color == sides[0]->color; });
+				Vector4 periods;
+				Vector4 origins;
+				for (int side = 0; side < 4; ++side) {
+					if (styles[side] == BORDER_DOTTED || styles[side] == BORDER_DASHED) {
+						const int previous = (side + 3) % 4;
+						const float preceding = arcs[previous] * 0.5f;
+						const float length = preceding + edges[side] + arcs[side] * 0.5f;
+						periods[side] = border_pattern_period(closed ? perimeter : length, widths[side], styles[side]);
+						origins[side] = closed ? 0.0f : starts[side] - preceding;
+					}
+				}
+				material->set_shader_parameter("border_center_box", box_uniform(center.rect));
+				material->set_shader_parameter("border_center_rx", rx);
+				material->set_shader_parameter("border_center_ry", ry);
+				material->set_shader_parameter("border_edge_starts", starts);
+				material->set_shader_parameter("border_edge_lengths", edges);
+				material->set_shader_parameter("border_arc_lengths", arcs);
+				material->set_shader_parameter("border_periods", periods);
+				material->set_shader_parameter("border_pattern_starts", origins);
+				material->set_shader_parameter("border_pattern_continuous", closed);
+			}
 			const auto color_vector = [](const border& p_border) {
 				const Color color = to_color(p_border.color);
 				return Vector4(color.r, color.g, color.b, color.a);
