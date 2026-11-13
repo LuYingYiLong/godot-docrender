@@ -213,7 +213,7 @@ struct MarkdownParserState {
 	int64_t stable_source_offset = 0;
 	int32_t stable_block_count = 0;
 
-	void reset() {
+	void reset() { // 将 Markdown 流式解析状态重置为初始值
 		in_fenced_code = false;
 		fence_marker = String();
 		fence_count = 0;
@@ -243,9 +243,9 @@ struct MarkdownParseOptions {
 };
 
 // Parser functions
-std::vector<String> split_lines(const String& p_text, bool p_keep_trailing_space = false);
-MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {});
-std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {});
+std::vector<String> split_lines(const String& p_text, bool p_keep_trailing_space = false); // 按行拆分源文本，可保留行尾空白
+MarkdownParseResult parse_markdown_document(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {}); // 解析 Markdown 块并返回后续流式解析所需的状态
+std::vector<MarkdownBlock> parse_markdown_blocks(const String& p_text, const MarkdownParserState* p_initial_state = nullptr, int32_t p_max_lines = INT_MAX, const MarkdownParseOptions& p_options = {}); // 按指定选项解析 Markdown 并返回块列表
 
 // Inline span parsing result
 struct MarkdownInlineSpanParseResult {
@@ -253,10 +253,10 @@ struct MarkdownInlineSpanParseResult {
 	std::vector<MarkdownInlineSpan> spans;
 };
 
-MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const MarkdownParseOptions& p_options = {});
+MarkdownInlineSpanParseResult parse_inline_spans(const String& p_text, const MarkdownParseOptions& p_options = {}); // 解析行内语法并返回显示文本及各样式片段
 
 // Streaming helpers
-int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std::vector<String>& p_lines, const MarkdownParserState& p_state, int32_t p_max_unstable_lines);
-void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock>& r_blocks, MarkdownParserState& r_state, const MarkdownParseOptions& p_options = {});
-uint64_t compute_block_hash(const MarkdownBlock& p_block);
-String slugify_heading(const String& p_text);
+int32_t find_reparse_line(const std::vector<MarkdownBlock>& p_blocks, const std::vector<String>& p_lines, const MarkdownParserState& p_state, int32_t p_max_unstable_lines); // 计算流式追加时需要重新解析的起始行索引
+void rebuild_tail(const String& p_raw_text, int32_t p_reparse_line, std::vector<MarkdownBlock>& r_blocks, MarkdownParserState& r_state, const MarkdownParseOptions& p_options = {}); // 从指定行重新解析尾部，替换受影响的块并更新解析状态
+uint64_t compute_block_hash(const MarkdownBlock& p_block); // 计算用于识别 Markdown 块内容变化的哈希值
+String slugify_heading(const String& p_text); // 将标题文本转换为可用于锚点的标识

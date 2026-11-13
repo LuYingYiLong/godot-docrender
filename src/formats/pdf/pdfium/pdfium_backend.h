@@ -307,8 +307,8 @@
 
 namespace godot::pdfium {
 	// The lock also covers initialization and native handle destruction.
-	std::recursive_mutex& mutex();
-	Error read_file(const String& p_path, PackedByteArray& r_bytes, String& r_message);
+	std::recursive_mutex& mutex(); // 返回用于串行化 PDFium 调用的递归锁
+	Error read_file(const String& p_path, PackedByteArray& r_bytes, String& r_message); // 读取 PDF 文件字节并在失败时写出诊断信息
 
 #ifdef DOCRENDER_PDFIUM_ENABLED
 	enum class Group {
@@ -329,9 +329,9 @@ namespace godot::pdfium {
 #undef PDFIUM_DECLARE
 
 		~Api();
-		bool load(String& r_message);
-		bool has(Group p_group) const;
-		PackedStringArray capabilities(bool p_writer = false) const;
+		bool load(String& r_message); // 加载 PDFium 动态库、解析符号并初始化后端
+		bool has(Group p_group) const; // 检查指定能力组所需的符号是否齐全
+		PackedStringArray capabilities(bool p_writer = false) const; // 列出可用的读取或写入能力标识
 
 	private:
 		HMODULE library = nullptr;
@@ -346,12 +346,12 @@ namespace godot::pdfium {
 	};
 
 	FPDF_DOCUMENT load_document(const Api& p_api, const PackedByteArray& p_bytes, const String& p_password,
-		const String& p_source, Error& r_error, String& r_message);
-	std::shared_ptr<Api> acquire(String& r_message);
-	void shutdown();
+		const String& p_source, Error& r_error, String& r_message); // 从内存加载 PDF 并写出错误码和诊断信息
+	std::shared_ptr<Api> acquire(String& r_message); // 按需加载并返回共享的 PDFium 后端
+	void shutdown(); // 释放后端缓存持有的 PDFium 实例引用
 
 	template <typename Handle, typename Deleter>
-	auto scoped(Handle p_handle, Deleter p_deleter) {
+	auto scoped(Handle p_handle, Deleter p_deleter) { // 用指定关闭函数将原生句柄包装为 RAII 对象
 		return std::unique_ptr<std::remove_pointer_t<Handle>, Deleter>(p_handle, p_deleter);
 	}
 
@@ -361,7 +361,7 @@ namespace godot::pdfium {
 	// PDFium's two-pass APIs count either bytes or elements. Keep the count and
 	// the element type together so character and geometry buffers stay aligned.
 	template <typename Element = uint8_t, typename Read>
-	PackedByteArray read_buffer(Read p_read) {
+	PackedByteArray read_buffer(Read p_read) { // 先查询元素数量，再按元素大小分配并读取 PDFium 输出
 		const uint64_t count = p_read(static_cast<Element*>(nullptr), 0);
 		if (count == 0 || count > uint64_t(std::numeric_limits<int64_t>::max()) / sizeof(Element)) {
 			return {};
@@ -380,14 +380,14 @@ namespace godot::pdfium {
 		return buffer;
 	}
 
-	String utf16(const PackedByteArray& p_buffer);
-	String utf8(const PackedByteArray& p_buffer);
-	Rect2 rect(double p_left, double p_bottom, double p_right, double p_top);
-	Rect2 rect(const FS_RECTF& p_rect);
-	Transform2D transform(const FS_MATRIX& p_matrix);
-	PackedVector2Array quad(const FS_QUADPOINTSF& p_quad);
-	Ref<Image> bitmap_to_image(const Api& p_api, FPDF_BITMAP p_bitmap);
+	String utf16(const PackedByteArray& p_buffer); // 将 PDFium 的 UTF-16 缓冲解码为字符串并去掉末尾空字符
+	String utf8(const PackedByteArray& p_buffer); // 将 PDFium 的 UTF-8 缓冲解码为字符串并去掉末尾空字符
+	Rect2 rect(double p_left, double p_bottom, double p_right, double p_top); // 按 PDF 的左右上下边界构造非负尺寸的矩形
+	Rect2 rect(const FS_RECTF& p_rect); // 将 PDFium 矩形转换为 Godot 矩形，保留 PDF 点坐标
+	Transform2D transform(const FS_MATRIX& p_matrix); // 将 PDFium 矩阵转换为 Godot 二维变换
+	PackedVector2Array quad(const FS_QUADPOINTSF& p_quad); // 按 PDFium 的顶点顺序返回四边形的四个点
+	Ref<Image> bitmap_to_image(const Api& p_api, FPDF_BITMAP p_bitmap); // 将尺寸合规的 PDFium 位图转换为 RGBA8 图像
 	inline constexpr int64_t MAX_BITMAP_EDGE = 8192;
-	bool fits_bitmap(int64_t p_width, int64_t p_height);
+	bool fits_bitmap(int64_t p_width, int64_t p_height); // 检查位图是否满足 8192 像素单边和 64 MiB 输出限制
 #endif
 } // namespace godot::pdfium

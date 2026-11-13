@@ -8,8 +8,8 @@ namespace godot {
 		Error error = OK;
 		String message;
 
-		Error fail(Error p_error, const String& p_message);
-		void clear_error();
+		Error fail(Error p_error, const String& p_message);							// 记录并返回错误码，同时保存诊断信息
+		void clear_error();															// 清除上一次操作的错误状态
 
 #ifdef DOCRENDER_PDFIUM_ENABLED
 		std::shared_ptr<pdfium::Api> api;
@@ -19,11 +19,11 @@ namespace godot {
 		pdfium::FormInfo form_info{};
 
 		~State();
-		void release_document();
-		bool require(pdfium::Group p_group);
-		pdfium::Page page(int64_t p_page);
-		pdfium::TextPage text_page(FPDF_PAGE p_page);
-		bool ensure_form();
+		void release_document();													// 释放表单环境、PDF 文档及其输入缓冲
+		bool require(pdfium::Group p_group);										// 检查文档是否打开且支持指定的 PDFium 能力
+		pdfium::Page page(int64_t p_page);											// 校验页索引并返回自动关闭的 PDFium 页面句柄
+		pdfium::TextPage text_page(FPDF_PAGE p_page);								// 加载页面的文本句柄并在离开作用域时自动关闭
+		bool ensure_form();															// 按需初始化用于读取或渲染表单的 PDFium 环境
 
 		struct FormPage {
 			State& state;

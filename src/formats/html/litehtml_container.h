@@ -32,9 +32,9 @@ namespace docrender {
 			godot::Vector4 radii_y;
 
 			RoundedRect(const godot::Rect2& p_rect, const litehtml::border_radiuses& p_radii);
-			RoundedRect inset(const godot::Rect2& p_rect) const;
-			bool has_radius() const;
-			bool has_point(const godot::Vector2& p_position) const;
+			RoundedRect inset(const godot::Rect2& p_rect) const; // 返回内缩到指定矩形并相应缩小圆角后的形状
+			bool has_radius() const; // 检查是否存在有效的圆角
+			bool has_point(const godot::Vector2& p_position) const; // 检查指定坐标是否在圆角矩形内
 		};
 
 		struct Clip {
@@ -96,23 +96,23 @@ namespace docrender {
 			std::vector<Command> commands;
 
 			void draw(godot::RenderingServer& p_server, const godot::RID& p_canvas, const godot::Vector2& p_offset,
-				const godot::TextServer* p_text_server, const Highlight& p_search, const Highlight& p_selection) const;
+				const godot::TextServer* p_text_server, const Highlight& p_search, const Highlight& p_selection) const; // 将此批绘制命令及高亮提交到指定画布
 		};
 
 		LiteHTMLContainer(const godot::String& p_base_dir, const godot::Dictionary& p_textures, bool p_fit_images,
 			const HTMLLayout::Fonts& p_fonts, const godot::Dictionary& p_local_stylesheets);
-		void set_viewport(const godot::Vector2i& p_size);
-		void record(litehtml::document& p_document, const godot::Vector2i& p_content_size);
-		const std::vector<PaintRun>& get_paint_runs() const;
-		const godot::String& get_plain_text() const;
-		const litehtml::string_map* get_source_attributes(const litehtml::element& p_element) const;
-		void set_source_attribute(const litehtml::element::ptr& p_element, const char* p_name, const char* p_value);
-		void forget_source_attributes(const litehtml::element& p_element);
-		void reset_stylesheet_reads();
-		int64_t hit_test_text(const godot::Vector2& p_point) const;
-		godot::TypedArray<godot::Rect2> get_selection_rects(int64_t p_from, int64_t p_to) const;
-		static bool is_hit_visible(const litehtml::render_item& p_item, const godot::Vector2& p_position);
-		static bool has_visible_area(const litehtml::render_item& p_item, const godot::Rect2& p_box);
+		void set_viewport(const godot::Vector2i& p_size); // 更新排版和媒体查询使用的视口尺寸
+		void record(litehtml::document& p_document, const godot::Vector2i& p_content_size); // 记录已排版文档的绘制命令并建立可选择文本的索引
+		const std::vector<PaintRun>& get_paint_runs() const; // 返回最近一次记录生成的绘制批次
+		const godot::String& get_plain_text() const; // 返回从排版结果提取的纯文本
+		const litehtml::string_map* get_source_attributes(const litehtml::element& p_element) const; // 查找元素的原始属性表
+		void set_source_attribute(const litehtml::element::ptr& p_element, const char* p_name, const char* p_value); // 更新记录的元素属性，传入空指针时移除该属性
+		void forget_source_attributes(const litehtml::element& p_element); // 删除指定元素的属性记录
+		void reset_stylesheet_reads(); // 重置本轮外部样式表的读取计数
+		int64_t hit_test_text(const godot::Vector2& p_point) const; // 查找最接近文档坐标的文本光标偏移
+		godot::TypedArray<godot::Rect2> get_selection_rects(int64_t p_from, int64_t p_to) const; // 返回指定文本范围的可见选区矩形
+		static bool is_hit_visible(const litehtml::render_item& p_item, const godot::Vector2& p_position); // 判断文档坐标是否通过元素及祖先的裁剪
+		static bool has_visible_area(const litehtml::render_item& p_item, const godot::Rect2& p_box); // 检查指定矩形经过元素及祖先裁剪后是否仍有可见面积
 
 	private:
 		struct FontData {
@@ -122,7 +122,7 @@ namespace docrender {
 			litehtml::font_description description;
 			godot::HashMap<godot::String, godot::Ref<godot::TextLine>> lines;
 
-			godot::Ref<godot::TextLine> shape(const char* p_text);
+			godot::Ref<godot::TextLine> shape(const char* p_text); // 返回指定 UTF-8 文本的排版结果，优先复用缓存
 		};
 
 		struct SourceAttributes {
