@@ -52,6 +52,12 @@
 				Looks up a case-sensitive HTML ID in this label's parsed document. See [method HTMLLayout.get_element_by_id].
 			</description>
 		</method>
+		<method name="get_css_diagnostics" qualifiers="const">
+			<return type="Dictionary[]" />
+			<description>
+				Returns a copy of the CSS diagnostics for the current layout. See [method HTMLLayout.get_css_diagnostics] for the dictionary fields.
+			</description>
+		</method>
 		<method name="get_render_error" qualifiers="const">
 			<return type="String" />
 			<description>
@@ -117,6 +123,12 @@
 	<members>
 		<member name="base_dir" type="String" setter="set_base_dir" getter="get_base_dir" default="&quot;res://&quot;">
 			Project resource directory used to resolve relative image paths for [member text]. See [method HTMLLayout.parse] for the supported paths and image formats.
+		</member>
+		<member name="css_diagnostics_enabled" type="bool" setter="set_css_diagnostics_enabled" getter="is_css_diagnostics_enabled" default="false">
+			Collects CSS declaration diagnostics and shows their summary in the Inspector's Debug group after the next layout update. Disabling it clears the results immediately.
+		</member>
+		<member name="css_diagnostics_summary" type="String" setter="" getter="get_css_diagnostics_summary">
+			Read-only summary of the current CSS declaration diagnostics.
 		</member>
 		<member name="document" type="HTMLDocument" setter="set_document" getter="get_document">
 			The HTML resource to display. Its source and styles take priority over the local properties. Set this to [code]null[/code] to use [member text], [member base_dir], and [member stylesheet].

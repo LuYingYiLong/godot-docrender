@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
+#include <godot_cpp/templates/hash_set.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/rect2.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
@@ -132,6 +133,10 @@ namespace docrender {
 		);																			// 更新记录的元素属性，传入空指针时移除该属性
 		void forget_source_attributes(const litehtml::element& p_element);			// 删除指定元素的属性记录
 		void reset_stylesheet_reads();												// 重置本轮外部样式表的读取计数
+		void set_css_diagnostics_enabled(bool p_enabled); // 设置是否收集 CSS 声明诊断
+		void begin_css_diagnostics(); // 清空上一轮样式诊断
+		void set_css_source_kind(litehtml::css_source_kind p_kind); // 设置当前样式表来源
+		godot::TypedArray<godot::Dictionary> get_css_diagnostics() const; // 返回诊断快照
 		int64_t hit_test_text(const godot::Vector2& p_point) const;					// 查找最接近文档坐标的文本光标偏移
 		godot::TypedArray<godot::Rect2> get_selection_rects(
 			int64_t p_from,
@@ -166,6 +171,10 @@ namespace docrender {
 		godot::Dictionary textures;
 		godot::Dictionary local_stylesheets;
 		int stylesheet_reads = 0;
+		bool css_diagnostics_enabled = false;
+		litehtml::css_source_kind css_source_kind = litehtml::css_source_kind::none;
+		godot::TypedArray<godot::Dictionary> css_diagnostics;
+		godot::HashSet<godot::String> css_diagnostic_keys;
 		bool fit_images;
 		HTMLLayout::Fonts fonts;
 		godot::Vector2i viewport_size;
@@ -185,6 +194,10 @@ namespace docrender {
 		godot::Ref<godot::ShaderMaterial> create_material(const RoundedRect* p_shape = nullptr);
 		void add_command(Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
 		void fill_rect(const godot::Rect2& p_rect, const godot::Color& p_color);
+		void draw_decoration(const godot::Rect2& p_rect, litehtml::text_decoration_style p_style, const godot::Color& p_color);
+		litehtml::css_source get_css_source(const litehtml::string& p_base, bool p_inline) const override;
+		void report_css_diagnostic(litehtml::css_diagnostic_kind p_kind, const litehtml::string& p_property,
+			const litehtml::string& p_value, const litehtml::css_source& p_source) override;
 		void draw_gradient(const litehtml::background_layer& p_layer, const litehtml::background_layer::gradient_base& p_gradient,
 			int p_type, const godot::Vector2& p_start, const godot::Vector2& p_parameters);
 
@@ -194,6 +207,10 @@ namespace docrender {
 		litehtml::pixel_t text_width(const char* p_text, litehtml::uint_ptr p_font) override;
 		void draw_text(litehtml::uint_ptr, const char* p_text, litehtml::uint_ptr p_font,
 			litehtml::web_color p_color, const litehtml::position& p_position) override;
+		void draw_styled_text(litehtml::uint_ptr, const char* p_text, litehtml::uint_ptr p_font,
+			litehtml::web_color p_color, const litehtml::position& p_position, const litehtml::element& p_element) override;
+		void record_text(const char* p_text, litehtml::uint_ptr p_font, litehtml::web_color p_color,
+			const litehtml::position& p_position, const std::vector<litehtml::box_shadow>& p_shadows);
 		litehtml::pixel_t pt_to_px(float p_points) const override;
 		litehtml::pixel_t get_default_font_size() const override;
 		const char* get_default_font_name() const override;

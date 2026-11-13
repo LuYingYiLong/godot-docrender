@@ -16,4 +16,5 @@ namespace litehtml {
 	};
 
 	bool parse_box_shadows(const css_token_vector& p_tokens, document_container* p_container, std::vector<box_shadow>& r_shadows);
+	bool parse_text_shadows(const css_token_vector& p_tokens, document_container* p_container, std::vector<box_shadow>& r_shadows);
 }

@@ -93,9 +93,14 @@ class HTMLLabel : public godot::Control {
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
+	void _validate_property(godot::PropertyInfo& p_property) const;
 
 public:
 	HTMLLabel();
+	void set_css_diagnostics_enabled(bool p_enabled); // 设置是否收集 CSS 声明诊断
+	bool is_css_diagnostics_enabled() const; // 返回是否收集 CSS 声明诊断
+	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const; // 返回 CSS 声明诊断的快照
+	godot::String get_css_diagnostics_summary() const; // 返回供检查器显示的诊断摘要
 
 	godot::PackedStringArray _get_configuration_warnings() const override;
 

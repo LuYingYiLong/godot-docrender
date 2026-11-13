@@ -2385,7 +2385,9 @@ msgid ""
 "[code]radial-gradient()[/code], and [code]conic-gradient()[/code] with sRGB color interpolation.\n"
 "Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.\n"
 "[code]box-shadow[/code] supports offsets, blur, spread, and comma-separated layers. Use [code]inset[/code] "
-"for an inner shadow. Shadows follow [code]border-radius[/code] and leave layout and scroll ranges unaffected."
+"for an inner shadow. Shadows follow [code]border-radius[/code] and leave layout and scroll ranges unaffected.\n"
+"[code]text-shadow[/code] supports horizontal and vertical offsets, optional blur and color, and comma-separated layers. "
+"The first layer is drawn closest to the text. Use [code]none[/code] to clear inherited text shadows."
 msgstr ""
 "使用 [method parse] 加载 HTML 文档或片段，再用 [method layout] 设置视口尺寸。在目标 [CanvasItem] 的 [method "
 "CanvasItem._draw] 回调中调用 [method draw]。文档、视口尺寸或绘制位置发生变化后，调用 [method CanvasItem.queue_redraw]。\n"
@@ -2395,7 +2397,9 @@ msgstr ""
 "[code]radial-gradient()[/code] 和 [code]conic-gradient()[/code]，使用 sRGB 颜色插值。\n"
 "文字使用项目主题的默认字体或 Godot 的回退字体。请在主线程中使用渲染器。\n"
 "[code]box-shadow[/code] 支持偏移、模糊、扩张距离以及逗号分隔的多层阴影。使用 [code]inset[/code] 绘制内阴影。"
-"阴影沿 [code]border-radius[/code] 绘制，布局和滚动范围维持原样。"
+"阴影沿 [code]border-radius[/code] 绘制，布局和滚动范围维持原样。\n"
+"[code]text-shadow[/code] 支持水平和垂直偏移、可选的模糊半径和颜色，以及逗号分隔的多层阴影。"
+"第一层最靠近文字。使用 [code]none[/code] 可清除继承的文字阴影。"
 
 #. doc_classes/HTMLElement.xml
 msgid "Returns the attribute value, or [param default_value] if the attribute is absent. Attribute names are ASCII case-insensitive. An explicitly empty attribute returns an empty string."
@@ -2867,3 +2871,41 @@ msgid ""
 msgstr ""
 "[param force] 为 [code]null[/code] 时切换指定类名。传入 [code]true[/code] 添加类名，传入 [code]false[/code] 移除类名。用 "
 "[method has_class] 查询操作后的状态。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Returns a copy of the CSS diagnostics collected during the latest style calculation. Each dictionary "
+"contains [code]kind[/code], [code]property[/code], [code]value[/code], [code]source[/code], and [code]path[/code].\n"
+"[code]kind[/code] is [code]unknown_property[/code], [code]unsupported_value[/code], or [code]not_rendered[/code]. "
+"[code]source[/code] is [code]inline_style[/code], [code]style_element[/code], [code]stylesheet[/code], or "
+"[code]local_stylesheet[/code]. Only local stylesheets include a resource [code]path[/code]."
+msgstr ""
+"返回最近一轮样式计算收集的 CSS 诊断副本。每个字典包含 [code]kind[/code]、[code]property[/code]、"
+"[code]value[/code]、[code]source[/code] 和 [code]path[/code]。\n"
+"[code]kind[/code] 为 [code]unknown_property[/code]、[code]unsupported_value[/code] 或 [code]not_rendered[/code]。"
+"[code]source[/code] 为 [code]inline_style[/code]、[code]style_element[/code]、[code]stylesheet[/code] 或 "
+"[code]local_stylesheet[/code]。本地样式表会附带资源路径 [code]path[/code]。"
+
+#. doc_classes/HTMLLayout.xml
+msgid ""
+"Collects CSS declaration diagnostics. Enable this before [method parse] to collect initial results, or "
+"call [method layout] after enabling it on an existing document. Disabling it clears the results immediately. "
+"See [method get_css_diagnostics]."
+msgstr ""
+"收集 CSS 声明诊断。在 [method parse] 前启用可以收集初次解析的结果。对已有文档启用后，可调用 [method layout]。"
+"关闭后立即清空结果。见 [method get_css_diagnostics]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Returns a copy of the CSS diagnostics for the current layout. See [method HTMLLayout.get_css_diagnostics] for the dictionary fields."
+msgstr "返回当前布局的 CSS 诊断副本。字典字段见 [method HTMLLayout.get_css_diagnostics]。"
+
+#. doc_classes/HTMLLabel.xml
+msgid ""
+"Collects CSS declaration diagnostics and shows their summary in the Inspector's Debug group after the next layout update. "
+"Disabling it clears the results immediately."
+msgstr "收集 CSS 声明诊断，并在下一次布局更新后在检查器的调试分组显示摘要。关闭后立即清空结果。"
+
+#. doc_classes/HTMLLabel.xml
+msgid "Read-only summary of the current CSS declaration diagnostics."
+msgstr "当前 CSS 声明诊断的只读摘要。"

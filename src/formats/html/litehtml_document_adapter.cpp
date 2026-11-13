@@ -186,6 +186,8 @@ namespace litehtml {
 	void docrender_editor::restyle(const document::ptr& p_document, LiteHTMLContainer& p_container,
 		const string& p_default_styles, const string& p_user_styles) {
 		p_container.reset_stylesheet_reads();
+		p_container.begin_css_diagnostics();
+		p_container.set_css_source_kind(css_source_kind::none);
 		auto& doc = *p_document;
 		const auto& root = doc.m_root;
 		doc.m_root_render.reset();
@@ -203,12 +205,14 @@ namespace litehtml {
 		doc.m_master_css.parse_css_stylesheet(p_default_styles, "", p_document);
 		doc.m_master_css.sort_selectors();
 		if (!p_user_styles.empty()) {
+			p_container.set_css_source_kind(css_source_kind::stylesheet);
 			doc.m_user_css.parse_css_stylesheet(p_user_styles, "", p_document);
 			doc.m_user_css.sort_selectors();
 		}
 		doc.update_media_lists(doc.m_media);
 		root->apply_stylesheet(doc.m_master_css);
 		root->parse_attributes();
+		p_container.set_css_source_kind(css_source_kind::style_element);
 		for (const auto& sheet : doc.m_css) {
 			media_query_list_list::ptr media;
 			if (!sheet.media.empty()) {
@@ -221,6 +225,7 @@ namespace litehtml {
 		doc.update_media_lists(doc.m_media);
 		root->apply_stylesheet(doc.m_styles);
 		root->apply_stylesheet(doc.m_user_css);
+		p_container.set_css_source_kind(css_source_kind::none);
 		root->compute_styles();
 
 		doc.m_root_render = root->create_render_item(nullptr);

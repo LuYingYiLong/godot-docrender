@@ -77,6 +77,10 @@ Dictionary HTMLDocument::get_local_stylesheets() const {
 Ref<HTMLLayout> HTMLDocument::create_layout() const {
 	Ref<HTMLLayout> result;
 	result.instantiate();
-	result->parse_source(text, base_dir, stylesheet, textures, false, {}, {}, local_stylesheets);
+	parse_into(*result.ptr());
 	return result;
+}
+
+void HTMLDocument::parse_into(HTMLLayout& p_layout) const {
+	p_layout.parse_source(text, base_dir, stylesheet, textures, false, {}, {}, local_stylesheets);
 }

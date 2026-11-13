@@ -8,7 +8,11 @@
 		Supports block and inline layout, lists, tables, text, backgrounds, and local images. Borders support [code]solid[/code], [code]dashed[/code], [code]dotted[/code], and [code]double[/code], with separate styles, widths, and colors per side. [code]border-radius[/code] rounds backgrounds, borders, and images, and clips overflowing children when [code]overflow: hidden[/code] is set. Backgrounds support [code]linear-gradient()[/code], [code]radial-gradient()[/code], and [code]conic-gradient()[/code] with sRGB color interpolation.
 		Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.
 		[code]box-shadow[/code] supports offsets, blur, spread, and comma-separated layers. Use [code]inset[/code] for an inner shadow. Shadows follow [code]border-radius[/code] and leave layout and scroll ranges unaffected.
+		[code]text-shadow[/code] supports horizontal and vertical offsets, optional blur and color, and comma-separated layers. The first layer is drawn closest to the text. Use [code]none[/code] to clear inherited text shadows.
 	</description>
+	<tutorials>
+		<link title="CSS support reference">https://github.com/LuYingYiLong/godot-docrender/blob/main/addons/docrender/docs/html_css_support.md</link>
+	</tutorials>
 	<methods>
 		<method name="clear">
 			<return type="void" />
@@ -65,6 +69,13 @@
 			<param index="0" name="position" type="Vector2" />
 			<description>
 				Returns the original [code]href[/code] of the link at a point in document coordinates, or an empty string. Subtract the drawing position from the canvas-local point and apply any caller-supplied clip before querying. The caller handles navigation.
+			</description>
+		</method>
+		<method name="get_css_diagnostics" qualifiers="const">
+			<return type="Dictionary[]" />
+			<description>
+				Returns a copy of the CSS diagnostics collected during the latest style calculation. Each dictionary contains [code]kind[/code], [code]property[/code], [code]value[/code], [code]source[/code], and [code]path[/code].
+				[code]kind[/code] is [code]unknown_property[/code], [code]unsupported_value[/code], or [code]not_rendered[/code]. [code]source[/code] is [code]inline_style[/code], [code]style_element[/code], [code]stylesheet[/code], or [code]local_stylesheet[/code]. Only local stylesheets include a resource [code]path[/code].
 			</description>
 		</method>
 		<method name="get_render_error" qualifiers="const">
@@ -125,4 +136,9 @@
 			</description>
 		</method>
 	</methods>
+	<members>
+		<member name="css_diagnostics_enabled" type="bool" setter="set_css_diagnostics_enabled" getter="is_css_diagnostics_enabled" default="false">
+			Collects CSS declaration diagnostics. Enable this before [method parse] to collect initial results, or call [method layout] after enabling it on an existing document. Disabling it clears the results immediately. See [method get_css_diagnostics].
+		</member>
+	</members>
 </class>

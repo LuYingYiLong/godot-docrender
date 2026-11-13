@@ -5,10 +5,11 @@
 #include <cmath>
 
 namespace litehtml {
-	bool parse_box_shadows(const css_token_vector& p_tokens, document_container* p_container, std::vector<box_shadow>& r_shadows) {
+	static bool parse_shadows(const css_token_vector& p_tokens, document_container* p_container,
+		std::vector<box_shadow>& r_shadows, bool p_allow_box_values) {
 		if (p_tokens.size() == 1) {
 			const auto keyword = lowcase(p_tokens.front().ident());
-			if (keyword == "none" || keyword == "initial" || keyword == "unset") {
+			if (keyword == "none" || keyword == "initial" || (p_allow_box_values && keyword == "unset")) {
 				return true;
 			}
 		}
@@ -17,6 +18,7 @@ namespace litehtml {
 		do {
 			box_shadow shadow;
 			css_length* lengths[] = { &shadow.x, &shadow.y, &shadow.blur, &shadow.spread };
+			const std::size_t max_lengths = p_allow_box_values ? 4 : 3;
 			std::size_t count = 0;
 			bool has_color = false;
 			bool lengths_finished = false;
@@ -24,14 +26,15 @@ namespace litehtml {
 				const auto& token = p_tokens[index];
 				css_length length;
 				if (length.from_token(token, f_length)) {
-					if (lengths_finished || count == 4 || !std::isfinite(length.val()) || (count == 2 && length.val() < 0.0f)) {
+					if (lengths_finished || count == max_lengths ||
+							!std::isfinite(length.val()) || (count == 2 && length.val() < 0.0f)) {
 						return false;
 					}
 					*lengths[count++] = length;
 					continue;
 				}
 				lengths_finished |= count != 0;
-				if (!shadow.inset && lowcase(token.ident()) == "inset") {
+				if (p_allow_box_values && !shadow.inset && lowcase(token.ident()) == "inset") {
 					shadow.inset = true;
 				}
 				else if (!has_color && parse_color(token, shadow.color, p_container)) {
@@ -47,5 +50,13 @@ namespace litehtml {
 			r_shadows.push_back(shadow);
 		} while (index++ < p_tokens.size());
 		return true;
+	}
+
+	bool parse_box_shadows(const css_token_vector& p_tokens, document_container* p_container, std::vector<box_shadow>& r_shadows) {
+		return parse_shadows(p_tokens, p_container, r_shadows, true);
+	}
+
+	bool parse_text_shadows(const css_token_vector& p_tokens, document_container* p_container, std::vector<box_shadow>& r_shadows) {
+		return parse_shadows(p_tokens, p_container, r_shadows, false);
 	}
 }

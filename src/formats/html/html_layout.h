@@ -49,6 +49,7 @@ class HTMLLayout : public godot::RefCounted {
 	godot::Error move_element(const std::shared_ptr<litehtml::element>& p_element, const std::shared_ptr<litehtml::element>& p_parent);
 	void forget_subtree(const litehtml::element& p_element);
 	void invalidate_styles();
+	void queue_reflow();
 	static void reflow_after_edit(uint64_t p_id, uint64_t p_version);
 	void queue_canvas_redraws();
 	void set_edit_callback(const godot::Callable& p_callback);
@@ -69,6 +70,10 @@ protected:
 	static void _bind_methods();
 
 public:
+	void set_css_diagnostics_enabled(bool p_enabled); // 设置是否收集 CSS 声明诊断
+	bool is_css_diagnostics_enabled() const; // 返回是否收集 CSS 声明诊断
+	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const; // 返回最近一轮样式计算的诊断快照
+
 	struct Fonts {
 		godot::Ref<godot::Font> text;
 		godot::Ref<godot::Font> bold;

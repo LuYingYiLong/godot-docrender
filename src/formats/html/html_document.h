@@ -6,12 +6,14 @@
 
 class HTMLDocument : public godot::Resource {
 	GDCLASS(HTMLDocument, godot::Resource)
+	friend class HTMLLabel;
 
 	godot::String text;
 	godot::String base_dir = "res://";
 	godot::String stylesheet;
 	godot::Dictionary textures;
 	godot::Dictionary local_stylesheets;
+	void parse_into(HTMLLayout& p_layout) const;
 
 protected:
 	static void _bind_methods();

@@ -285,6 +285,7 @@ struct HTMLLayout::State {
 	bool implicit_empty_document = false;
 	bool reflow_queued = false;
 	bool has_hover_styles = false;
+	bool css_diagnostics_enabled = false;
 
 	bool has_layout() const {
 		return pending_update == Update::NONE && viewport_size.x > 0;
@@ -322,7 +323,11 @@ void HTMLLayout::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_element_by_id", "id"), &HTMLLayout::get_element_by_id);
 	ClassDB::bind_method(D_METHOD("get_element_at", "position"), &HTMLLayout::get_element_at);
 	ClassDB::bind_method(D_METHOD("get_render_error"), &HTMLLayout::get_render_error);
+	ClassDB::bind_method(D_METHOD("set_css_diagnostics_enabled", "enabled"), &HTMLLayout::set_css_diagnostics_enabled);
+	ClassDB::bind_method(D_METHOD("is_css_diagnostics_enabled"), &HTMLLayout::is_css_diagnostics_enabled);
+	ClassDB::bind_method(D_METHOD("get_css_diagnostics"), &HTMLLayout::get_css_diagnostics);
 	ClassDB::bind_method(D_METHOD("clear"), &HTMLLayout::clear);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "css_diagnostics_enabled"), "set_css_diagnostics_enabled", "is_css_diagnostics_enabled");
 }
 
 HTMLLayout::HTMLLayout() :
@@ -348,6 +353,7 @@ Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, c
 	}
 	try {
 		state->container = std::make_unique<LiteHTMLContainer>(*base_dir, p_textures, p_fit_images, p_fonts, p_local_stylesheets);
+		state->container->set_css_diagnostics_enabled(state->css_diagnostics_enabled);
 		state->master_styles = litehtml::master_css;
 		if (!p_default_stylesheet.is_empty()) {
 			state->master_styles += '\n';
@@ -815,7 +821,13 @@ void HTMLLayout::invalidate_styles() {
 	if (state->edit_callback.is_valid()) {
 		state->edit_callback.call();
 	}
-	else if (state->viewport_size != Vector2i() && !state->reflow_queued) {
+	else {
+		queue_reflow();
+	}
+}
+
+void HTMLLayout::queue_reflow() {
+	if (state->viewport_size != Vector2i() && !state->reflow_queued) {
 		state->reflow_queued = true;
 		callable_mp_static(&HTMLLayout::reflow_after_edit).call_deferred(get_instance_id(), parse_version);
 	}
@@ -1056,6 +1068,31 @@ bool HTMLLayout::update_hover(const std::optional<Vector2>& p_position) {
 
 String HTMLLayout::get_render_error() const {
 	return state->error;
+}
+
+void HTMLLayout::set_css_diagnostics_enabled(bool p_enabled) {
+	if (state->css_diagnostics_enabled == p_enabled) {
+		return;
+	}
+	state->css_diagnostics_enabled = p_enabled;
+	if (!state->container) {
+		return;
+	}
+	state->container->set_css_diagnostics_enabled(p_enabled);
+	if (p_enabled && state->document) {
+		state->pending_update = State::Update::STYLE;
+		if (!state->edit_callback.is_valid()) {
+			queue_reflow();
+		}
+	}
+}
+
+bool HTMLLayout::is_css_diagnostics_enabled() const {
+	return state->css_diagnostics_enabled;
+}
+
+TypedArray<Dictionary> HTMLLayout::get_css_diagnostics() const {
+	return state->container ? state->container->get_css_diagnostics() : TypedArray<Dictionary>();
 }
 
 void HTMLLayout::clear() {

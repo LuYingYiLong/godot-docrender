@@ -1,6 +1,7 @@
 #include "litehtml_container.h"
 
 #include "html_markup.h"
+#include "html_text_mask.h"
 #include "litehtml_box_shadow.h"
 #include "litehtml_document_adapter.h"
 
@@ -98,6 +99,11 @@ uniform vec4 shadow_box;
 uniform vec4 shadow_rx;
 uniform vec4 shadow_ry;
 uniform float shadow_blur;
+uniform sampler2D text_shadow_mask : filter_linear_mipmap, repeat_disable;
+uniform vec4 text_shadow_box;
+uniform int decoration_pattern;
+uniform float decoration_thickness;
+uniform float decoration_center;
 
 uniform int gradient_type;
 uniform int stop_count;
@@ -209,6 +215,32 @@ float shadow_mask(vec2 p, vec2 pixel_x, vec2 pixel_y) {
 		vertical_low = vertical_high;
 	}
 	return total;
+}
+
+float text_mask_sample(vec2 uv, float lod) {
+	if (any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) {
+		return 0.0;
+	}
+	return textureLod(text_shadow_mask, uv, lod).a;
+}
+
+float blurred_text_mask(vec2 point) {
+	vec2 uv = (point - text_shadow_box.xy) / text_shadow_box.zw;
+	if (shadow_blur <= 0.0) {
+		return text_mask_sample(uv, 0.0);
+	}
+	// Mip levels integrate fine glyph details when the taps are far apart.
+	float step_size = shadow_blur / 3.0;
+	vec2 step_uv = step_size / text_shadow_box.zw;
+	float lod = log2(max(step_size, 1.0));
+	const float weights[5] = { 1.0, 0.8007374, 0.4111123, 0.1353353, 0.0285655 };
+	float total = 0.0;
+	for (int y = -4; y <= 4; ++y) {
+		for (int x = -4; x <= 4; ++x) {
+			total += weights[abs(x)] * weights[abs(y)] * text_mask_sample(uv + vec2(float(x), float(y)) * step_uv, lod);
+		}
+	}
+	return total * (1.0 / 14.07376);
 }
 
 // Approximate partial arc length with Simpson integration of the ellipse speed.
@@ -324,7 +356,26 @@ void fragment() {
 	for (int i = 0; i < clip_count; i++) {
 		coverage = min(coverage, box_coverage(document_point, clip_boxes[i], clip_radii_x[i], clip_radii_y[i], pixel_x, pixel_y));
 	}
-	if (shadow_type != 0) {
+	if (decoration_pattern != 0) {
+		float width = decoration_thickness;
+		float y = document_point.y - decoration_center;
+		float aa = max(length(abs(pixel_x) + abs(pixel_y)), 0.001);
+		float distance_to_edge;
+		if (decoration_pattern == 1) {
+			float x = mod(document_point.x, 2.0 * width) - width;
+			distance_to_edge = width * 0.5 - length(vec2(x, y));
+		} else if (decoration_pattern == 2) {
+			float x = mod(document_point.x, 5.0 * width) - 2.5 * width;
+			distance_to_edge = min(width * 1.5 - abs(x), width * 0.5 - abs(y));
+		} else {
+			float phase = mod(document_point.x, 6.0 * width) / (6.0 * width) * TAU;
+			float slope = cos(phase) * TAU / 6.0;
+			distance_to_edge = width * 0.5 - abs(y - sin(phase) * width) / sqrt(1.0 + slope * slope);
+		}
+		coverage = min(coverage, clamp(distance_to_edge / aa + 0.5, 0.0, 1.0));
+	} else if (shadow_type == 3) {
+		coverage *= blurred_text_mask(document_point);
+	} else if (shadow_type != 0) {
 		float mask = shadow_mask(document_point, pixel_x, pixel_y);
 		if (shadow_type == 1) {
 			coverage *= mask * (1.0 - box_coverage(document_point, inner_box, inner_radii_x, inner_radii_y, pixel_x, pixel_y));
@@ -717,6 +768,63 @@ void fragment() {
 		stylesheet_reads = 0;
 	}
 
+	void LiteHTMLContainer::set_css_diagnostics_enabled(bool p_enabled) {
+		css_diagnostics_enabled = p_enabled;
+		begin_css_diagnostics();
+	}
+
+	void LiteHTMLContainer::begin_css_diagnostics() {
+		css_diagnostics.clear();
+		css_diagnostic_keys.clear();
+	}
+
+	void LiteHTMLContainer::set_css_source_kind(litehtml::css_source_kind p_kind) {
+		css_source_kind = p_kind;
+	}
+
+	TypedArray<Dictionary> LiteHTMLContainer::get_css_diagnostics() const {
+		return css_diagnostics.duplicate(true);
+	}
+
+	css_source LiteHTMLContainer::get_css_source(const litehtml::string& p_base, bool p_inline) const {
+		if (!css_diagnostics_enabled) {
+			return {};
+		}
+		if (p_inline) {
+			return { css_source_kind::inline_style, {} };
+		}
+		if (css_source_kind == css_source_kind::none || p_base.empty()) {
+			return { css_source_kind, {} };
+		}
+		return { css_source_kind::local_stylesheet, p_base.substr(p_base.find_last_of('\n') + 1) };
+	}
+
+	void LiteHTMLContainer::report_css_diagnostic(css_diagnostic_kind p_kind, const litehtml::string& p_property,
+		const litehtml::string& p_value, const css_source& p_source) {
+		if (!css_diagnostics_enabled) {
+			return;
+		}
+		static constexpr const char* kinds[] = { "unknown_property", "unsupported_value", "not_rendered" };
+		static constexpr const char* sources[] = { "", "inline_style", "style_element", "stylesheet", "local_stylesheet" };
+		const String kind = kinds[static_cast<int>(p_kind)];
+		const String source = sources[static_cast<int>(p_source.kind)];
+		const String property = String::utf8(p_property.c_str());
+		const String value = String::utf8(p_value.c_str());
+		const String path = String::utf8(p_source.path.c_str());
+	const String key = vformat("%s/%s/%d/%d/%s%s%s", kind, source, property.length(), path.length(), property, path, value);
+		if (css_diagnostic_keys.has(key)) {
+			return;
+		}
+		css_diagnostic_keys.insert(key);
+		Dictionary entry;
+		entry["kind"] = kind;
+		entry["property"] = property;
+		entry["value"] = value;
+		entry["source"] = source;
+		entry["path"] = path;
+		css_diagnostics.append(entry);
+	}
+
 	void LiteHTMLContainer::set_viewport(const Vector2i& p_size) {
 		viewport_size = p_size;
 	}
@@ -1099,31 +1207,120 @@ void fragment() {
 		return reinterpret_cast<FontData*>(p_font)->shape(p_text)->get_line_width();
 	}
 
+	void LiteHTMLContainer::draw_decoration(const Rect2& p_rect, text_decoration_style p_style, const Color& p_color) {
+		if (!p_rect.has_area() || !p_rect.is_finite() || p_color.a <= 0.0f) {
+			return;
+		}
+		int pattern;
+		switch (p_style) {
+			case text_decoration_style_dotted: pattern = 1; break;
+			case text_decoration_style_dashed: pattern = 2; break;
+			case text_decoration_style_wavy: pattern = 3; break;
+			default:
+				fill_rect(p_rect, p_color);
+				if (p_style == text_decoration_style_double) {
+					fill_rect(Rect2(p_rect.position + Vector2(0, p_rect.size.y * 2), p_rect.size), p_color);
+				}
+				return;
+		}
+		const auto material = create_material();
+		material->set_shader_parameter("decoration_pattern", pattern);
+		material->set_shader_parameter("decoration_thickness", p_rect.size.y);
+		material->set_shader_parameter("decoration_center", p_rect.get_center().y);
+		const real_t margin = pattern == 3 ? p_rect.size.y * 1.5 : 1.0;
+		add_command(Fill{ p_rect.grow_side(SIDE_TOP, margin).grow_side(SIDE_BOTTOM, margin), p_color }, material);
+	}
+
 	void LiteHTMLContainer::draw_text(uint_ptr, const char* p_text, uint_ptr p_font, web_color p_color,
 		const litehtml::position& p_position) {
+		static const std::vector<box_shadow> no_shadows;
+		record_text(p_text, p_font, p_color, p_position, no_shadows);
+	}
+
+	void LiteHTMLContainer::draw_styled_text(uint_ptr, const char* p_text, uint_ptr p_font, web_color p_color,
+		const litehtml::position& p_position, const element& p_element) {
+		record_text(p_text, p_font, p_color, p_position, p_element.css().get_text_shadows());
+	}
+
+	void LiteHTMLContainer::record_text(const char* p_text, uint_ptr p_font, web_color p_color,
+		const litehtml::position& p_position, const std::vector<box_shadow>& p_shadows) {
 		FontData& font = *reinterpret_cast<FontData*>(p_font);
 		const Ref<TextLine> line = font.shape(p_text);
 		const Vector2 top_left(p_position.x, p_position.y + font.ascent - line->get_line_ascent());
 		const Color color = to_color(p_color);
-		add_command(Text{ line, top_left, color, -1, String::utf8(p_text).length() });
+		const Text text{ line, top_left, color, -1, String::utf8(p_text).length() };
 
 		const int decoration = font.description.decoration_line;
-		if (decoration == text_decoration_line_none) {
+		if (decoration == text_decoration_line_none && p_shadows.empty()) {
+			add_command(text);
 			return;
 		}
-		const float thickness = std::max(1.0f, line->get_line_underline_thickness());
+		const auto& specified = font.description.decoration_thickness;
+		float thickness = line->get_line_underline_thickness();
+		if (!specified.is_predefined()) {
+			thickness = specified.calc_percent(font.size);
+		}
+		else if (specified.predef() == text_decoration_thickness_from_font) {
+			const float metric = font.font->get_underline_thickness(font.size);
+			if (std::isfinite(metric) && metric > 0.0f) {
+				thickness = metric;
+			}
+		}
+		thickness = std::max(1.0f, thickness);
 		const float width = line->get_line_width();
 		const float baseline = top_left.y + line->get_line_ascent();
 		const web_color css_color = font.description.decoration_color;
 		const Color decoration_color = css_color.is_current_color ? color : to_color(css_color);
-		if (decoration & text_decoration_line_underline) {
-			fill_rect(Rect2(top_left.x, baseline + line->get_line_underline_position(), width, thickness), decoration_color);
+		std::vector<TextDecorationMask> decorations;
+		const auto add_decoration = [&](int p_flag, real_t p_top) {
+			const Rect2 rect(top_left.x, p_top, width, thickness);
+			if ((decoration & p_flag) && rect.has_area() && rect.is_finite() && decoration_color.a > 0.0f) {
+				decorations.push_back({ rect, font.description.decoration_style, decoration_color.a });
+			}
+		};
+		if (decoration != text_decoration_line_none) {
+			add_decoration(text_decoration_line_underline, baseline + line->get_line_underline_position());
+			add_decoration(text_decoration_line_overline, top_left.y);
+			add_decoration(text_decoration_line_line_through, baseline - line->get_line_ascent() / 3.0f);
 		}
-		if (decoration & text_decoration_line_overline) {
-			fill_rect(Rect2(top_left.x, top_left.y, width, thickness), decoration_color);
+		HTMLTextMask mask;
+		const bool mipmaps = std::any_of(p_shadows.begin(), p_shadows.end(), [](const box_shadow& p_shadow) {
+			return p_shadow.blur.val() > 3.0f;
+		});
+		for (auto shadow = p_shadows.rbegin(); shadow != p_shadows.rend(); ++shadow) {
+			const Color shadow_color = shadow->color.is_current_color ? color : to_color(shadow->color);
+			const Vector2 offset(shadow->x.val(), shadow->y.val());
+			const float blur = shadow->blur.val();
+			if (shadow_color.a <= 0.0f || !offset.is_finite() || !std::isfinite(blur)) {
+				continue;
+			}
+			if (mask.texture.is_null()) {
+				mask = create_html_text_mask(*line.ptr(), top_left, decorations, mipmaps);
+				if (mask.texture.is_null()) {
+					break;
+				}
+			}
+			const Rect2 box(mask.bounds.position + offset, mask.bounds.size);
+			Rect2 destination = box.grow(blur * (4.0f / 3.0f));
+			if (!destination.is_finite()) {
+				continue;
+			}
+			if (!clips.empty()) {
+				destination = destination.intersection(clips.back().bounds);
+			}
+			if (!destination.has_area()) {
+				continue;
+			}
+			const auto material = create_material();
+			material->set_shader_parameter("shadow_type", 3);
+			material->set_shader_parameter("shadow_blur", blur);
+			material->set_shader_parameter("text_shadow_mask", mask.texture);
+			material->set_shader_parameter("text_shadow_box", Vector4(box.position.x, box.position.y, box.size.x, box.size.y));
+			add_command(Fill{ destination, shadow_color }, material);
 		}
-		if (decoration & text_decoration_line_line_through) {
-			fill_rect(Rect2(top_left.x, baseline - line->get_line_ascent() / 3.0f, width, thickness), decoration_color);
+		add_command(text);
+		for (const auto& line_decoration : decorations) {
+			draw_decoration(line_decoration.rect, line_decoration.style, decoration_color);
 		}
 	}
 

@@ -243,6 +243,10 @@ void HTMLLabel::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_stylesheet"), &HTMLLabel::get_stylesheet);
 	ClassDB::bind_method(D_METHOD("get_content_size"), &HTMLLabel::get_content_size);
 	ClassDB::bind_method(D_METHOD("get_render_error"), &HTMLLabel::get_render_error);
+	ClassDB::bind_method(D_METHOD("set_css_diagnostics_enabled", "enabled"), &HTMLLabel::set_css_diagnostics_enabled);
+	ClassDB::bind_method(D_METHOD("is_css_diagnostics_enabled"), &HTMLLabel::is_css_diagnostics_enabled);
+	ClassDB::bind_method(D_METHOD("get_css_diagnostics"), &HTMLLabel::get_css_diagnostics);
+	ClassDB::bind_method(D_METHOD("get_css_diagnostics_summary"), &HTMLLabel::get_css_diagnostics_summary);
 	ClassDB::bind_method(D_METHOD("get_scroll_offset"), &HTMLLabel::get_scroll_offset);
 	ClassDB::bind_method(D_METHOD("set_scroll_offset", "offset"), &HTMLLabel::set_scroll_offset);
 	ClassDB::bind_method(D_METHOD("scroll_to_anchor", "id", "align"), &HTMLLabel::scroll_to_anchor, DEFVAL(0.0f));
@@ -263,6 +267,10 @@ void HTMLLabel::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "text", PROPERTY_HINT_MULTILINE_TEXT), "set_text", "get_text");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "stylesheet", PROPERTY_HINT_MULTILINE_TEXT), "set_stylesheet", "get_stylesheet");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "selection_enabled"), "set_selection_enabled", "is_selection_enabled");
+	ADD_GROUP("Debug", "");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "css_diagnostics_enabled"), "set_css_diagnostics_enabled", "is_css_diagnostics_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "css_diagnostics_summary", PROPERTY_HINT_MULTILINE_TEXT, "",
+		PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY), "", "get_css_diagnostics_summary");
 	ADD_SIGNAL(MethodInfo("link_pressed", PropertyInfo(Variant::STRING, "uri")));
 	ADD_SIGNAL(MethodInfo("element_clicked", PropertyInfo(Variant::OBJECT, "element", PROPERTY_HINT_NONE,
 		String(), PROPERTY_USAGE_DEFAULT, HTMLElement::get_class_static())));
@@ -367,6 +375,43 @@ Vector2i HTMLLabel::get_content_size() const {
 
 String HTMLLabel::get_render_error() const {
 	return render_error;
+}
+
+void HTMLLabel::set_css_diagnostics_enabled(bool p_enabled) {
+	if (layout->is_css_diagnostics_enabled() == p_enabled) {
+		return;
+	}
+	layout->set_css_diagnostics_enabled(p_enabled);
+	if (p_enabled) {
+		queue_refresh();
+	}
+	notify_property_list_changed();
+}
+
+bool HTMLLabel::is_css_diagnostics_enabled() const {
+	return layout->is_css_diagnostics_enabled();
+}
+
+TypedArray<Dictionary> HTMLLabel::get_css_diagnostics() const {
+	return layout->get_css_diagnostics();
+}
+
+String HTMLLabel::get_css_diagnostics_summary() const {
+	const auto diagnostics = get_css_diagnostics();
+	PackedStringArray lines;
+	for (int64_t index = 0; index < diagnostics.size(); ++index) {
+		const Dictionary entry = diagnostics[index];
+		const String path = entry["path"];
+		const String source = path.is_empty() ? String(entry["source"]) : path;
+		lines.append(vformat("[%s] %s: %s (%s)", entry["kind"], entry["property"], entry["value"], source));
+	}
+	return String("\n").join(lines);
+}
+
+void HTMLLabel::_validate_property(PropertyInfo& p_property) const {
+	if (p_property.name == StringName("css_diagnostics_summary") && !is_css_diagnostics_enabled()) {
+		p_property.usage &= ~PROPERTY_USAGE_EDITOR;
+	}
 }
 
 Vector2i HTMLLabel::get_scroll_offset() const {
@@ -545,7 +590,7 @@ void HTMLLabel::parse_pending_source() {
 	source_dirty = false;
 	layout_updated = true;
 	if (document.is_valid()) {
-		layout = document->create_layout();
+		document->parse_into(*layout.ptr());
 		parsed = layout->get_render_error().is_empty();
 	}
 	else {
