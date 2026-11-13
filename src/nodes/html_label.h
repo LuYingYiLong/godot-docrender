@@ -28,7 +28,7 @@ class HTMLLabelCanvas : public godot::Control {
 
 	void cancel_press();
 	void cancel_click();
-	void update_cursor(const godot::Vector2& p_point);
+	void update_cursor(const std::optional<godot::Vector2>& p_point);
 
 protected:
 	static void _bind_methods() {}
@@ -54,6 +54,7 @@ class HTMLLabel : public godot::Control {
 	godot::String stylesheet;
 	godot::Vector2i viewport_size;
 	godot::Vector2i content_size;
+	godot::Vector2i sorted_scroll_offset;
 	godot::String render_error;
 	std::optional<godot::Vector2i> pending_scroll_offset;
 	bool source_dirty = true;
@@ -62,6 +63,13 @@ class HTMLLabel : public godot::Control {
 	bool layout_updated = false;
 	bool layout_signal_pending = false;
 	bool selection_enabled = true;
+	bool view_update_pending = false;
+	bool scroll_sort_pending = false;
+	bool interaction_queued = false;
+	bool gui_hover_dirty = false;
+	bool updating_gui_hover = false;
+	bool hover_reflow = false;
+	int hover_passes_remaining = 0;
 
 	void ensure_controls();
 	void queue_refresh();
@@ -71,13 +79,16 @@ class HTMLLabel : public godot::Control {
 	void on_layout_edited();
 	void refresh();
 	void update_view(const godot::Vector2i& p_viewport, const godot::Vector2i& p_content,
-		bool p_scroll_horizontal, bool p_scroll_vertical, bool p_document_updated, const godot::String& p_error = {});
+		bool p_scroll_horizontal, bool p_scroll_vertical, bool p_layout_changed, const godot::String& p_error = {});
 	godot::Rect2 get_visible_rect() const;
 	bool scroll_to_rect(const godot::Rect2& p_target, float p_align);
 	void apply_scroll_offset(const godot::Vector2i& p_offset);
 	void apply_pending_scroll();
 	void on_scroll_changed(double p_value);
 	void on_content_sorted();
+	void request_hover_check();
+	void queue_interaction();
+	void update_interaction();
 
 protected:
 	static void _bind_methods();

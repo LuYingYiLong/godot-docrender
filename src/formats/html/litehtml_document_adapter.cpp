@@ -3,6 +3,7 @@
 #include "litehtml_container.h"
 
 #include <gumbo.h>
+#include <litehtml/css_selector.h>
 #include <litehtml/el_space.h>
 #include <litehtml/html_tag.h>
 #include <litehtml/render_item.h>
@@ -13,6 +14,19 @@
 
 namespace litehtml {
 	using docrender::LiteHTMLContainer;
+
+	namespace {
+		bool selector_uses_hover(const css_selector::ptr& p_selector) {
+			if (p_selector->m_left && selector_uses_hover(p_selector->m_left)) {
+				return true;
+			}
+			return std::any_of(p_selector->m_right.m_attrs.begin(), p_selector->m_right.m_attrs.end(),
+				[](const css_attribute_selector& p_attribute) {
+					return (p_attribute.type == select_pseudo_class && p_attribute.name == _hover_) ||
+						std::any_of(p_attribute.selector_list.begin(), p_attribute.selector_list.end(), selector_uses_hover);
+				});
+		}
+	}
 
 	document::ptr docrender_editor::parse(const godot::CharString& p_html, LiteHTMLContainer& p_container,
 		const string& p_default_styles, const string& p_user_styles) {
@@ -138,6 +152,20 @@ namespace litehtml {
 	bool docrender_editor::media_changed(document& p_document) {
 		p_document.container()->get_media_features(p_document.m_media);
 		return p_document.update_media_lists(p_document.m_media);
+	}
+
+	bool docrender_editor::has_hover_styles(const document& p_document) {
+		for (const css* sheet : { &p_document.m_master_css, &p_document.m_styles, &p_document.m_user_css }) {
+			const auto& selectors = sheet->selectors();
+			if (std::any_of(selectors.begin(), selectors.end(), selector_uses_hover)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	void docrender_editor::set_hover(element& p_element, bool p_hovered) {
+		p_element.set_pseudo_class(_hover_, p_hovered);
 	}
 
 	void docrender_editor::restyle(const document::ptr& p_document, LiteHTMLContainer& p_container,

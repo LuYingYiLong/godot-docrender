@@ -17,6 +17,8 @@ namespace litehtml {
 		static bool media_changed(document& p_document); // 检查媒体条件的匹配结果是否改变
 		static void restyle(const document::ptr& p_document, docrender::LiteHTMLContainer& p_container,
 			const string& p_default_styles, const string& p_user_styles); // 在原有元素树上重算样式并重建渲染树
+		static bool has_hover_styles(const document& p_document); // 检查已解析的样式表是否引用悬停伪类
+		static void set_hover(element& p_element, bool p_hovered); // 更新元素的悬停伪类状态
 
 		static bool set_attribute(element& p_element, const char* p_name, const char* p_value); // 更新属性和链接状态，空指针表示移除属性
 		static elements_list parse_fragment(document& p_document, const element& p_parent,

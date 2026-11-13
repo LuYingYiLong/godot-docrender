@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 namespace godot {
 	class CanvasItem;
@@ -26,6 +27,7 @@ class HTMLLayout : public godot::RefCounted {
 
 	friend class HTMLElement;
 	friend class HTMLLabel;
+	friend class HTMLLabelCanvas;
 
 	struct State;
 	std::unique_ptr<State> state;
@@ -53,6 +55,8 @@ class HTMLLayout : public godot::RefCounted {
 	godot::TypedArray<godot::Rect2> get_element_rects(const std::shared_ptr<litehtml::element>& p_element) const;
 	std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_position) const;
 	godot::Ref<HTMLElement> wrap_hit_element(std::shared_ptr<litehtml::element> p_element) const;
+	bool update_hover(const std::optional<godot::Vector2>& p_position);
+	std::string_view get_cursor_at(const godot::Vector2& p_position, bool& r_over_link) const;
 
 	void _on_canvas_redraw(uint64_t p_id);
 	static void finish_canvas_redraw(uint64_t p_layout_id, uint64_t p_canvas_id, uint64_t p_redraw_id);

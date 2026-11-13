@@ -10,16 +10,44 @@
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/style_box.hpp>
 #include <godot_cpp/classes/v_scroll_bar.hpp>
+#include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <string_view>
+#include <utility>
 
 using namespace godot;
 
 namespace {
 	constexpr int DRAG_DEADZONE = 6;
+	constexpr int HOVER_PASSES = 2;
+
+	std::optional<Control::CursorShape> get_css_cursor(std::string_view p_cursor) {
+		static constexpr std::pair<std::string_view, Control::CursorShape> shapes[] = {
+			{ "default", Control::CURSOR_ARROW },
+			{ "pointer", Control::CURSOR_POINTING_HAND },
+			{ "text", Control::CURSOR_IBEAM },
+			{ "crosshair", Control::CURSOR_CROSS },
+			{ "move", Control::CURSOR_MOVE },
+			{ "wait", Control::CURSOR_WAIT },
+			{ "progress", Control::CURSOR_BUSY },
+			{ "help", Control::CURSOR_HELP },
+			{ "not-allowed", Control::CURSOR_FORBIDDEN },
+			{ "ew-resize", Control::CURSOR_HSIZE },
+			{ "ns-resize", Control::CURSOR_VSIZE },
+		};
+		for (const auto& [keyword, shape] : shapes) {
+			if (std::equal(p_cursor.begin(), p_cursor.end(), keyword.begin(), keyword.end(), [](char p_char, char p_lowercase) {
+				return p_char == p_lowercase || (p_char >= 'A' && p_char <= 'Z' && p_char - 'A' + 'a' == p_lowercase);
+			})) {
+				return shape;
+			}
+		}
+		return std::nullopt;
+	}
 }
 
 void HTMLLabelCanvas::_draw() {
@@ -74,7 +102,7 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 			queue_redraw();
 			accept_event();
 		}
-		update_cursor(motion->get_position());
+		label->request_hover_check();
 		return;
 	}
 
@@ -112,7 +140,11 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 		}
 		accept_event();
 	}
+	const bool was_dragging = selection_dragged;
 	cancel_press();
+	if (was_dragging) {
+		label->request_hover_check();
+	}
 	const ObjectID label_id(label->get_instance_id());
 	if (link_clicked) {
 		if (hit.uri.begins_with("#")) {
@@ -128,13 +160,27 @@ void HTMLLabelCanvas::_gui_input(const Ref<InputEvent>& p_event) {
 }
 
 void HTMLLabelCanvas::_notification(int p_what) {
-	if (p_what == NOTIFICATION_MOUSE_EXIT) {
-		cancel_click();
-		set_default_cursor_shape(CURSOR_ARROW);
+	if (!label) {
+		return;
 	}
-	else if (p_what == NOTIFICATION_EXIT_TREE || p_what == NOTIFICATION_FOCUS_EXIT) {
+	if (p_what == NOTIFICATION_MOUSE_ENTER || p_what == NOTIFICATION_MOUSE_EXIT) {
+		if (p_what == NOTIFICATION_MOUSE_EXIT) {
+			cancel_click();
+		}
+		if (!label->updating_gui_hover) {
+			label->request_hover_check();
+		}
+	}
+	else if (p_what == NOTIFICATION_EXIT_TREE) {
 		cancel_press();
 		set_default_cursor_shape(CURSOR_ARROW);
+	}
+	else if (p_what == NOTIFICATION_FOCUS_EXIT) {
+		const bool was_dragging = selection_dragged;
+		cancel_press();
+		if (was_dragging) {
+			label->request_hover_check();
+		}
 	}
 	else if (p_what == NOTIFICATION_INTERNAL_PROCESS && selecting && selection_dragged) {
 		const Rect2 visible = label->get_visible_rect();
@@ -166,10 +212,19 @@ void HTMLLabelCanvas::cancel_click() {
 	pressed_element.unref();
 }
 
-void HTMLLabelCanvas::update_cursor(const Vector2& p_point) {
-	const bool over_link = _has_point(p_point) && label->layout->find_link_at(p_point).id != 0;
-	set_default_cursor_shape(over_link && !selection_dragged ? CURSOR_POINTING_HAND :
-		(label->selection_enabled ? CURSOR_IBEAM : CURSOR_ARROW));
+void HTMLLabelCanvas::update_cursor(const std::optional<Vector2>& p_point) {
+	if (!p_point) {
+		set_default_cursor_shape(CURSOR_ARROW);
+		return;
+	}
+	if (selection_dragged) {
+		set_default_cursor_shape(CURSOR_IBEAM);
+		return;
+	}
+	bool over_link = false;
+	const auto css_cursor = get_css_cursor(label->layout->get_cursor_at(*p_point, over_link));
+	set_default_cursor_shape(css_cursor.value_or(over_link ? CURSOR_POINTING_HAND :
+		(label->selection_enabled ? CURSOR_IBEAM : CURSOR_ARROW)));
 }
 
 HTMLLabel::HTMLLabel() {
@@ -223,6 +278,28 @@ void HTMLLabel::_notification(int p_what) {
 	case NOTIFICATION_RESIZED:
 	case NOTIFICATION_THEME_CHANGED:
 		queue_refresh();
+		break;
+	case NOTIFICATION_VISIBILITY_CHANGED:
+		if (is_visible_in_tree()) {
+			gui_hover_dirty = true;
+			request_hover_check();
+		}
+		else if (canvas) {
+			canvas->cancel_press();
+			hover_passes_remaining = 0;
+			if (layout->update_hover(std::nullopt)) {
+				queue_refresh();
+			}
+			queue_interaction();
+		}
+		break;
+	case NOTIFICATION_EXIT_TREE:
+		layout->update_hover(std::nullopt);
+		hover_passes_remaining = 0;
+		hover_reflow = false;
+		view_update_pending = false;
+		scroll_sort_pending = false;
+		layout_signal_pending = false;
 		break;
 	}
 }
@@ -365,6 +442,7 @@ void HTMLLabel::set_selection_enabled(bool p_enabled) {
 			canvas->cancel_press();
 			clear_selection();
 		}
+		request_hover_check();
 	}
 }
 
@@ -435,6 +513,8 @@ void HTMLLabel::ensure_controls() {
 }
 
 void HTMLLabel::queue_refresh() {
+	hover_reflow = false;
+	hover_passes_remaining = HOVER_PASSES;
 	if (canvas && is_inside_tree() && !refresh_queued) {
 		refresh_queued = true;
 		callable_mp(this, &HTMLLabel::refresh).call_deferred();
@@ -488,16 +568,18 @@ void HTMLLabel::refresh() {
 	if (!is_inside_tree()) {
 		return;
 	}
-	canvas->cancel_click();
+	if (!hover_reflow) {
+		canvas->cancel_click();
+	}
 	if (!pending_scroll_offset) {
 		pending_scroll_offset = get_scroll_offset();
 	}
 
 	parse_pending_source();
-	const bool document_updated = layout_updated;
+	const bool layout_changed = layout_updated || hover_reflow;
 	layout_updated = false;
 	if (!parsed) {
-		update_view({}, {}, false, false, document_updated, layout->get_render_error());
+		update_view({}, {}, false, false, layout_changed, layout->get_render_error());
 		return;
 	}
 
@@ -513,18 +595,18 @@ void HTMLLabel::refresh() {
 		const Vector2 gutters(vertical ? vertical_bar_width : 0, horizontal ? horizontal_bar_height : 0);
 		const Vector2i viewport((available - gutters).floor());
 		if (viewport.x <= 0 || viewport.y <= 0) {
-			update_view({}, {}, false, false, document_updated);
+			update_view({}, {}, false, false, layout_changed);
 			return;
 		}
 		if (layout->layout(viewport) != OK) {
-			update_view({}, {}, false, false, document_updated, layout->get_render_error());
+			update_view({}, {}, false, false, layout_changed, layout->get_render_error());
 			return;
 		}
 		const Vector2i size = layout->get_content_size();
 		const bool next_horizontal = horizontal || size.x > viewport.x;
 		const bool next_vertical = vertical || size.y > viewport.y;
 		if (next_horizontal == horizontal && next_vertical == vertical) {
-			update_view(viewport, size, horizontal, vertical, document_updated);
+			update_view(viewport, size, horizontal, vertical, layout_changed);
 			return;
 		}
 		horizontal = next_horizontal;
@@ -533,8 +615,13 @@ void HTMLLabel::refresh() {
 }
 
 void HTMLLabel::update_view(const Vector2i& p_viewport, const Vector2i& p_content,
-	bool p_scroll_horizontal, bool p_scroll_vertical, bool p_document_updated, const String& p_error) {
-	layout_signal_pending |= p_document_updated || viewport_size != p_viewport ||
+	bool p_scroll_horizontal, bool p_scroll_vertical, bool p_layout_changed, const String& p_error) {
+	view_update_pending = true;
+	if (p_viewport == Vector2i()) {
+		layout->update_hover(std::nullopt);
+		hover_passes_remaining = 0;
+	}
+	layout_signal_pending |= p_layout_changed || viewport_size != p_viewport ||
 		content_size != p_content || render_error != p_error;
 	viewport_size = p_viewport;
 	content_size = p_content;
@@ -554,7 +641,8 @@ void HTMLLabel::update_view(const Vector2i& p_viewport, const Vector2i& p_conten
 }
 
 Rect2 HTMLLabel::get_visible_rect() const {
-	return Rect2(Vector2(get_scroll_offset()), Vector2(viewport_size));
+	// Scrollbar values may change before the container moves the content canvas.
+	return Rect2(Vector2(sorted_scroll_offset), Vector2(viewport_size));
 }
 
 void HTMLLabel::apply_scroll_offset(const Vector2i& p_offset) {
@@ -573,18 +661,77 @@ void HTMLLabel::apply_pending_scroll() {
 		pending_scroll_offset.reset();
 		apply_scroll_offset(offset);
 	}
-	if (layout_signal_pending && !refresh_queued) {
-		layout_signal_pending = false;
-		emit_signal("layout_changed");
-	}
+	view_update_pending = false;
+	queue_interaction();
 }
 
 void HTMLLabel::on_scroll_changed(double) {
 	canvas->cancel_click();
 	canvas->queue_redraw();
+	scroll_sort_pending = true;
+	if (!hover_reflow) {
+		hover_passes_remaining = HOVER_PASSES;
+	}
 }
 
 void HTMLLabel::on_content_sorted() {
+	sorted_scroll_offset = get_scroll_offset();
+	scroll_sort_pending = false;
+	gui_hover_dirty = true;
 	canvas->queue_redraw();
-	canvas->update_cursor(canvas->get_local_mouse_position());
+	queue_interaction();
+}
+
+void HTMLLabel::request_hover_check() {
+	hover_passes_remaining = HOVER_PASSES;
+	queue_interaction();
+}
+
+void HTMLLabel::queue_interaction() {
+	if (canvas && is_inside_tree() && !interaction_queued) {
+		interaction_queued = true;
+		callable_mp(this, &HTMLLabel::update_interaction).call_deferred();
+	}
+}
+
+void HTMLLabel::update_interaction() {
+	interaction_queued = false;
+	if (!is_inside_tree() || refresh_queued || view_update_pending || scroll_sort_pending) {
+		return;
+	}
+
+	std::optional<Vector2> point;
+	if (is_visible_in_tree() && viewport_size != Vector2i()) {
+		Viewport* viewport = get_viewport();
+		if (gui_hover_dirty) {
+			gui_hover_dirty = false;
+			// Refresh Godot's hovered Control after moving the canvas or its scrollbars.
+			updating_gui_hover = true;
+			viewport->update_mouse_cursor_state();
+			updating_gui_hover = false;
+			if (!is_inside_tree() || refresh_queued || scroll_sort_pending) {
+				return;
+			}
+		}
+		const Vector2 mouse = canvas->get_local_mouse_position();
+		if (viewport->gui_get_hovered_control() == canvas && get_visible_rect().has_point(mouse)) {
+			point = mouse;
+		}
+	}
+
+	if (!canvas->selection_dragged && hover_passes_remaining > 0 && layout->update_hover(point)) {
+		// A hover rule can move or hide its own target. Allow one correction after sorting.
+		--hover_passes_remaining;
+		hover_reflow = true;
+		refresh();
+		return;
+	}
+
+	hover_passes_remaining = 0;
+	hover_reflow = false;
+	canvas->update_cursor(point);
+	if (layout_signal_pending && !refresh_queued) {
+		layout_signal_pending = false;
+		emit_signal("layout_changed");
+	}
 }

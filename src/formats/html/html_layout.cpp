@@ -20,6 +20,7 @@
 #include <exception>
 #include <limits>
 #include <string_view>
+#include <unordered_set>
 
 using namespace godot;
 using docrender::LiteHTMLContainer;
@@ -116,6 +117,23 @@ namespace {
 	bool is_html_element(const litehtml::element& p_element) {
 		const auto tag = p_element.tag();
 		return tag != litehtml::empty_id && tag != litehtml::__tag_before_ && tag != litehtml::__tag_after_ && *p_element.get_tagName();
+	}
+
+	litehtml::element::ptr find_html_ancestor(litehtml::element::ptr p_element) {
+		while (p_element && !is_html_element(*p_element)) {
+			p_element = p_element->parent();
+		}
+		return p_element;
+	}
+
+	litehtml::element::ptr find_link_element(litehtml::element::ptr p_element) {
+		for (auto element = std::move(p_element); element; element = element->parent()) {
+			if (element->tag() == litehtml::_a_) {
+				const char* href = element->get_attr("href");
+				return href && *href ? element : nullptr;
+			}
+		}
+		return {};
 	}
 
 	template <typename Visitor>
@@ -255,6 +273,7 @@ struct HTMLLayout::State {
 	HashMap<const litehtml::element*, ObjectID> element_handles;
 	HashMap<const litehtml::element*, std::weak_ptr<HTMLElement::DetachedTree>> detached_trees;
 	HashMap<String, Rect2> anchors;
+	std::vector<std::weak_ptr<litehtml::element>> hovered_elements;
 	Vector2i viewport_size;
 	Vector2i content_size;
 	std::string master_styles;
@@ -265,6 +284,7 @@ struct HTMLLayout::State {
 	Update pending_update = Update::LAYOUT;
 	bool implicit_empty_document = false;
 	bool reflow_queued = false;
+	bool has_hover_styles = false;
 
 	bool has_layout() const {
 		return pending_update == Update::NONE && viewport_size.x > 0;
@@ -351,6 +371,7 @@ Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, c
 
 bool HTMLLayout::initialize_document(const CharString& p_html) {
 	state->document = DocumentAdapter::parse(p_html, *state->container, state->master_styles, state->user_styles);
+	state->has_hover_styles = state->document && DocumentAdapter::has_hover_styles(*state->document);
 	return bool(state->document);
 }
 
@@ -402,6 +423,7 @@ Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
 	if (state->pending_update == Update::STYLE || DocumentAdapter::media_changed(*document)) {
 		state->pending_update = Update::STYLE;
 		DocumentAdapter::restyle(document, *state->container, state->master_styles, state->user_styles);
+		state->has_hover_styles = DocumentAdapter::has_hover_styles(*document);
 		state->pending_update = Update::LAYOUT;
 	}
 	else {
@@ -905,10 +927,7 @@ Ref<HTMLElement> HTMLLayout::get_element_at(const Vector2& p_position) const {
 }
 
 Ref<HTMLElement> HTMLLayout::wrap_hit_element(litehtml::element::ptr p_element) const {
-	while (p_element && !is_html_element(*p_element)) {
-		p_element = p_element->parent();
-	}
-	return make_element(p_element);
+	return make_element(find_html_ancestor(std::move(p_element)));
 }
 
 litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) const {
@@ -988,14 +1007,51 @@ HTMLLayout::LinkHit HTMLLayout::find_link_at(const Vector2& p_position, Ref<HTML
 	if (r_element) {
 		*r_element = wrap_hit_element(element);
 	}
-	while (element) {
-		if (element->tag() == litehtml::_a_) {
-			const char* href = element->get_attr("href");
-			return href && *href ? LinkHit{ String::utf8(href), reinterpret_cast<uintptr_t>(element.get()) } : LinkHit{};
-		}
-		element = element->parent();
+	if (const auto link = find_link_element(std::move(element))) {
+		return { String::utf8(link->get_attr("href")), reinterpret_cast<uintptr_t>(link.get()) };
 	}
 	return {};
+}
+
+std::string_view HTMLLayout::get_cursor_at(const Vector2& p_position, bool& r_over_link) const {
+	const auto element = find_html_ancestor(hit_test_element(p_position));
+	r_over_link = bool(find_link_element(element));
+	return element ? std::string_view(element->css().get_cursor()) : std::string_view();
+}
+
+bool HTMLLayout::update_hover(const std::optional<Vector2>& p_position) {
+	const auto target = p_position ? find_html_ancestor(hit_test_element(*p_position)) : nullptr;
+	std::vector<std::weak_ptr<litehtml::element>> next;
+	for (auto element = target; element; element = find_html_ancestor(element->parent())) {
+		next.emplace_back(element);
+	}
+	auto& previous = state->hovered_elements;
+	if (std::equal(previous.begin(), previous.end(), next.begin(), next.end(),
+			[](const auto& p_left, const auto& p_right) { return p_left.lock() == p_right.lock(); })) {
+		return false;
+	}
+
+	std::unordered_set<const litehtml::element*> hovered;
+	for (const auto& entry : next) {
+		hovered.insert(entry.lock().get());
+	}
+	for (const auto& entry : previous) {
+		if (const auto element = entry.lock(); element && !hovered.erase(element.get())) {
+			DocumentAdapter::set_hover(*element, false);
+		}
+	}
+	for (auto element = target; element; element = find_html_ancestor(element->parent())) {
+		if (hovered.count(element.get())) {
+			DocumentAdapter::set_hover(*element, true);
+		}
+	}
+	previous = std::move(next);
+	if (!state->has_hover_styles) {
+		return false;
+	}
+	state->pending_update = State::Update::STYLE;
+	state->anchors.clear();
+	return true;
 }
 
 String HTMLLayout::get_render_error() const {
@@ -1015,6 +1071,8 @@ void HTMLLayout::clear() {
 		}
 	}
 	state->detached_trees.clear();
+	state->hovered_elements.clear();
+	state->has_hover_styles = false;
 	state->document.reset();
 	state->container.reset();
 	state->anchors.clear();

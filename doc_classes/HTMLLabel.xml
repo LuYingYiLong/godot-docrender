@@ -7,6 +7,8 @@
 		Displays [member document] or inline [member text] using [HTMLLayout]. Give the control a size with anchors, offsets, or a parent [Container]. The document wraps to the available width, and scrollbars appear as needed to reach overflowing content.
 		Source changes are applied on a deferred update and reset the scroll position. Resizing recalculates the layout and clamps the current scroll offset. Clicking a [code]#id[/code] link scrolls to the matching HTML element. Connect [signal link_pressed] to handle other links.
 		Drag to select rendered text. The focused control supports the standard select-all and copy shortcuts. The theme color [code]selection_color[/code] sets the selection highlight.
+		CSS [code]:hover[/code] matches the element under the mouse and its ancestors. Scrolling updates the hovered element even when the mouse is stationary. During text selection by dragging, hover styles stay fixed until the drag ends.
+		CSS [code]cursor[/code] supports [code]default[/code], [code]pointer[/code], [code]text[/code], [code]crosshair[/code], [code]move[/code], [code]wait[/code], [code]progress[/code], [code]help[/code], [code]not-allowed[/code], [code]ew-resize[/code], and [code]ns-resize[/code]. With [code]auto[/code] or unsupported values, the control uses a pointing hand over links, an I-beam when text selection is enabled, and an arrow otherwise. Dragging to select text uses the I-beam.
 	</description>
 	<methods>
 		<method name="clear_selection">
@@ -138,7 +140,7 @@
 		</signal>
 		<signal name="layout_changed">
 			<description>
-				Emitted after a deferred layout update, when the new content size and scroll range can be queried. Multiple element edits before the update are combined. The signal also reports a cleared or failed layout.
+				Emitted after a deferred layout update, when the new content size and scroll range can be queried. Multiple element edits before the update are combined. The signal also reports a cleared or failed layout and reflow caused by hover styles.
 			</description>
 		</signal>
 		<signal name="link_pressed">
