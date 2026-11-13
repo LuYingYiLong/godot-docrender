@@ -23,8 +23,19 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 | Colors | Named and hex colors, `rgb()` and `hsl()` variants, and `currentColor` where applicable. `oklch()` and `color-mix()` are unsupported. |
 | Backgrounds | Solid colors, local images, and linear, radial, and conic gradients. |
 | Borders and shadows | `solid`, `dashed`, `dotted`, `double`, per-side widths and colors, and `border-radius`. DocRender adds `box-shadow`, including `inset` and multiple layers. `groove`, `ridge`, `inset`, and `outset` border styles parse but have no drawing implementation. |
-| Text | Theme fonts, font size and weight, italic text, wrapping, alignment, and line height. Godot theme fonts and the renderer's code font mappings determine which font is used. `text-decoration` supports underline, overline, and line-through in five styles, with `auto`, `from-font`, length, and percentage thickness. `text-shadow` supports offsets, blur, and multiple layers on glyphs and decorations. Text emphasis marks parse but have no drawing implementation. |
+| Text | Theme fonts, font size and weight, italic text, wrapping, alignment, and line height. `font-family` accepts a prioritized list of installed family names and generic families, including in the `font` shorthand. `text-decoration` supports underline, overline, and line-through in five styles, with `auto`, `from-font`, length, and percentage thickness. `text-shadow` supports offsets, blur, and multiple layers on glyphs and decorations. Text emphasis marks parse but have no drawing implementation. |
 | Cursor | `HTMLLabel` maps common CSS keywords to Godot cursor shapes. Image cursors and unmapped keywords use the control's fallback. |
+
+## Font families
+
+```css
+body { font-family: "Segoe UI", Arial, sans-serif; }
+code { font-family: "Cascadia Mono", Consolas, monospace; }
+```
+
+The renderer tries the listed families in order and lets Godot shape text with the next font when a glyph is missing. Quoted names are literal, including punctuation and names such as `"monospace"`. Unquoted generic families use theme fonts or installed fonts, depending on the family and platform. The project or Markdown theme supplies the default text font and `sans-serif`. A configured Markdown code font supplies `monospace`. `initial` restores the default, `inherit` and `unset` inherit the parent's list, and `revert` rolls back to the default stylesheet and presentational hints. `revert-layer` behaves like `revert` for the supported unlayered styles.
+
+Family names use Unicode default case folding without normalization. Godot and the OS provide installed font discovery, localized aliases, and face matching. When a generic family has no available candidate, rendering proceeds through the rest of the list and the document default. [CSS Fonts Level 4](https://www.w3.org/TR/css-fonts-4/#font-family-prop)
 
 ## Declaration diagnostics
 

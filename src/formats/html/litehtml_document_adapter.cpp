@@ -212,6 +212,15 @@ namespace litehtml {
 		doc.update_media_lists(doc.m_media);
 		root->apply_stylesheet(doc.m_master_css);
 		root->parse_attributes();
+		const auto snapshot_font_families = [&](const auto& p_visit, element& p_element) -> void {
+			if (auto* tag = dynamic_cast<html_tag*>(&p_element)) {
+				tag->m_style.snapshot_default_font_family();
+			}
+			for (const auto& child : p_element.children()) {
+				p_visit(p_visit, *child);
+			}
+		};
+		snapshot_font_families(snapshot_font_families, *root);
 		p_container.set_css_source_kind(css_source_kind::style_element);
 		for (const auto& sheet : doc.m_css) {
 			media_query_list_list::ptr media;

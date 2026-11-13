@@ -1,9 +1,59 @@
 #include "litehtml_css.h"
 
 #include <litehtml/html.h>
+#include <litehtml/css_parser.h>
 #include <litehtml/style.h>
 
 namespace litehtml {
+	bool parse_font_families(const css_token_vector& p_tokens, css_font_families& r_families) {
+		const auto is_generic = [](const string& p_name) {
+			return is_one_of(p_name, "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "math",
+				"ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded");
+		};
+		const auto is_reserved = [&](const string& p_name) {
+			return is_generic(p_name) || value_in_list(p_name, font_system_family_name_strings) ||
+				is_one_of(p_name, "default", "initial", "inherit", "unset", "revert", "revert-layer");
+		};
+		css_font_families families;
+		for (const auto& tokens : parse_comma_separated_list(p_tokens)) {
+			if (tokens.empty()) {
+				return false;
+			}
+			const auto& first = tokens.front();
+			if (tokens.size() == 1) {
+				if (first.type == STRING) {
+					families.push_back({ first.str });
+					continue;
+				}
+				if (first.type == CV_FUNCTION && lowcase(first.name) == "generic" && first.value.size() == 1) {
+					const auto keyword = first.value.front().ident();
+					if (is_one_of(keyword, "fangsong", "kai", "khmer-mul", "nastaliq")) {
+						families.push_back({ "generic(" + keyword + ")", true });
+						continue;
+					}
+				}
+				const auto keyword = first.ident();
+				if (is_generic(keyword)) {
+					families.push_back({ keyword, true });
+					continue;
+				}
+			}
+			string name;
+			for (const auto& token : tokens) {
+				if (token.type != IDENT || is_reserved(lowcase(token.name))) {
+					return false;
+				}
+				if (!name.empty()) {
+					name += ' ';
+				}
+				name += token.name;
+			}
+			families.push_back({ std::move(name) });
+		}
+		r_families = std::move(families);
+		return true;
+	}
+
 	void css_declaration_result::accept(string_id p_name, const property_value& p_value) {
 		accepted = true;
 		switch (p_name) {

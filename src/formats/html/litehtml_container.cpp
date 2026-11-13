@@ -8,10 +8,12 @@
 #include <godot_cpp/classes/font_variation.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/style_box.hpp>
+#include <godot_cpp/classes/system_font.hpp>
 #include <godot_cpp/classes/text_server.hpp>
 #include <godot_cpp/classes/text_server_manager.hpp>
 #include <godot_cpp/classes/theme.hpp>
@@ -39,6 +41,43 @@ namespace docrender {
 		constexpr float CSS_DPI = 96.0f;
 		constexpr int MAX_ROUNDED_CLIPS = 16;
 		Ref<Shader> paint_shader;
+
+		struct CaseFoldRange {
+			char32_t first;
+			char32_t last;
+			int32_t offset;
+			int step;
+		};
+
+		struct CaseFoldExpansion {
+			char32_t codepoint;
+			const char32_t* folded;
+		};
+
+		#include "unicode_case_folding.inc"
+
+		String fold_font_family(const String& p_name) {
+			std::u32string folded;
+			folded.reserve(p_name.length());
+			for (int64_t index = 0; index < p_name.length(); ++index) {
+				const char32_t codepoint = p_name[index];
+				const auto* range = std::lower_bound(std::begin(CASE_FOLD_RANGES), std::end(CASE_FOLD_RANGES), codepoint,
+					[](const CaseFoldRange& p_range, char32_t p_value) { return p_range.last < p_value; });
+				if (range != std::end(CASE_FOLD_RANGES) && codepoint >= range->first && (codepoint - range->first) % range->step == 0) {
+					folded += static_cast<char32_t>(static_cast<int32_t>(codepoint) + range->offset);
+					continue;
+				}
+				const auto* expansion = std::lower_bound(std::begin(CASE_FOLD_EXPANSIONS), std::end(CASE_FOLD_EXPANSIONS), codepoint,
+					[](const CaseFoldExpansion& p_expansion, char32_t p_value) { return p_expansion.codepoint < p_value; });
+				if (expansion != std::end(CASE_FOLD_EXPANSIONS) && expansion->codepoint == codepoint) {
+					folded += expansion->folded;
+				}
+				else {
+					folded += codepoint;
+				}
+			}
+			return String(folded.c_str());
+		}
 
 		class RawTextElement final : public html_tag {
 			bool stylesheet;
@@ -1196,51 +1235,183 @@ void fragment() {
 		return line;
 	}
 
+	Ref<Font> LiteHTMLContainer::find_installed_font(const String& p_family, int p_weight, bool p_italic) {
+		if (p_family.is_empty()) {
+			return {};
+		}
+		const String folded = fold_font_family(p_family);
+		const String key = vformat("%d/%d/%s", p_weight, int(p_italic), folded);
+		if (const auto* cached = installed_fonts.getptr(key)) {
+			return *cached;
+		}
+		OS* os = OS::get_singleton();
+		// Godot aliases these names on some platforms. A quoted CSS family must be a real family.
+		const bool platform_alias = folded == "serif" || folded == "sans-serif" || folded == "monospace" ||
+			folded == "cursive" || folded == "fantasy";
+		if (!installed_font_names) {
+			installed_font_names.emplace();
+			for (const String& name : os->get_system_fonts()) {
+				const String name_key = fold_font_family(name);
+				if (!installed_font_names->has(name_key)) {
+					installed_font_names->insert(name_key, name);
+				}
+			}
+		}
+		const String* listed_family = installed_font_names->getptr(folded);
+		const bool exact_lookup = !platform_alias && os->get_name() == "Windows";
+		Ref<Font> result;
+		if (listed_family || !platform_alias) {
+			Ref<SystemFont> font;
+			font.instantiate();
+			font->set_font_weight(std::clamp(p_weight, 100, 999));
+			font->set_font_italic(p_italic);
+			font->set_allow_system_fallback(false);
+			PackedStringArray names;
+			names.append(listed_family ? *listed_family : p_family);
+			font->set_font_names(names);
+			if (font->get_face_count() > 0 && (exact_lookup || (listed_family && !platform_alias) ||
+				folded == fold_font_family(font->get_font_name()))) {
+				result = font;
+			}
+		}
+		installed_fonts.insert(key, result);
+		return result;
+	}
+
+	Ref<Font> LiteHTMLContainer::resolve_font_stack(const font_description& p_description) {
+		const bool bold = p_description.weight >= 600;
+		const bool italic = p_description.style != font_style_normal;
+		const auto with_style = [&](const Ref<Font>& p_font) -> Ref<Font> {
+			const bool embolden = bold && p_font->get_font_weight() < 600;
+			const bool slant = italic && !(p_font->get_font_style() & TextServer::FONT_ITALIC);
+			if (!embolden && !slant) {
+				return p_font;
+			}
+			Ref<FontVariation> variation;
+			variation.instantiate();
+			variation->set_base_font(p_font);
+			if (embolden) {
+				variation->set_variation_embolden(0.6f);
+			}
+			if (slant) {
+				variation->set_variation_transform(Transform2D(1.0f, 0.0f, -0.2f, 1.0f, 0.0f, 0.0f));
+			}
+			variation->set_fallbacks(p_font->get_fallbacks());
+			return variation;
+		};
+		const Ref<Font>& themed_variant = bold && italic ? fonts.bold_italic : (bold ? fonts.bold : fonts.italic);
+		const Ref<Font> text_font = (bold || italic) && themed_variant.is_valid() ? themed_variant : with_style(default_font);
+		if (p_description.families.empty()) {
+			return text_font;
+		}
+
+		TypedArray<Font> stack;
+		const auto append = [&](const Ref<Font>& p_font) {
+			if (p_font.is_valid() && !stack.has(p_font)) {
+				stack.append(p_font);
+			}
+		};
+		const auto append_installed = [&](const char* p_names) {
+			for (const String& name : String(p_names).split("|")) {
+				const auto font = find_installed_font(name, p_description.weight, italic);
+				if (font.is_valid()) {
+					append(with_style(font));
+					break;
+				}
+			}
+		};
+		const String text_name = fold_font_family(default_font->get_font_name());
+		const String code_name = fonts.code.is_valid() ? fold_font_family(fonts.code->get_font_name()) : String();
+		const String block_name = fonts.code_block.is_valid() ? fold_font_family(fonts.code_block->get_font_name()) : String();
+		for (const auto& family : p_description.families) {
+			const String name = String::utf8(family.name.c_str());
+			if (!family.generic) {
+				const String folded = fold_font_family(name);
+				if (folded.is_empty()) {
+					continue;
+				}
+				if (folded == "docrender-code-block" && fonts.code_block.is_valid()) {
+					append(with_style(fonts.code_block));
+				}
+				else if (folded == text_name) {
+					append(text_font);
+				}
+				else if (folded == code_name) {
+					append(with_style(fonts.code));
+				}
+				else if (folded == block_name) {
+					append(with_style(fonts.code_block));
+				}
+				else if (const auto font = find_installed_font(name, p_description.weight, italic); font.is_valid()) {
+					append(with_style(font));
+				}
+				continue;
+			}
+			if (name == "sans-serif") {
+				append(text_font);
+			}
+			else if (name == "system-ui" || name == "ui-sans-serif") {
+				append_installed("Segoe UI|.AppleSystemUIFont|Helvetica Neue|Roboto|Cantarell|Noto Sans");
+			}
+			else if (name == "monospace" && fonts.code.is_valid()) {
+				append(with_style(fonts.code));
+			}
+			else {
+				static constexpr std::pair<const char*, const char*> generic_fonts[] = {
+				{ "serif", "Times New Roman|Noto Serif|DejaVu Serif|Liberation Serif|Times|Droid Serif" },
+				{ "monospace", "Courier New|Menlo|Noto Sans Mono|DejaVu Sans Mono|Liberation Mono|Roboto Mono|Droid Sans Mono" },
+					{ "cursive", "Comic Sans MS|Apple Chancery|URW Chancery L|Dancing Script" },
+					{ "fantasy", "Gabriola|Papyrus|Impact|Copperplate" },
+					{ "math", "Cambria Math|STIX Two Math|Latin Modern Math|DejaVu Math TeX Gyre|Noto Sans Math" },
+					{ "ui-serif", "New York" },
+					{ "ui-monospace", "Cascadia Mono|SF Mono" },
+					{ "ui-rounded", "SF Pro Rounded" },
+					{ "generic(fangsong)", "FangSong|STFangsong|仿宋" },
+					{ "generic(kai)", "KaiTi|STKaiti|Kaiti TC|楷体" },
+					{ "generic(khmer-mul)", "Khmer OS Muol|Khmer OS Muol Light" },
+					{ "generic(nastaliq)", "Noto Nastaliq Urdu|Jameel Noori Nastaleeq|Urdu Typesetting" },
+				};
+				for (const auto& [generic, candidates] : generic_fonts) {
+					if (name == generic) {
+						append_installed(candidates);
+						break;
+					}
+				}
+			}
+		}
+		append(text_font);
+		const Ref<Font> primary = stack[0];
+		if (stack.size() == 1) {
+			return primary;
+		}
+		Ref<FontVariation> combined;
+		combined.instantiate();
+		combined->set_base_font(primary);
+		stack.remove_at(0);
+		const TypedArray<Font> primary_fallbacks = primary->get_fallbacks();
+		for (int64_t index = 0; index < primary_fallbacks.size(); ++index) {
+			const Ref<Font> fallback = primary_fallbacks[index];
+			append(fallback);
+		}
+		combined->set_fallbacks(stack);
+		return combined;
+	}
+
 	uint_ptr LiteHTMLContainer::create_font(const font_description& p_description, const litehtml::document*,
 		font_metrics* r_metrics) {
 		const double requested_size = std::round(static_cast<double>(p_description.size));
 		const int32_t size = std::isfinite(requested_size) && requested_size <= std::numeric_limits<int32_t>::max()
 			? static_cast<int32_t>(std::max(1.0, requested_size))
 			: static_cast<int32_t>(get_default_font_size());
-		Ref<Font> font = default_font;
-		const bool bold = p_description.weight >= 600;
-		const bool italic = p_description.style == font_style_italic;
-		bool code_family = false;
-		if (fonts.code.is_valid() || fonts.code_block.is_valid()) {
-			for (const String& family : String::utf8(p_description.family.c_str()).to_lower().split(",")) {
-				if (family == "monospace" && fonts.code.is_valid()) {
-					font = fonts.code;
-					code_family = true;
-					break;
-				}
-				if (family == "docrender-code-block" && fonts.code_block.is_valid()) {
-					font = fonts.code_block;
-					code_family = true;
-					break;
-				}
-				if (family == "sans-serif" || family == "serif") {
-					break;
-				}
-			}
+		String key = vformat("%d/%d", p_description.weight, int(p_description.style));
+		for (const auto& family : p_description.families) {
+			const String name = String::utf8(family.name.c_str());
+			key += vformat("/%d/%d/%s", int(family.generic), name.length(), name);
 		}
-		Ref<Font> variant;
-		if (!code_family && (bold || italic)) {
-			variant = bold && italic ? fonts.bold_italic : (bold ? fonts.bold : fonts.italic);
-		}
-		if (variant.is_valid()) {
-			font = variant;
-		}
-		else if (bold || italic) {
-			Ref<FontVariation> variation;
-			variation.instantiate();
-			variation->set_base_font(font);
-			if (bold) {
-				variation->set_variation_embolden(0.6f);
-			}
-			if (italic) {
-				variation->set_variation_transform(Transform2D(1.0f, 0.0f, -0.2f, 1.0f, 0.0f, 0.0f));
-			}
-			font = variation;
+		const auto* cached = font_stacks.getptr(key);
+		const Ref<Font> font = cached ? *cached : resolve_font_stack(p_description);
+		if (!cached) {
+			font_stacks.insert(key, font);
 		}
 
 		const float ascent = font->get_ascent(size);

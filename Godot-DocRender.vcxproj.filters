@@ -269,6 +269,9 @@
     <ClInclude Include="src\formats\html\litehtml_css.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
+    <ClInclude Include="src\formats\html\unicode_case_folding.inc">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_container.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>

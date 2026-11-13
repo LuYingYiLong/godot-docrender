@@ -6,6 +6,13 @@
 
 namespace litehtml {
 	struct property_value;
+	struct css_font_family {
+		string name;
+		bool generic = false;
+	};
+	using css_font_families = std::vector<css_font_family>;
+
+	bool parse_font_families(const css_token_vector& p_tokens, css_font_families& r_families);
 
 	enum class css_source_kind {
 		none,

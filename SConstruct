@@ -105,6 +105,7 @@ def stage_litehtml_extensions(target, source, env):
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_css.h"\n')
         insert_before("\t\tcss_token_vector\n", "\t\tstd::vector<box_shadow>,\n")
+        insert_before("\t\tcss_token_vector\n", "\t\tcss_font_families,\n")
         insert_before("\t\tproperty_value() {}", """
 		std::shared_ptr<const css_declaration_origin> diagnostic_origin;
 		bool pending_gap_shorthand = false;
@@ -116,8 +117,10 @@ def stage_litehtml_extensions(target, source, env):
 """)
         insert_before("\t\tvoid subst_vars(", """\
 		const std::vector<css_diagnostic>* get_diagnostics() const { return diagnostics.get(); }
+		void snapshot_default_font_family();
 """)
-        insert_before("\t\t\tm_properties.clear();", "\t\t\tdiagnostics.reset();\n")
+        insert_before("\t\t\tm_properties.clear();", "\t\t\tdiagnostics.reset();\n\t\t\tdefault_font_family.reset();\n")
+        insert_before("\t\tstatic std::map<string_id, string>", "\t\tstd::shared_ptr<const property_value> default_font_family;\n")
         insert_before("\t\tvoid inherit_property", """
 		void add_checked_property(string_id name, const css_token_vector& value, const string& baseurl,
 			bool important, document_container* container, const css_source& source, const string* original_value = nullptr,
@@ -145,11 +148,45 @@ def stage_litehtml_extensions(target, source, env):
 		virtual void report_css_diagnostic(const css_diagnostic&, const html_tag* = nullptr) {}
 
 """)
+    elif path.name == "font_description.h":
+        insert_before('#include "types.h"', '#include "formats/html/litehtml_css.h"\n')
+        replace_once("std::string\t\t\t\tfamily;", "css_font_families\t\tfamilies;")
+        replace_once("\t\t\tout += family;", """\
+			for (const auto& family : families)
+			{
+				out += family.generic ? 'G' : 'N';
+				out += std::to_string(family.name.size()) + ':' + family.name;
+			}""")
+    elif path.name == "types.h":
+        replace_once('font_style_strings\t\t"normal;italic"', 'font_style_strings\t\t"normal;italic;oblique"')
+        replace_once("\t\tfont_style_italic\n", "\t\tfont_style_italic,\n\t\tfont_style_oblique\n")
     elif path.name == "string_id.h":
         insert_before("\t_flex_flow_,", "\t_gap_,\n\t_row_gap_,\n\t_column_gap_,\n")
     elif path.name == "style.cpp":
         insert_before('#include <set>', '#include <cmath>\n')
         insert_before('#include "document.h"', '#include "document_container.h"\n')
+        replace_once("bool parse_font_family(const css_token_vector& tokens, string& font_family);\n", "")
+        start = text.index("// https://drafts.csswg.org/css-fonts/#propdef-font-family")
+        end = text.index("// https://developer.mozilla.org/en-US/docs/Web/CSS/font", start)
+        text = text[:start] + text[end:]
+        replace_once("\tcase _font_family_:\n\t\tif (parse_font_family(value, str))\n\t\t\tadd_parsed_property(name, property_value(str, important));\n\t\tbreak;", """\
+	case _font_family_:
+	{
+		css_font_families families;
+		if (ident == "unset") return inherit_property(name, important);
+		if (is_one_of(ident, "revert", "revert-layer"))
+		{
+			add_parsed_property(name, property_value(ident, important));
+			break;
+		}
+		if (ident == "initial" || parse_font_families(value, families))
+			add_parsed_property(name, property_value(families, important));
+		break;
+	}""")
+        replace_once("string font_family; // this argument is mandatory, no need to set initial value", "css_font_families font_family;")
+        replace_once('if(tokens.size() == 1 && (tokens[0].type == STRING || tokens[0].type == IDENT) && value_in_list(tokens[0].str, font_system_family_name_strings))\n\t{\n\t\tfont_family = tokens[0].str;',
+                     'if (tokens.size() == 1 && value_in_list(tokens[0].ident(), font_system_family_name_strings))\n\t{\n\t\tfont_family.push_back({ "system-ui", true });')
+        replace_once("if (!parse_font_family(tokens, font_family))", "if (!parse_font_families(tokens, font_family))")
         parser = text.split("void style::add_property(string_id name, const css_token_vector&", 1)[1].split(
             "void style::add_property(string_id name, const string&", 1)[0]
         property_cases = re.findall(r"^\s*case (_\w+_):", parser, re.MULTILINE)
@@ -184,6 +221,12 @@ static bool is_known_css_property(string_id name)
 		else
 			add_checked_property(_id(name), decl.value, baseurl, decl.important, container, source, nullptr, false, element);""")
         insert_before("void style::inherit_property", """
+void style::snapshot_default_font_family()
+{
+	const auto& property = get_property(_font_family_);
+	if (!property.is<invalid>()) default_font_family = std::make_shared<property_value>(property);
+}
+
 void style::report_diagnostic(document_container& container, css_diagnostic_kind kind, string_id name,
 	const string& value, const css_source& source, const html_tag* element,
 	std::vector<std::pair<string_id, int>> drawing_values)
@@ -315,6 +358,14 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
 			remember_diagnostic(diagnostic);
 	}
 """)
+        insert_before("\t\treturn it->second;\n\t}\n\tstatic property_value dummy;", """\
+		// Author rules share one unlayered cascade. Roll back to default styles or inheritance.
+		if (name == _font_family_ && it->second.is<string>())
+		{
+			static const property_value inherited{ inherit(), false };
+			return default_font_family ? *default_font_family : inherited;
+		}
+""")
         replace_once('\t\t\tadd_property(prop.first, value, "", prop.second.m_important, el->get_document()->container());', """
 			auto* container = el->get_document()->container();
 			const auto origin = prop.second.diagnostic_origin;
@@ -420,6 +471,8 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
         replace_once('color, pos);', 'color, pos, *el_parent);')
     elif path.name == "css_properties.h":
         insert_before('#include "background.h"', '#include "formats/html/litehtml_box_shadow.h"\n')
+        insert_before('#include "background.h"', '#include "formats/html/litehtml_css.h"\n')
+        replace_once("string\t\t\t\t\tm_font_family;", "css_font_families\t\tm_font_families;")
         insert_before("\t\tflex_wrap get_flex_wrap() const;", """
 		const css_length& get_row_gap() const { return m_row_gap; }
 		const css_length& get_column_gap() const { return m_column_gap; }
@@ -428,6 +481,9 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
         insert_before("\t\tconst string& get_cursor()", "\t\tconst std::vector<box_shadow>& get_text_shadows() const { return m_text_shadows; }\n\n")
         insert_before("\t\telement_position\t\tm_el_position;", "\t\tstd::vector<box_shadow> m_text_shadows;\n")
     elif path.name == "css_properties.cpp":
+        replace_once("m_font_family\t\t=              el->get_property<string>(    _font_family_,\t\ttrue, doc->container()->get_default_font_name(),\toffset(m_font_family));",
+                     "m_font_families = el->get_property(_font_family_, true, css_font_families(), offset(m_font_families));")
+        replace_once("descr.family \t\t\t\t= m_font_family;", "descr.families\t\t\t\t= m_font_families;")
         insert_before("\tif (m_display == display_flex || m_display == display_inline_flex)\n", """
 	// Keep computed values on all elements so explicit inheritance works through block ancestors.
 	m_row_gap = el->get_property(_row_gap_, false, css_length(), offset(m_row_gap));
@@ -633,7 +689,8 @@ for header in Glob(f"{litehtml}/include/*.h") + Glob(f"{litehtml}/include/liteht
     if header_path.stem in ("document", "element", "html_tag"):
         staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
                                           header, expose_litehtml_editing)
-    elif header_path.stem in ("style", "string_id", "document_container", "css_properties", "render_flex", "flex_line"):
+    elif header_path.stem in ("style", "string_id", "types", "document_container", "css_properties", "font_description",
+                              "render_flex", "flex_line"):
         staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
                                           header, stage_litehtml_extensions)
     else:

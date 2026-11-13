@@ -17,3 +17,4 @@ Windows x64 MSVC builds with Mermaid support use the Merman `0.9.3` native full 
 - godot-cpp provides the C++ bindings for the GDExtension. [MIT license](godot-cpp-LICENSE.md)
 - MicroTeX, TinyXML-2, and the embedded math fonts are used for LaTeX formula rendering. [Licenses and notices](MicroTeX-LICENSES.txt)
 - litehtml v0.10 and its bundled Gumbo parser provide HTML parsing and layout for `HTMLDocument`. Both are compiled into the extension. [litehtml BSD 3-Clause license](LiteHTML-LICENSES/litehtml.txt) · [Gumbo Apache 2.0 license](LiteHTML-LICENSES/gumbo.txt)
+- Unicode 16.0.0 case-folding data is used to match CSS font family names. [Unicode license](LiteHTML-LICENSES/unicode-case-folding.txt) · [Source data](https://www.unicode.org/Public/16.0.0/ucd/CaseFolding.txt)

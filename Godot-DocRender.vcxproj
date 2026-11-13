@@ -185,6 +185,7 @@
     <ClInclude Include="src\formats\html\litehtml_box_shadow.h" />
     <ClInclude Include="src\formats\html\html_text_mask.h" />
     <ClInclude Include="src\formats\html\litehtml_css.h" />
+    <ClInclude Include="src\formats\html\unicode_case_folding.inc" />
     <ClInclude Include="src\formats\html\litehtml_container.h" />
     <ClInclude Include="src\formats\html\litehtml_document_adapter.h" />
     <ClInclude Include="src\editor\docrender_editor_translations.h" />
