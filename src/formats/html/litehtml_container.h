@@ -34,6 +34,7 @@ namespace docrender {
 			RoundedRect(const godot::Rect2& p_rect, const litehtml::border_radiuses& p_radii);
 			
 			RoundedRect inset(const godot::Rect2& p_rect) const;					// 返回内缩到指定矩形并相应缩小圆角后的形状
+			RoundedRect spread(godot::real_t p_distance) const;					// 按阴影扩张距离调整边界和圆角
 			bool has_radius() const;												// 检查是否存在有效的圆角
 			bool has_point(const godot::Vector2& p_position) const;					// 检查指定坐标是否在圆角矩形内
 		};
@@ -203,6 +204,8 @@ namespace docrender {
 			const std::string& p_css_base) override;
 		void draw_solid_fill(litehtml::uint_ptr, const litehtml::background_layer& p_layer,
 			const litehtml::web_color& p_color) override;
+		void draw_box_shadows(const litehtml::html_tag& p_element, const litehtml::position& p_box,
+			const litehtml::borders& p_borders, bool p_inset) override;
 		void draw_borders(litehtml::uint_ptr, const litehtml::borders& p_borders,
 			const litehtml::position& p_position, bool) override;
 		void transform_text(litehtml::string& r_text, litehtml::text_transform p_transform) override;

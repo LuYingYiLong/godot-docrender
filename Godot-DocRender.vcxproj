@@ -139,6 +139,7 @@
     <ClCompile Include="src\formats\html\html_element.cpp" />
     <ClCompile Include="src\formats\html\html_layout.cpp" />
     <ClCompile Include="src\formats\html\html_markup.cpp" />
+    <ClCompile Include="src\formats\html\litehtml_box_shadow.cpp" />
     <ClCompile Include="src\formats\html\litehtml_container.cpp" />
     <ClCompile Include="src\formats\html\litehtml_document_adapter.cpp" />
     <ClCompile Include="src\editor\docrender_editor_translations.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="src\formats\html\html_element.h" />
     <ClInclude Include="src\formats\html\html_layout.h" />
     <ClInclude Include="src\formats\html\html_markup.h" />
+    <ClInclude Include="src\formats\html\litehtml_box_shadow.h" />
     <ClInclude Include="src\formats\html\litehtml_container.h" />
     <ClInclude Include="src\formats\html\litehtml_document_adapter.h" />
     <ClInclude Include="src\editor\docrender_editor_translations.h" />

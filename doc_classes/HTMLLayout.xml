@@ -7,6 +7,7 @@
 		Use [method parse] to load an HTML document or fragment and [method layout] to set its viewport size. Call [method draw] from the target [CanvasItem]'s [method CanvasItem._draw] callback. Call [method CanvasItem.queue_redraw] after changing the document, viewport size, or drawing position.
 		Supports block and inline layout, lists, tables, text, backgrounds, and local images. Borders support [code]solid[/code], [code]dashed[/code], [code]dotted[/code], and [code]double[/code], with separate styles, widths, and colors per side. [code]border-radius[/code] rounds backgrounds, borders, and images, and clips overflowing children when [code]overflow: hidden[/code] is set. Backgrounds support [code]linear-gradient()[/code], [code]radial-gradient()[/code], and [code]conic-gradient()[/code] with sRGB color interpolation.
 		Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.
+		[code]box-shadow[/code] supports offsets, blur, spread, and comma-separated layers. Use [code]inset[/code] for an inner shadow. Shadows follow [code]border-radius[/code] and leave layout and scroll ranges unaffected.
 	</description>
 	<methods>
 		<method name="clear">

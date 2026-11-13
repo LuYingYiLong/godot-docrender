@@ -70,6 +70,7 @@ if not Path(litehtml, "include", "litehtml.h").is_file() or not Path(gumbo, "inc
 
 html_env = env.Clone()
 litehtml_headers = "src/gen/html/include"
+litehtml_shadow = File("src/formats/html/litehtml_box_shadow.h")
 
 
 def expose_litehtml_editing(target, source, env):
@@ -87,6 +88,60 @@ def expose_litehtml_editing(target, source, env):
     Path(str(target[0])).write_text(text, encoding="utf-8", newline="\n")
 
 
+def stage_litehtml_box_shadow(target, source, env):
+    path = Path(str(source[0]))
+    text = path.read_text(encoding="utf-8")
+
+    def insert_before(anchor, addition):
+        nonlocal text
+        if text.count(anchor) != 1:
+            raise ValueError(f"Update the DocRender box-shadow integration for {path}: {anchor}")
+        text = text.replace(anchor, addition + anchor)
+
+    if path.name == "style.h":
+        insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_box_shadow.h"\n')
+        insert_before("\t\tcss_token_vector\n", "\t\tstd::vector<box_shadow>,\n")
+    elif path.name == "document_container.h":
+        insert_before("\tstruct list_marker", "\tclass html_tag;\n\n")
+        insert_before("\t\tvirtual\tvoid\t\t\t\tset_caption", """
+		virtual void draw_box_shadows(const html_tag&, const position&, const borders&, bool) {}
+
+""")
+    elif path.name == "style.cpp":
+        insert_before("\tint idx[4];\n\tweb_color clr[4];", """
+	if (name == _id("box-shadow"))
+	{
+		std::vector<box_shadow> shadows;
+		if (parse_box_shadows(value, container, shadows))
+			add_parsed_property(name, property_value(shadows, important));
+		return;
+	}
+
+""")
+    elif path.name == "html_tag.cpp":
+        insert_before("\tif(m_css.get_display() != display_inline && m_css.get_display() != display_table_row)", """
+	const auto paint_shadows = [&](position box, borders decoration, bool inset) {
+		box.round();
+		get_document()->container()->draw_box_shadows(*this, box, decoration, inset);
+	};
+""")
+        insert_before("\t\tif(border_box.does_intersect(clip) || is_root())", """
+		borders shadow_box = m_css.get_borders();
+		shadow_box.radius = m_css.get_borders().radius.calc_percents(border_box.width, border_box.height);
+		paint_shadows(border_box, shadow_box, false);
+""")
+        insert_before("\t\t\tborders bdr = m_css.get_borders();\n\t\t\tif(bdr.is_visible())",
+                      "\t\t\tpaint_shadows(border_box, shadow_box, true);\n")
+        insert_before("\t\t\t\tif(bg)\n\t\t\t\t{\n\t\t\t\t\tint num_layers", """
+				borders shadow_box = bdr;
+				shadow_box.radius = bdr.radius.calc_percents(box->width, box->height);
+				paint_shadows(*box, shadow_box, false);
+""")
+        insert_before("\t\t\t\tif(bdr.is_visible())\n\t\t\t\t{\n\t\t\t\t\tborders b = bdr;",
+                      "\t\t\t\tpaint_shadows(*box, shadow_box, true);\n")
+    Path(str(target[0])).write_text(text, encoding="utf-8", newline="\n")
+
+
 # Stage the headers so both litehtml and DocRender see the same class declarations.
 staged_headers = []
 for header in Glob(f"{litehtml}/include/*.h") + Glob(f"{litehtml}/include/litehtml/*.h"):
@@ -95,10 +150,13 @@ for header in Glob(f"{litehtml}/include/*.h") + Glob(f"{litehtml}/include/liteht
     if header_path.stem in ("document", "element", "html_tag"):
         staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
                                           header, expose_litehtml_editing)
+    elif header_path.stem in ("style", "document_container"):
+        staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
+                                          [header, litehtml_shadow], stage_litehtml_box_shadow)
     else:
         staged_headers += html_env.Install(f"{litehtml_headers}/{relative_path.parent.as_posix()}", header)
 
-html_env.Append(CPPPATH=[litehtml_headers, f"{litehtml_headers}/litehtml", f"{gumbo}/include"])
+html_env.Append(CPPPATH=[litehtml_headers, f"{litehtml_headers}/litehtml", f"{litehtml}/src", f"{gumbo}/include"])
 # litehtml uses C++ exceptions during HTML encoding detection.
 enable_cpp_exceptions(html_env)
 if html_env.get("is_msvc", False):
@@ -120,6 +178,9 @@ for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp"
                                      (gumbo_object, Glob(f"{gumbo}/*.c"))):
     for source in library_sources:
         source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
+        if source_path.as_posix() in ("src/style", "src/html_tag"):
+            source = html_env.Command(f"src/gen/html/{source_path.as_posix()}.cpp",
+                                      [source, litehtml_shadow], stage_litehtml_box_shadow)[0]
         objects = build_object(f"src/gen/html/{source_path.as_posix()}{env['OBJSUFFIX']}", source)
         if build_object is html_object:
             html_objects += objects

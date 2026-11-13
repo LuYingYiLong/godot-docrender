@@ -1,6 +1,8 @@
 #include "litehtml_container.h"
 
 #include "html_markup.h"
+#include "litehtml_box_shadow.h"
+#include "litehtml_document_adapter.h"
 
 #include <godot_cpp/classes/font_variation.hpp>
 #include <godot_cpp/classes/image.hpp>
@@ -91,6 +93,12 @@ uniform vec4 border_periods;
 uniform vec4 border_pattern_starts;
 uniform bool border_pattern_continuous;
 
+uniform int shadow_type;
+uniform vec4 shadow_box;
+uniform vec4 shadow_rx;
+uniform vec4 shadow_ry;
+uniform float shadow_blur;
+
 uniform int gradient_type;
 uniform int stop_count;
 uniform sampler2D gradient_stops : filter_nearest, repeat_disable;
@@ -121,11 +129,12 @@ int rounded_corner(vec2 from_start, vec2 from_end, vec4 rx, vec4 ry) {
 	return -1;
 }
 
-float box_coverage(vec2 p, vec4 box, vec4 rx, vec4 ry) {
+float box_coverage(vec2 p, vec4 box, vec4 rx, vec4 ry, vec2 pixel_x, vec2 pixel_y) {
 	vec2 from_start = p - box.xy;
 	vec2 from_end = box.zw - p;
 	vec2 near_edge = min(from_start, from_end);
 	float distance_to_edge = min(near_edge.x, near_edge.y);
+	vec2 normal = near_edge.x < near_edge.y ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
 	int corner = rounded_corner(from_start, from_end, rx, ry);
 	if (corner >= 0 && rx[corner] > 0.0 && ry[corner] > 0.0) {
 		vec2 radius = vec2(rx[corner], ry[corner]);
@@ -133,11 +142,73 @@ float box_coverage(vec2 p, vec4 box, vec4 rx, vec4 ry) {
 			corner == 0 || corner == 3 ? from_start.x : from_end.x,
 			corner < 2 ? from_start.y : from_end.y);
 		vec2 unit = (radius - edge) / radius;
-		float normal_length = length(unit / radius);
+		vec2 gradient = unit / radius;
+		float normal_length = length(gradient);
 		distance_to_edge = (1.0 - length(unit)) / max(normal_length, 0.000001);
+		normal = gradient * vec2(corner == 0 || corner == 3 ? 1.0 : -1.0, corner < 2 ? 1.0 : -1.0) /
+			max(normal_length, 0.000001);
 	}
-	float aa = max(fwidth(distance_to_edge), 0.001);
+	float aa = max(abs(dot(normal, pixel_x)) + abs(dot(normal, pixel_y)), 0.001);
 	return clamp(distance_to_edge / aa + 0.5, 0.0, 1.0);
+}
+
+// Approximation of the standard normal cumulative distribution.
+float gaussian_cdf(float x) {
+	float t = 1.0 / (1.0 + 0.2316419 * abs(x));
+	float tail = 0.39894228 * exp(-0.5 * x * x) * t *
+		(0.31938153 + t * (-0.35656378 + t * (1.78147794 + t * (-1.82125598 + t * 1.33027443))));
+	return x < 0.0 ? tail : 1.0 - tail;
+}
+
+float ellipse_inset(float y, float rx, float ry) {
+	if (y >= ry || ry <= 0.0) {
+		return 0.0;
+	}
+	float relative = 1.0 - y / ry;
+	return rx * (1.0 - sqrt(max(0.0, 1.0 - relative * relative)));
+}
+
+float shadow_mask(vec2 p, vec2 pixel_x, vec2 pixel_y) {
+	vec2 size = shadow_box.zw - shadow_box.xy;
+	if (size.x <= 0.0 || size.y <= 0.0) {
+		return 0.0;
+	}
+	if (shadow_blur <= 0.0) {
+		return box_coverage(p, shadow_box, shadow_rx, shadow_ry, pixel_x, pixel_y);
+	}
+	float sigma = shadow_blur * 0.5;
+	if (sigma < max(length(pixel_x), length(pixel_y)) * 0.2) {
+		return box_coverage(p, shadow_box, shadow_rx, shadow_ry, pixel_x, pixel_y);
+	}
+	vec2 point = p - shadow_box.xy;
+	float low = max(0.0, point.y - 3.5 * sigma);
+	float high = min(size.y, point.y + 3.5 * sigma);
+	if (low >= high || point.x < -3.5 * sigma || point.x > size.x + 3.5 * sigma) {
+		return 0.0;
+	}
+	float top_radius = max(shadow_ry.x, shadow_ry.y);
+	float bottom_radius = max(shadow_ry.z, shadow_ry.w);
+	float vertical_low = gaussian_cdf((low - point.y) / sigma);
+	float left_radius = max(shadow_rx.x, shadow_rx.w);
+	float right_radius = max(shadow_rx.y, shadow_rx.z);
+	if ((low >= top_radius && high <= size.y - bottom_radius) ||
+			(point.x - 3.5 * sigma >= left_radius && point.x + 3.5 * sigma <= size.x - right_radius)) {
+		float vertical = gaussian_cdf((high - point.y) / sigma) - vertical_low;
+		return vertical * (gaussian_cdf((size.x - point.x) / sigma) - gaussian_cdf(-point.x / sigma));
+	}
+	// Integrate each horizontal span analytically, then sample the rounded edges vertically.
+	float step_size = (high - low) / 16.0;
+	float total = 0.0;
+	for (int i = 0; i < 16; i++) {
+		float y = low + (float(i) + 0.5) * step_size;
+		float left = max(ellipse_inset(y, shadow_rx.x, shadow_ry.x), ellipse_inset(size.y - y, shadow_rx.w, shadow_ry.w));
+		float right = size.x - max(ellipse_inset(y, shadow_rx.y, shadow_ry.y), ellipse_inset(size.y - y, shadow_rx.z, shadow_ry.z));
+		float horizontal = max(0.0, gaussian_cdf((right - point.x) / sigma) - gaussian_cdf((left - point.x) / sigma));
+		float vertical_high = gaussian_cdf((y + step_size * 0.5 - point.y) / sigma);
+		total += horizontal * (vertical_high - vertical_low);
+		vertical_low = vertical_high;
+	}
+	return total;
 }
 
 // Approximate partial arc length with Simpson integration of the ellipse speed.
@@ -246,13 +317,23 @@ vec4 sample_gradient(float t) {
 }
 
 void fragment() {
+	// Take derivatives before the corner and paint branches diverge.
+	vec2 pixel_x = dFdx(document_point);
+	vec2 pixel_y = dFdy(document_point);
 	float coverage = 1.0;
 	for (int i = 0; i < clip_count; i++) {
-		coverage = min(coverage, box_coverage(document_point, clip_boxes[i], clip_radii_x[i], clip_radii_y[i]));
+		coverage = min(coverage, box_coverage(document_point, clip_boxes[i], clip_radii_x[i], clip_radii_y[i], pixel_x, pixel_y));
 	}
-	if (draw_border) {
+	if (shadow_type != 0) {
+		float mask = shadow_mask(document_point, pixel_x, pixel_y);
+		if (shadow_type == 1) {
+			coverage *= mask * (1.0 - box_coverage(document_point, inner_box, inner_radii_x, inner_radii_y, pixel_x, pixel_y));
+		} else {
+			coverage *= 1.0 - mask;
+		}
+	} else if (draw_border) {
 		if (inner_box.z > inner_box.x && inner_box.w > inner_box.y) {
-			coverage = min(coverage, 1.0 - box_coverage(document_point, inner_box, inner_radii_x, inner_radii_y));
+			coverage = min(coverage, 1.0 - box_coverage(document_point, inner_box, inner_radii_x, inner_radii_y, pixel_x, pixel_y));
 		}
 		vec4 box = clip_boxes[clip_count - 1];
 		vec2 a = document_point - box.xy;
@@ -284,8 +365,7 @@ void fragment() {
 			}
 			float period = border_periods[side];
 			float along = mod(path - border_pattern_starts[side], period) - period * 0.5;
-			// The document derivatives also work where the path wraps at a corner.
-			float aa = max(length(fwidth(document_point)), 0.001);
+			float aa = max(length(abs(pixel_x) + abs(pixel_y)), 0.001);
 			float edge = period * 0.3 - abs(along);
 			if (style == BORDER_DOTTED) {
 				float radius = min(border_widths[side], period) * 0.5;
@@ -300,8 +380,8 @@ void fragment() {
 			}
 			coverage = min(coverage, clamp(edge / aa + 0.5, 0.0, 1.0));
 		} else if (style == BORDER_DOUBLE) {
-			float outside_gap = 1.0 - box_coverage(document_point, double_outer_box, double_outer_rx, double_outer_ry);
-			float inside_gap = box_coverage(document_point, double_inner_box, double_inner_rx, double_inner_ry);
+			float outside_gap = 1.0 - box_coverage(document_point, double_outer_box, double_outer_rx, double_outer_ry, pixel_x, pixel_y);
+			float inside_gap = box_coverage(document_point, double_inner_box, double_inner_rx, double_inner_ry, pixel_x, pixel_y);
 			coverage = min(coverage, max(outside_gap, inside_gap));
 		}
 		COLOR *= border_colors[side];
@@ -450,6 +530,26 @@ void fragment() {
 		radii.bottom_right_y = radii_y.z - trailing.y;
 		radii.bottom_left_y = radii_y.w - trailing.y;
 		return RoundedRect(p_rect, radii);
+	}
+
+	LiteHTMLContainer::RoundedRect LiteHTMLContainer::RoundedRect::spread(real_t p_distance) const {
+		const auto expand_radius = [p_distance](real_t p_radius) {
+			if (p_distance > p_radius) {
+				const real_t ratio = p_radius / p_distance - 1;
+				return p_radius + p_distance * (1 + ratio * ratio * ratio);
+			}
+			return std::max<real_t>(0, p_radius + p_distance);
+		};
+		border_radiuses radii;
+		radii.top_left_x = expand_radius(radii_x.x);
+		radii.top_right_x = expand_radius(radii_x.y);
+		radii.bottom_right_x = expand_radius(radii_x.z);
+		radii.bottom_left_x = expand_radius(radii_x.w);
+		radii.top_left_y = expand_radius(radii_y.x);
+		radii.top_right_y = expand_radius(radii_y.y);
+		radii.bottom_right_y = expand_radius(radii_y.z);
+		radii.bottom_left_y = expand_radius(radii_y.w);
+		return RoundedRect(rect.grow(p_distance), radii);
 	}
 
 	bool LiteHTMLContainer::RoundedRect::has_radius() const {
@@ -1209,6 +1309,61 @@ void fragment() {
 
 	void LiteHTMLContainer::draw_conic_gradient(uint_ptr, const background_layer& p_layer, const background_layer::conic_gradient& p_gradient) {
 		draw_gradient(p_layer, p_gradient, 3, Vector2(p_gradient.position.x, p_gradient.position.y), Vector2(p_gradient.angle / 360.0f, 0));
+	}
+
+	void LiteHTMLContainer::draw_box_shadows(const html_tag& p_element, const litehtml::position& p_box,
+		const borders& p_borders, bool p_inset) {
+		const auto* shadows = docrender_editor::get_box_shadows(p_element);
+		if (!shadows || shadows->empty()) {
+			return;
+		}
+		const RoundedRect outer(to_rect(p_box), p_borders.radius);
+		const Vector2 leading(p_borders.left.width, p_borders.top.width);
+		const Vector2 trailing(p_borders.right.width, p_borders.bottom.width);
+		const RoundedRect base = p_inset ? outer.inset(Rect2(outer.rect.position + leading, outer.rect.size - leading - trailing)) : outer;
+		if (p_inset && !base.rect.has_area()) {
+			return;
+		}
+		const auto& css = p_element.css();
+		const auto doc = p_element.get_document();
+		const auto pixels = [&](const css_length& p_length) { return doc->to_pixels(p_length, css.get_font_metrics(), 0); };
+		for (auto shadow = shadows->rbegin(); shadow != shadows->rend(); ++shadow) {
+			if (shadow->inset != p_inset || shadow->color.alpha == 0) {
+				continue;
+			}
+			const float blur = pixels(shadow->blur);
+			const float spread = pixels(shadow->spread);
+			const Vector2 offset(pixels(shadow->x), pixels(shadow->y));
+			if (!offset.is_finite() || !std::isfinite(blur) || !std::isfinite(spread) ||
+					(blur == 0.0f && spread == 0.0f && offset == Vector2())) {
+				continue;
+			}
+			RoundedRect shape = base.spread(p_inset ? -spread : spread);
+			shape.rect.position += offset;
+			Rect2 destination = p_inset ? base.rect : shape.rect.grow(blur * 1.75f);
+			const Color color = to_color(shadow->color.is_current_color ? css.get_color() : shadow->color);
+			if (color.a <= 0.0f || !shape.rect.is_finite() || !destination.is_finite() || (!p_inset && !shape.rect.has_area())) {
+				continue;
+			}
+			if (!clips.empty()) {
+				destination = destination.intersection(clips.back().bounds);
+			}
+			if (!destination.has_area()) {
+				continue;
+			}
+			const Ref<ShaderMaterial> material = create_material(p_inset ? &base : nullptr);
+			material->set_shader_parameter("shadow_type", p_inset ? 2 : 1);
+			material->set_shader_parameter("shadow_box", box_uniform(shape.rect));
+			material->set_shader_parameter("shadow_rx", shape.radii_x);
+			material->set_shader_parameter("shadow_ry", shape.radii_y);
+			material->set_shader_parameter("shadow_blur", blur);
+			if (!p_inset) {
+				material->set_shader_parameter("inner_box", box_uniform(base.rect));
+				material->set_shader_parameter("inner_radii_x", base.radii_x);
+				material->set_shader_parameter("inner_radii_y", base.radii_y);
+			}
+			add_command(Fill{ destination, color }, material);
+		}
 	}
 
 	void LiteHTMLContainer::draw_borders(uint_ptr, const borders& p_borders, const litehtml::position& p_position, bool) {

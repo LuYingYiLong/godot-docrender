@@ -102,6 +102,9 @@
     <ClCompile Include="src\formats\html\html_markup.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\html\litehtml_box_shadow.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\html\litehtml_container.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
@@ -249,6 +252,9 @@
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\html_markup.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\litehtml_box_shadow.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_container.h">

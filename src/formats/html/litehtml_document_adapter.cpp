@@ -1,5 +1,6 @@
 #include "litehtml_document_adapter.h"
 
+#include "litehtml_box_shadow.h"
 #include "litehtml_container.h"
 
 #include <gumbo.h>
@@ -166,6 +167,20 @@ namespace litehtml {
 
 	void docrender_editor::set_hover(element& p_element, bool p_hovered) {
 		p_element.set_pseudo_class(_hover_, p_hovered);
+	}
+
+	const std::vector<box_shadow>* docrender_editor::get_box_shadows(const html_tag& p_element) {
+		static const auto property = _id("box-shadow");
+		for (auto tag = &p_element; tag; tag = dynamic_cast<html_tag*>(tag->parent().get())) {
+			const auto& value = tag->m_style.get_property(property);
+			if (value.is<std::vector<box_shadow>>()) {
+				return &value.get<std::vector<box_shadow>>();
+			}
+			if (!value.is<inherit>()) {
+				break;
+			}
+		}
+		return nullptr;
 	}
 
 	void docrender_editor::restyle(const document::ptr& p_document, LiteHTMLContainer& p_container,
