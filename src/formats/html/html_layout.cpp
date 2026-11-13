@@ -2,6 +2,7 @@
 
 #include "html_markup.h"
 #include "litehtml_container.h"
+#include "litehtml_document_adapter.h"
 
 #include <godot_cpp/classes/canvas_item.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
@@ -10,12 +11,8 @@
 #include <godot_cpp/classes/text_server_manager.hpp>
 #include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
-#include <gumbo.h>
 #include <litehtml/css_parser.h>
 #include <litehtml/css_selector.h>
-#include <litehtml/document.h>
-#include <litehtml/el_space.h>
-#include <litehtml/html_tag.h>
 #include <litehtml/render_item.h>
 
 #include <algorithm>
@@ -26,135 +23,7 @@
 
 using namespace godot;
 using docrender::LiteHTMLContainer;
-
-namespace litehtml {
-	// The staged litehtml headers grant access to rebuild the existing document in place.
-	struct docrender_editor {
-		static void reset_link(html_tag& p_element, bool p_has_href) {
-			auto& classes = p_element.m_pseudo_classes;
-			classes.erase(std::remove(classes.begin(), classes.end(), _link_), classes.end());
-			if (p_has_href) {
-				classes.push_back(_link_);
-			}
-		}
-
-		static void remove_attribute(html_tag& p_element, const char* p_name) {
-			if (std::string_view(p_name) == "class" || std::string_view(p_name) == "id") {
-				p_element.set_attr(p_name, "");
-			}
-			p_element.m_attrs.erase(p_name);
-		}
-
-		static elements_list parse_fragment(document& p_document, const element& p_parent, const godot::CharString& p_html) {
-			GumboOptions options = kGumboDefaultOptions;
-			options.fragment_context = gumbo_tag_enum(p_parent.get_tagName());
-			if (options.fragment_context == GUMBO_TAG_UNKNOWN) {
-				options.fragment_context = GUMBO_TAG_DIV;
-			}
-			const auto destroy = [&options](GumboOutput* p_output) { gumbo_destroy_output(&options, p_output); };
-			const std::unique_ptr<GumboOutput, decltype(destroy)> output(
-				gumbo_parse_with_options(&options, p_html.get_data(), p_html.length()), destroy);
-			elements_list children;
-			p_document.create_node(output->root, children, true, false);
-			return children;
-		}
-
-		static elements_list create_text(const document::ptr& p_document, const char* p_text, bool p_split) {
-			elements_list children;
-			if (*p_text && !p_split) {
-				children.push_back(std::make_shared<el_text>(p_text, p_document));
-			}
-			else if (*p_text) {
-				p_document->container()->split_text(p_text,
-					[&](const char* p_word) { children.push_back(std::make_shared<el_text>(p_word, p_document)); },
-					[&](const char* p_space) { children.push_back(std::make_shared<el_space>(p_space, p_document)); });
-			}
-			return children;
-		}
-
-		static void replace_children(element& p_parent, elements_list p_children) {
-			for (const auto& child : p_parent.m_children) {
-				child->parent(nullptr);
-			}
-			for (const auto& child : p_children) {
-				child->parent(p_parent.shared_from_this());
-			}
-			p_parent.m_children.swap(p_children);
-		}
-
-		static void move(html_tag& p_old_parent, html_tag& p_new_parent, const element::ptr& p_child) {
-			const auto child = std::find(p_old_parent.m_children.begin(), p_old_parent.m_children.end(), p_child);
-			p_new_parent.m_children.splice(p_new_parent.m_children.end(), p_old_parent.m_children, child);
-			p_child->parent(p_new_parent.shared_from_this());
-		}
-
-		static void reset_tree(element& p_element) {
-			p_element.m_renders.clear();
-			p_element.m_used_styles.clear();
-			p_element.m_counter_values.clear();
-			p_element.m_children.remove_if([](const element::ptr& p_child) {
-				return p_child->tag() == __tag_before_ || p_child->tag() == __tag_after_;
-			});
-			if (auto* tag = dynamic_cast<html_tag*>(&p_element)) {
-				tag->m_style.clear();
-				if (tag->tag() == _a_) {
-					reset_link(*tag, false);
-				}
-			}
-			for (const auto& child : p_element.children()) {
-				reset_tree(*child);
-			}
-		}
-
-		static bool media_changed(document& p_document) {
-			p_document.container()->get_media_features(p_document.m_media);
-			return p_document.update_media_lists(p_document.m_media);
-		}
-
-		static void rebuild(document& p_document, const string& p_master, const string& p_user) {
-			const auto doc = p_document.shared_from_this();
-			const auto& root = doc->m_root;
-			doc->m_root_render.reset();
-			doc->m_tabular_elements.clear();
-			doc->m_fixed_boxes.clear();
-			doc->m_size = {};
-			reset_tree(*root);
-			doc->m_css.clear();
-			doc->m_media_lists.clear();
-			doc->m_master_css = {};
-			doc->m_styles = {};
-			doc->m_user_css = {};
-			doc->container()->get_media_features(doc->m_media);
-			doc->m_master_css.parse_css_stylesheet(p_master, "", doc);
-			doc->m_master_css.sort_selectors();
-			if (!p_user.empty()) {
-				doc->m_user_css.parse_css_stylesheet(p_user, "", doc);
-				doc->m_user_css.sort_selectors();
-			}
-			doc->update_media_lists(doc->m_media);
-			root->apply_stylesheet(doc->m_master_css);
-			root->parse_attributes();
-			for (const auto& sheet : doc->m_css) {
-				media_query_list_list::ptr media;
-				if (!sheet.media.empty()) {
-					media = std::make_shared<media_query_list_list>();
-					media->add(parse_media_query_list(sheet.media, doc));
-				}
-				doc->m_styles.parse_css_stylesheet(sheet.text, sheet.baseurl, doc, media);
-			}
-			doc->m_styles.sort_selectors();
-			doc->update_media_lists(doc->m_media);
-			root->apply_stylesheet(doc->m_styles);
-			root->apply_stylesheet(doc->m_user_css);
-			root->compute_styles();
-			doc->m_root_render = root->create_render_item(nullptr);
-			doc->fix_tables_layout();
-			if (doc->m_root_render) {
-				doc->m_root_render = doc->m_root_render->init();
-			}
-		}
-	};
-}
+using DocumentAdapter = litehtml::docrender_editor;
 
 namespace {
 	struct CanvasDrawing {
@@ -163,6 +32,8 @@ namespace {
 		std::vector<RID> items;
 		std::vector<Ref<ShaderMaterial>> materials;
 		int32_t run_count = 0;
+		uint64_t redraw_id = 0;
+		bool submitted = false;
 
 		void clear() {
 			if (RenderingServer* server = RenderingServer::get_singleton()) {
@@ -373,10 +244,13 @@ struct HTMLElement::DetachedTree {
 };
 
 struct HTMLLayout::State {
+	enum class Update { NONE, LAYOUT, STYLE };
+
 	// Render items are cleared before the document releases its fonts through the container.
 	std::unique_ptr<LiteHTMLContainer> container;
 	litehtml::document::ptr document;
 	HashMap<uint64_t, CanvasDrawing> drawings;
+	uint64_t next_redraw_id = 0;
 	RenderIndex render_items;
 	HashMap<const litehtml::element*, ObjectID> element_handles;
 	HashMap<const litehtml::element*, std::weak_ptr<HTMLElement::DetachedTree>> detached_trees;
@@ -388,11 +262,13 @@ struct HTMLLayout::State {
 	Callable edit_callback;
 	String error;
 	Error parse_error = OK;
-	bool has_layout = false;
+	Update pending_update = Update::LAYOUT;
 	bool implicit_empty_document = false;
-	bool styles_dirty = false;
-	bool edited = false;
 	bool reflow_queued = false;
+
+	bool has_layout() const {
+		return pending_update == Update::NONE && viewport_size.x > 0;
+	}
 };
 
 HTMLElement::DetachedTree::~DetachedTree() {
@@ -474,15 +350,8 @@ Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, c
 }
 
 bool HTMLLayout::initialize_document(const CharString& p_html) {
-	// Godot strings have already been decoded, regardless of an HTML meta charset.
-	auto document = litehtml::document::createFromString(
-		litehtml::estring(std::string(p_html.get_data(), p_html.length()), litehtml::encoding::utf_8),
-		state->container.get(), state->master_styles, state->user_styles);
-	if (!document || !document->root()) {
-		return false;
-	}
-	state->document = std::move(document);
-	return true;
+	state->document = DocumentAdapter::parse(p_html, *state->container, state->master_styles, state->user_styles);
+	return bool(state->document);
 }
 
 Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
@@ -498,39 +367,19 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 		return ERR_UNCONFIGURED;
 	}
 	state->error = String();
-	if (state->has_layout && state->viewport_size == p_viewport_size) {
+	if (state->has_layout() && state->viewport_size == p_viewport_size) {
 		return OK;
 	}
-	state->has_layout = false;
-	state->anchors.clear();
-	state->render_items.clear();
-	state->container->set_viewport(p_viewport_size);
+	using Update = State::Update;
+	if (state->pending_update == Update::NONE) {
+		state->pending_update = Update::LAYOUT;
+	}
 	if (state->document && !state->implicit_empty_document) {
 		try {
-			if (state->styles_dirty || (state->edited && litehtml::docrender_editor::media_changed(*state->document))) {
-				state->container->reset_stylesheet_reads();
-				litehtml::docrender_editor::rebuild(*state->document, state->master_styles, state->user_styles);
-				state->styles_dirty = false;
+			const Error result = reflow(p_viewport_size);
+			if (result != OK) {
+				return result;
 			}
-			else if (state->edited || !state->document->media_changed()) {
-				// Viewport units also change when all media queries keep matching.
-				state->document->root()->compute_styles();
-			}
-			state->document->render(p_viewport_size.x);
-			const double width = std::ceil(state->document->width());
-			const double height = std::ceil(state->document->height());
-			constexpr double MAX_SIZE = std::numeric_limits<int32_t>::max();
-			if (!std::isfinite(width) || !std::isfinite(height) || width > MAX_SIZE || height > MAX_SIZE) {
-				state->error = "The HTML content size is outside the supported range.";
-				return ERR_INVALID_DATA;
-			}
-			const Vector2i size(static_cast<int32_t>(std::max(0.0, width)), static_cast<int32_t>(std::max(0.0, height)));
-			state->container->record(*state->document, size);
-			if (const auto root = state->document->root_render()) {
-				index_render_items(root, state->render_items);
-			}
-			collect_anchors(*state->document->root(), state->render_items, state->anchors);
-			state->content_size = size;
 		}
 		catch (const std::exception& p_error) {
 			state->anchors.clear();
@@ -540,7 +389,40 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 		}
 	}
 	state->viewport_size = p_viewport_size;
-	state->has_layout = true;
+	state->pending_update = Update::NONE;
+	return OK;
+}
+
+Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
+	using Update = State::Update;
+	state->anchors.clear();
+	state->render_items.clear();
+	state->container->set_viewport(p_viewport_size);
+	const auto& document = state->document;
+	if (state->pending_update == Update::STYLE || DocumentAdapter::media_changed(*document)) {
+		state->pending_update = Update::STYLE;
+		DocumentAdapter::restyle(document, *state->container, state->master_styles, state->user_styles);
+		state->pending_update = Update::LAYOUT;
+	}
+	else {
+		// Viewport units also change when all media queries keep matching.
+		document->root()->compute_styles();
+	}
+	document->render(p_viewport_size.x);
+	const double width = std::ceil(document->width());
+	const double height = std::ceil(document->height());
+	constexpr double MAX_SIZE = std::numeric_limits<int32_t>::max();
+	if (!std::isfinite(width) || !std::isfinite(height) || width > MAX_SIZE || height > MAX_SIZE) {
+		state->error = "The HTML content size is outside the supported range.";
+		return ERR_INVALID_DATA;
+	}
+	const Vector2i size(static_cast<int32_t>(std::max(0.0, width)), static_cast<int32_t>(std::max(0.0, height)));
+	if (const auto root = document->root_render()) {
+		index_render_items(root, state->render_items);
+	}
+	collect_anchors(*document->root(), state->render_items, state->anchors);
+	state->container->record(*document, size);
+	state->content_size = size;
 	return OK;
 }
 
@@ -553,15 +435,15 @@ void HTMLLayout::draw(CanvasItem* p_canvas, const Vector2& p_position, const Rec
 }
 
 String HTMLLayout::get_plain_text() const {
-	return state->has_layout ? state->container->get_plain_text() : String();
+	return state->has_layout() ? state->container->get_plain_text() : String();
 }
 
 int64_t HTMLLayout::hit_test_text(const Vector2& p_position) const {
-	return state->has_layout ? state->container->hit_test_text(p_position) : 0;
+	return state->has_layout() ? state->container->hit_test_text(p_position) : 0;
 }
 
 TypedArray<Rect2> HTMLLayout::get_selection_rects(int64_t p_from, int64_t p_to) const {
-	if (!state->has_layout) {
+	if (!state->has_layout()) {
 		return {};
 	}
 	const int64_t length = state->container->get_plain_text().length();
@@ -573,23 +455,34 @@ TypedArray<Rect2> HTMLLayout::get_selection_rects(int64_t p_from, int64_t p_to) 
 void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_position, const Rect2& p_clip,
 	const Vector2i& p_selection, const StyleBox* p_selection_style, const Color& p_selection_color,
 	const Vector2i& p_search, const StyleBox* p_search_style) {
-	if (!state->has_layout || !p_canvas || !p_canvas->is_inside_tree()) {
+	if (!state->has_layout() || !p_canvas || !p_canvas->is_inside_tree()) {
 		return;
 	}
+	submit_draw_commands(*p_canvas, p_position, p_clip, p_selection, p_selection_style, p_selection_color, p_search, p_search_style);
+}
+
+void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_position, const Rect2& p_clip,
+	const Vector2i& p_selection, const StyleBox* p_selection_style, const Color& p_selection_color,
+	const Vector2i& p_search, const StyleBox* p_search_style) {
 	const auto& runs = state->container->get_paint_runs();
 	if (runs.empty()) {
 		return;
 	}
-	const uint64_t instance_id = p_canvas->get_instance_id();
+	const uint64_t instance_id = p_canvas.get_instance_id();
 	CanvasDrawing* drawing = state->drawings.getptr(instance_id);
 	if (!drawing) {
 		CanvasDrawing target;
 		target.redraw = callable_mp(this, &HTMLLayout::_on_canvas_redraw).bind(instance_id);
 		target.exiting = callable_mp(this, &HTMLLayout::_detach_canvas).bind(instance_id);
-		// The draw signal precedes the script callback, including redraws that skip HTML.
-		p_canvas->connect("draw", target.redraw);
-		p_canvas->connect("tree_exiting", target.exiting);
+		p_canvas.connect("draw", target.redraw);
+		p_canvas.connect("tree_exiting", target.exiting);
 		drawing = &state->drawings.insert(instance_id, std::move(target))->value;
+	}
+	if (!drawing->submitted) {
+		// Replace the previous submission once, then append any additional HTML draws on this canvas.
+		drawing->clear();
+		drawing->submitted = true;
+		_on_canvas_redraw(instance_id);
 	}
 
 	RenderingServer& server = *RenderingServer::get_singleton();
@@ -614,7 +507,7 @@ void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_pos
 
 		if (!target.is_valid() || clip != previous_clip || run.material != previous_material) {
 			if (drawing->items.empty()) {
-				drawing->add_item(server, p_canvas->get_canvas_item(), -1);
+				drawing->add_item(server, p_canvas.get_canvas_item(), -1);
 			}
 			const RID root = drawing->items.front();
 			const int32_t index = drawing->run_count++;
@@ -729,11 +622,7 @@ const char* HTMLLayout::get_element_attribute(const litehtml::element& p_element
 }
 
 Error HTMLLayout::edit_attribute(const litehtml::element::ptr& p_element, const char* p_name, const char* p_value) {
-	auto* tag = dynamic_cast<litehtml::html_tag*>(p_element.get());
-	if (!tag) {
-		return ERR_UNAVAILABLE;
-	}
-	const auto* source = state->container->get_source_attributes(*tag);
+	const auto* source = state->container->get_source_attributes(*p_element);
 	const char* previous = nullptr;
 	if (source) {
 		const auto found = source->find(p_name);
@@ -744,18 +633,12 @@ Error HTMLLayout::edit_attribute(const litehtml::element::ptr& p_element, const 
 	if ((!previous && !p_value) || (previous && p_value && std::string_view(previous) == p_value)) {
 		return OK;
 	}
-	if (p_value) {
-		tag->set_attr(p_name, p_value);
-	}
-	else {
-		litehtml::docrender_editor::remove_attribute(*tag, p_name);
+	if (!DocumentAdapter::set_attribute(*p_element, p_name, p_value)) {
+		return ERR_UNAVAILABLE;
 	}
 	state->container->set_source_attribute(p_element, p_name, p_value);
-	if (tag->tag() == litehtml::_a_ && std::string_view(p_name) == "href") {
-		litehtml::docrender_editor::reset_link(*tag, p_value != nullptr);
-	}
 	if (!get_detached_tree(*p_element)) {
-		invalidate_layout();
+		invalidate_styles();
 	}
 	return OK;
 }
@@ -818,8 +701,8 @@ Error HTMLLayout::replace_children(const litehtml::element::ptr& p_element, cons
 	litehtml::elements_list children;
 	try {
 		const bool split = !has_raw_text(*p_element);
-		children = p_parse_html ? litehtml::docrender_editor::parse_fragment(*state->document, *p_element, content) :
-			litehtml::docrender_editor::create_text(state->document, content.get_data(), split);
+		children = p_parse_html ? DocumentAdapter::parse_fragment(*state->document, *p_element, content) :
+			DocumentAdapter::create_text(state->document, content.get_data(), split);
 	}
 	catch (const std::exception&) {
 		return ERR_PARSE_ERROR;
@@ -827,9 +710,9 @@ Error HTMLLayout::replace_children(const litehtml::element::ptr& p_element, cons
 	for (const auto& child : p_element->children()) {
 		forget_subtree(*child);
 	}
-	litehtml::docrender_editor::replace_children(*p_element, std::move(children));
+	DocumentAdapter::replace_children(*p_element, std::move(children));
 	if (!get_detached_tree(*p_element)) {
-		invalidate_layout();
+		invalidate_styles();
 	}
 	return OK;
 }
@@ -842,9 +725,7 @@ Error HTMLLayout::move_element(const litehtml::element::ptr& p_element, const li
 	}
 	bool needs_layout = !old_tree;
 	if (p_parent) {
-		auto* from = dynamic_cast<litehtml::html_tag*>(old_parent.get());
-		auto* to = dynamic_cast<litehtml::html_tag*>(p_parent.get());
-		if ((old_parent && !from) || !to || !can_contain_elements(*to)) {
+		if (!can_contain_elements(*p_parent)) {
 			return ERR_INVALID_PARAMETER;
 		}
 		for (auto ancestor = p_parent; ancestor; ancestor = ancestor->parent()) {
@@ -853,10 +734,7 @@ Error HTMLLayout::move_element(const litehtml::element::ptr& p_element, const li
 			}
 		}
 		const auto new_tree = get_detached_tree(*p_parent);
-		if (from) {
-			litehtml::docrender_editor::move(*from, *to, p_element);
-		}
-		else if (!to->appendChild(p_element)) {
+		if (!DocumentAdapter::move_child(p_element, *p_parent)) {
 			return ERR_INVALID_PARAMETER;
 		}
 		if (old_tree != new_tree) {
@@ -885,7 +763,7 @@ Error HTMLLayout::move_element(const litehtml::element::ptr& p_element, const li
 		forget_subtree(*p_element);
 	}
 	if (needs_layout) {
-		invalidate_layout();
+		invalidate_styles();
 	}
 	return OK;
 }
@@ -908,32 +786,34 @@ void HTMLLayout::set_edit_callback(const Callable& p_callback) {
 	state->edit_callback = p_callback;
 }
 
-void HTMLLayout::invalidate_layout() {
-	state->has_layout = false;
+void HTMLLayout::invalidate_styles() {
+	state->pending_update = State::Update::STYLE;
 	state->implicit_empty_document = false;
-	state->styles_dirty = true;
-	state->edited = true;
 	state->anchors.clear();
 	if (state->edit_callback.is_valid()) {
 		state->edit_callback.call();
 	}
 	else if (state->viewport_size != Vector2i() && !state->reflow_queued) {
 		state->reflow_queued = true;
-		callable_mp_static(&HTMLLayout::reflow_after_edit).call_deferred(get_instance_id());
+		callable_mp_static(&HTMLLayout::reflow_after_edit).call_deferred(get_instance_id(), parse_version);
 	}
 }
 
-void HTMLLayout::reflow_after_edit(uint64_t p_id) {
+void HTMLLayout::reflow_after_edit(uint64_t p_id, uint64_t p_version) {
 	auto* owner = Object::cast_to<HTMLLayout>(ObjectDB::get_instance(ObjectID(p_id)));
-	if (!owner) {
+	if (!owner || owner->parse_version != p_version) {
 		return;
 	}
 	State& current = *owner->state;
 	current.reflow_queued = false;
-	if (!current.has_layout && current.viewport_size != Vector2i()) {
+	if (!current.has_layout() && current.viewport_size != Vector2i()) {
 		owner->layout(current.viewport_size);
 	}
-	for (const auto& drawing : current.drawings) {
+	owner->queue_canvas_redraws();
+}
+
+void HTMLLayout::queue_canvas_redraws() {
+	for (const auto& drawing : state->drawings) {
 		if (auto* canvas = Object::cast_to<CanvasItem>(ObjectDB::get_instance(ObjectID(drawing.key)))) {
 			canvas->queue_redraw();
 		}
@@ -1010,7 +890,7 @@ Ref<HTMLElement> HTMLLayout::get_element_by_id(const String& p_id) const {
 
 TypedArray<Rect2> HTMLLayout::get_element_rects(const litehtml::element::ptr& p_element) const {
 	TypedArray<Rect2> result;
-	if (const auto* items = state->render_items.getptr(p_element.get()); state->has_layout && items) {
+	if (const auto* items = state->render_items.getptr(p_element.get()); state->has_layout() && items) {
 		for (const auto& item : *items) {
 			if (!item->skip()) {
 				visit_boxes(*item, false, [&](const Rect2& p_rect) { result.append(p_rect); });
@@ -1033,7 +913,7 @@ Ref<HTMLElement> HTMLLayout::wrap_hit_element(litehtml::element::ptr p_element) 
 
 litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) const {
 	const Rect2 bounds(Vector2(), Vector2(state->content_size.max(state->viewport_size)));
-	if (!state->has_layout || !state->document || !p_position.is_finite() || !bounds.has_point(p_position)) {
+	if (!state->has_layout() || !state->document || !p_position.is_finite() || !bounds.has_point(p_position)) {
 		return {};
 	}
 	const auto root = state->document->root_render();
@@ -1083,7 +963,7 @@ litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) c
 }
 
 std::optional<Rect2> HTMLLayout::get_element_scroll_bounds(const Ref<HTMLElement>& p_element) const {
-	if (!state->has_layout || p_element.is_null() || p_element->get_owner() != this) {
+	if (!state->has_layout() || p_element.is_null() || p_element->get_owner() != this) {
 		return std::nullopt;
 	}
 	const auto element = p_element->element.lock();
@@ -1142,18 +1022,37 @@ void HTMLLayout::clear() {
 	state->content_size = Vector2i();
 	state->error = String();
 	state->parse_error = OK;
-	state->has_layout = false;
+	state->pending_update = State::Update::LAYOUT;
 	state->implicit_empty_document = false;
-	state->styles_dirty = false;
-	state->edited = false;
+	state->reflow_queued = false;
 	state->master_styles.clear();
 	state->user_styles.clear();
 }
 
 void HTMLLayout::_on_canvas_redraw(uint64_t p_id) {
-	if (CanvasDrawing* drawing = state->drawings.getptr(p_id)) {
+	CanvasDrawing* drawing = state->drawings.getptr(p_id);
+	if (!drawing || drawing->redraw_id != 0) {
+		return;
+	}
+	// A draw signal listener may submit HTML before our listener runs.
+	drawing->redraw_id = ++state->next_redraw_id;
+	callable_mp_static(&HTMLLayout::finish_canvas_redraw).call_deferred(get_instance_id(), p_id, drawing->redraw_id);
+}
+
+void HTMLLayout::finish_canvas_redraw(uint64_t p_layout_id, uint64_t p_canvas_id, uint64_t p_redraw_id) {
+	auto* owner = Object::cast_to<HTMLLayout>(ObjectDB::get_instance(ObjectID(p_layout_id)));
+	if (!owner) {
+		return;
+	}
+	CanvasDrawing* drawing = owner->state->drawings.getptr(p_canvas_id);
+	if (!drawing || drawing->redraw_id != p_redraw_id) {
+		return;
+	}
+	if (!drawing->submitted) {
 		drawing->clear();
 	}
+	drawing->submitted = false;
+	drawing->redraw_id = 0;
 }
 
 void HTMLLayout::_detach_canvas(uint64_t p_id) {

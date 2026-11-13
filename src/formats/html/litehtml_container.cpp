@@ -457,6 +457,7 @@ void fragment() {
 
 	void LiteHTMLContainer::record(litehtml::document& p_document, const Vector2i& p_content_size) {
 		clips.clear();
+		painted_text.clear();
 		paint_runs.clear();
 		const litehtml::position bounds(0, 0, std::max(p_content_size.x, viewport_size.x),
 			std::max(p_content_size.y, viewport_size.y));

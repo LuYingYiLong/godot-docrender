@@ -34,6 +34,7 @@ class HTMLLayout : public godot::RefCounted {
 	enum class SelectorQuery { FIRST, ALL, SELF, CLOSEST };
 
 	bool initialize_document(const godot::CharString& p_html);
+	godot::Error reflow(const godot::Vector2i& p_viewport_size);
 	godot::Ref<HTMLElement> make_element(const std::shared_ptr<litehtml::element>& p_element) const;
 	std::shared_ptr<HTMLElement::DetachedTree> get_detached_tree(const litehtml::element& p_element) const;
 	godot::TypedArray<HTMLElement> select_elements(const godot::String& p_selector, SelectorQuery p_query,
@@ -45,15 +46,20 @@ class HTMLLayout : public godot::RefCounted {
 	godot::Error replace_children(const std::shared_ptr<litehtml::element>& p_element, const godot::String& p_content, bool p_parse_html);
 	godot::Error move_element(const std::shared_ptr<litehtml::element>& p_element, const std::shared_ptr<litehtml::element>& p_parent);
 	void forget_subtree(const litehtml::element& p_element);
-	void invalidate_layout();
-	static void reflow_after_edit(uint64_t p_id);
+	void invalidate_styles();
+	static void reflow_after_edit(uint64_t p_id, uint64_t p_version);
+	void queue_canvas_redraws();
 	void set_edit_callback(const godot::Callable& p_callback);
 	godot::TypedArray<godot::Rect2> get_element_rects(const std::shared_ptr<litehtml::element>& p_element) const;
 	std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_position) const;
 	godot::Ref<HTMLElement> wrap_hit_element(std::shared_ptr<litehtml::element> p_element) const;
 
 	void _on_canvas_redraw(uint64_t p_id);
+	static void finish_canvas_redraw(uint64_t p_layout_id, uint64_t p_canvas_id, uint64_t p_redraw_id);
 	void _detach_canvas(uint64_t p_id);
+	void submit_draw_commands(godot::CanvasItem& p_canvas, const godot::Vector2& p_position, const godot::Rect2& p_clip,
+		const godot::Vector2i& p_selection, const godot::StyleBox* p_selection_style, const godot::Color& p_selection_color,
+		const godot::Vector2i& p_search, const godot::StyleBox* p_search_style);
 
 protected:
 	static void _bind_methods();

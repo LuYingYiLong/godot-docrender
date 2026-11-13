@@ -140,6 +140,7 @@
     <ClCompile Include="src\formats\html\html_layout.cpp" />
     <ClCompile Include="src\formats\html\html_markup.cpp" />
     <ClCompile Include="src\formats\html\litehtml_container.cpp" />
+    <ClCompile Include="src\formats\html\litehtml_document_adapter.cpp" />
     <ClCompile Include="src\editor\docrender_editor_translations.cpp" />
     <ClCompile Include="src\editor\docrender_source_editor.cpp" />
     <ClCompile Include="src\editor\importers\latex_document_importer.cpp" />
@@ -179,6 +180,7 @@
     <ClInclude Include="src\formats\html\html_layout.h" />
     <ClInclude Include="src\formats\html\html_markup.h" />
     <ClInclude Include="src\formats\html\litehtml_container.h" />
+    <ClInclude Include="src\formats\html\litehtml_document_adapter.h" />
     <ClInclude Include="src\editor\docrender_editor_translations.h" />
     <ClInclude Include="src\editor\docrender_source_editor.h" />
     <ClInclude Include="src\editor\importers\latex_document_importer.h" />
