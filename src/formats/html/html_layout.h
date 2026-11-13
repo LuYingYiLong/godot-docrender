@@ -46,12 +46,14 @@ public:
 
 	HTMLLayout();
 	~HTMLLayout() override;
+	static void release_paint_shader();
 
 	godot::Error parse(const godot::String& p_html, const godot::String& p_base_dir = "res://",
 		const godot::String& p_stylesheet = "");
 	godot::Error parse_source(const godot::String& p_html, const godot::String& p_base_dir,
 		const godot::String& p_stylesheet, const godot::Dictionary& p_textures, bool p_fit_images = false,
-		const godot::String& p_default_stylesheet = {}, const Fonts& p_fonts = {});
+		const godot::String& p_default_stylesheet = {}, const Fonts& p_fonts = {},
+		const godot::Dictionary& p_local_stylesheets = {});
 	godot::Error layout(const godot::Vector2i& p_viewport_size);
 	godot::Vector2i get_content_size() const;
 	godot::String get_plain_text() const;

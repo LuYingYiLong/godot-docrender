@@ -96,6 +96,7 @@ void uninitialize_docrender_module(ModuleInitializationLevel p_level) {
 		tex_loader.unref();
 		PDFReader::shutdown_backend();
 		TeXRender::shutdown_renderer();
+		HTMLLayout::release_paint_shader();
 	}
 }
 

@@ -5,6 +5,7 @@
 
 #include <godot_cpp/classes/text_line.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/rect2.hpp>
@@ -25,6 +26,22 @@ namespace godot {
 
 namespace docrender {
 	class LiteHTMLContainer final : public litehtml::document_container {
+		struct RoundedRect {
+			godot::Rect2 rect;
+			godot::Vector4 radii_x;
+			godot::Vector4 radii_y;
+
+			RoundedRect(const godot::Rect2& p_rect, const litehtml::border_radiuses& p_radii);
+			RoundedRect inset(const godot::Rect2& p_rect) const;
+			bool has_radius() const;
+		};
+
+		struct Clip {
+			godot::Rect2 bounds;
+			RoundedRect shape;
+			godot::Ref<godot::ShaderMaterial> material;
+		};
+
 		struct Fill {
 			godot::Rect2 rect;
 			godot::Color color;
@@ -72,6 +89,7 @@ namespace docrender {
 
 		struct PaintRun {
 			std::optional<godot::Rect2> clip;
+			godot::Ref<godot::ShaderMaterial> material;
 			std::vector<Command> commands;
 
 			void draw(godot::RenderingServer& p_server, const godot::RID& p_canvas, const godot::Vector2& p_offset,
@@ -79,7 +97,7 @@ namespace docrender {
 		};
 
 		LiteHTMLContainer(const godot::String& p_base_dir, const godot::Dictionary& p_textures, bool p_fit_images,
-			const HTMLLayout::Fonts& p_fonts);
+			const HTMLLayout::Fonts& p_fonts, const godot::Dictionary& p_local_stylesheets);
 		void set_viewport(const godot::Vector2i& p_size);
 		void record(litehtml::document& p_document, const godot::Vector2i& p_content_size);
 		const std::vector<PaintRun>& get_paint_runs() const;
@@ -100,22 +118,28 @@ namespace docrender {
 
 		godot::String base_dir;
 		godot::Dictionary textures;
+		godot::Dictionary local_stylesheets;
+		int stylesheet_reads = 0;
 		bool fit_images;
 		HTMLLayout::Fonts fonts;
 		godot::Vector2i viewport_size;
 		godot::Ref<godot::Font> default_font;
 		godot::HashMap<godot::String, godot::Ref<godot::Texture2D>> images;
 		std::vector<PaintRun> paint_runs;
-		std::vector<godot::Rect2> clips;
+		std::vector<Clip> clips;
 		godot::String plain_text;
 		std::vector<TextRun> text_runs;
 		godot::HashMap<godot::Vector2, std::vector<Text*>> painted_text;
 
 		void index_text(const litehtml::element::ptr& p_element, godot::String& r_separator);
 
-		godot::Ref<godot::Texture2D> load_texture(const char* p_src);
-		void add_command(Command p_command);
+		godot::String get_url_dir(const char* p_css_base) const;
+		godot::Ref<godot::Texture2D> load_texture(const char* p_src, const char* p_css_base);
+		godot::Ref<godot::ShaderMaterial> create_material(const RoundedRect* p_shape = nullptr);
+		void add_command(Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
 		void fill_rect(const godot::Rect2& p_rect, const godot::Color& p_color);
+		void draw_gradient(const litehtml::background_layer& p_layer, const litehtml::background_layer::gradient_base& p_gradient,
+			int p_type, const godot::Vector2& p_start, const godot::Vector2& p_parameters);
 
 		litehtml::uint_ptr create_font(const litehtml::font_description& p_description, const litehtml::document*,
 			litehtml::font_metrics* r_metrics) override;
@@ -127,10 +151,10 @@ namespace docrender {
 		litehtml::pixel_t get_default_font_size() const override;
 		const char* get_default_font_name() const override;
 		void draw_list_marker(litehtml::uint_ptr, const litehtml::list_marker& p_marker) override;
-		void load_image(const char* p_src, const char*, bool) override;
-		void get_image_size(const char* p_src, const char*, litehtml::size& r_size) override;
+		void load_image(const char* p_src, const char* p_css_base, bool) override;
+		void get_image_size(const char* p_src, const char* p_css_base, litehtml::size& r_size) override;
 		void draw_image(litehtml::uint_ptr, const litehtml::background_layer& p_layer, const std::string& p_url,
-			const std::string&) override;
+			const std::string& p_css_base) override;
 		void draw_solid_fill(litehtml::uint_ptr, const litehtml::background_layer& p_layer,
 			const litehtml::web_color& p_color) override;
 		void draw_borders(litehtml::uint_ptr, const litehtml::borders& p_borders,
@@ -142,26 +166,22 @@ namespace docrender {
 		void get_media_features(litehtml::media_features& r_media) const override;
 		void get_language(litehtml::string& r_language, litehtml::string& r_culture) const override;
 
-		// The standalone renderer draws static HTML with inline and embedded CSS.
-		void import_css(litehtml::string& r_text, const litehtml::string&, litehtml::string&) override { r_text.clear(); }
+		void import_css(litehtml::string& r_text, const litehtml::string& p_url, litehtml::string& r_css_base) override;
 		void set_base_url(const char*) override {}
 		void set_caption(const char*) override {}
-		void link(const std::shared_ptr<litehtml::document>&, const litehtml::element::ptr&) override {}
+		void link(const std::shared_ptr<litehtml::document>& p_doc, const litehtml::element::ptr& p_element) override;
 		void on_anchor_click(const char*, const litehtml::element::ptr&) override {}
 		void on_mouse_event(const litehtml::element::ptr&, litehtml::mouse_event) override {}
 		void set_cursor(const char*) override {}
 		litehtml::element::ptr create_element(const char* p_tag, const litehtml::string_map&,
 			const std::shared_ptr<litehtml::document>& p_document) override;
 
-		void draw_linear_gradient(litehtml::uint_ptr, const litehtml::background_layer&,
-			const litehtml::background_layer::linear_gradient&) override {
-		}
-		void draw_radial_gradient(litehtml::uint_ptr, const litehtml::background_layer&,
-			const litehtml::background_layer::radial_gradient&) override {
-		}
-		void draw_conic_gradient(litehtml::uint_ptr, const litehtml::background_layer&,
-			const litehtml::background_layer::conic_gradient&) override {
-		}
+		void draw_linear_gradient(litehtml::uint_ptr, const litehtml::background_layer& p_layer,
+			const litehtml::background_layer::linear_gradient& p_gradient) override;
+		void draw_radial_gradient(litehtml::uint_ptr, const litehtml::background_layer& p_layer,
+			const litehtml::background_layer::radial_gradient& p_gradient) override;
+		void draw_conic_gradient(litehtml::uint_ptr, const litehtml::background_layer& p_layer,
+			const litehtml::background_layer::conic_gradient& p_gradient) override;
 	};
 } // namespace docrender
 

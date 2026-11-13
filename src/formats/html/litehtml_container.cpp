@@ -3,8 +3,11 @@
 #include "html_markup.h"
 
 #include <godot_cpp/classes/font_variation.hpp>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/style_box.hpp>
 #include <godot_cpp/classes/text_server.hpp>
 #include <godot_cpp/classes/text_server_manager.hpp>
@@ -29,6 +32,139 @@ using namespace litehtml;
 namespace docrender {
 	namespace {
 		constexpr float CSS_DPI = 96.0f;
+		constexpr int MAX_ROUNDED_CLIPS = 16;
+		Ref<Shader> paint_shader;
+
+		const char* PAINT_SHADER_CODE = R"SHADER(
+shader_type canvas_item;
+
+uniform int clip_count;
+uniform vec4 clip_boxes[16];
+uniform vec4 clip_radii_x[16];
+uniform vec4 clip_radii_y[16];
+
+uniform bool draw_border;
+uniform vec4 inner_box;
+uniform vec4 inner_radii_x;
+uniform vec4 inner_radii_y;
+uniform vec4 border_widths;
+uniform vec4 border_colors[4];
+
+uniform int gradient_type;
+uniform int stop_count;
+uniform sampler2D gradient_stops : filter_nearest, repeat_disable;
+uniform vec2 gradient_start;
+uniform vec2 gradient_parameters;
+uniform vec4 tile;
+uniform ivec2 repeat_axes;
+
+varying vec2 document_point;
+
+void vertex() {
+	document_point = VERTEX;
+}
+
+float box_coverage(vec2 p, vec4 box, vec4 rx, vec4 ry) {
+	vec2 from_start = p - box.xy;
+	vec2 from_end = box.zw - p;
+	vec2 near_edge = min(from_start, from_end);
+	float distance_to_edge = min(near_edge.x, near_edge.y);
+	int corner = -1;
+	if (from_start.x < rx.x && from_start.y < ry.x) {
+		corner = 0;
+	} else if (from_end.x < rx.y && from_start.y < ry.y) {
+		corner = 1;
+	} else if (from_end.x < rx.z && from_end.y < ry.z) {
+		corner = 2;
+	} else if (from_start.x < rx.w && from_end.y < ry.w) {
+		corner = 3;
+	}
+	if (corner >= 0 && rx[corner] > 0.0 && ry[corner] > 0.0) {
+		vec2 radius = vec2(rx[corner], ry[corner]);
+		vec2 edge = vec2(
+			corner == 0 || corner == 3 ? from_start.x : from_end.x,
+			corner < 2 ? from_start.y : from_end.y);
+		vec2 unit = (radius - edge) / radius;
+		float normal_length = length(unit / radius);
+		distance_to_edge = (1.0 - length(unit)) / max(normal_length, 0.000001);
+	}
+	float aa = max(fwidth(distance_to_edge), 0.001);
+	return clamp(distance_to_edge / aa + 0.5, 0.0, 1.0);
+}
+
+vec4 sample_gradient(float t) {
+	int first = 0;
+	int last = stop_count;
+	// Find the first stop strictly after t, preserving coincident stops.
+	for (int step_index = 0; step_index < 13 && first < last; step_index++) {
+		int middle = (first + last) / 2;
+		float position = texelFetch(gradient_stops, ivec2(middle, 1), 0).r;
+		if (position <= t) {
+			first = middle + 1;
+		} else {
+			last = middle;
+		}
+	}
+	int left = max(first - 1, 0);
+	int right = min(first, stop_count - 1);
+	vec4 left_color = texelFetch(gradient_stops, ivec2(left, 0), 0);
+	vec4 right_color = texelFetch(gradient_stops, ivec2(right, 0), 0);
+	vec2 left_stop = texelFetch(gradient_stops, ivec2(left, 1), 0).rg;
+	float span = texelFetch(gradient_stops, ivec2(right, 1), 0).r - left_stop.x;
+	float weight = span > 0.0 ? clamp((t - left_stop.x) / span, 0.0, 1.0) : 0.0;
+	float hint = left_stop.y;
+	if (hint > 0.0 && hint < 1.0) {
+		weight = pow(weight, log(0.5) / log(hint));
+	}
+	left_color.rgb *= left_color.a;
+	right_color.rgb *= right_color.a;
+	vec4 color = mix(left_color, right_color, weight);
+	color.rgb /= max(color.a, 0.000001);
+	return color;
+}
+
+void fragment() {
+	float coverage = 1.0;
+	for (int i = 0; i < clip_count; i++) {
+		coverage = min(coverage, box_coverage(document_point, clip_boxes[i], clip_radii_x[i], clip_radii_y[i]));
+	}
+	if (draw_border) {
+		if (inner_box.z > inner_box.x && inner_box.w > inner_box.y) {
+			coverage = min(coverage, 1.0 - box_coverage(document_point, inner_box, inner_radii_x, inner_radii_y));
+		}
+		vec4 box = clip_boxes[clip_count - 1];
+		vec2 a = document_point - box.xy;
+		vec2 b = box.zw - document_point;
+		vec4 distance = vec4(a.y, b.x, b.y, a.x) / max(border_widths, vec4(0.000001));
+		int side = 0;
+		for (int i = 1; i < 4; i++) {
+			if (distance[i] < distance[side]) {
+				side = i;
+			}
+		}
+		COLOR *= border_colors[side];
+	} else if (gradient_type > 0) {
+		vec2 point = document_point;
+		if (repeat_axes.x != 0) {
+			point.x = tile.x + mod(point.x - tile.x, tile.z);
+		}
+		if (repeat_axes.y != 0) {
+			point.y = tile.y + mod(point.y - tile.y, tile.w);
+		}
+		vec2 delta = point - gradient_start;
+		float t = 0.0;
+		if (gradient_type == 1) {
+			t = dot(delta, gradient_parameters) / max(dot(gradient_parameters, gradient_parameters), 0.000001);
+		} else if (gradient_type == 2) {
+			t = length(delta / max(gradient_parameters, vec2(0.000001)));
+		} else {
+			t = fract(atan(delta.x, -delta.y) / TAU - gradient_parameters.x);
+		}
+		COLOR *= sample_gradient(t);
+	}
+	COLOR.a *= coverage;
+}
+)SHADER";
 
 		Rect2 to_rect(const litehtml::position& p_position) {
 			return Rect2(p_position.x, p_position.y, p_position.width, p_position.height);
@@ -40,6 +176,17 @@ namespace docrender {
 
 		Rect2 get_background_clip(const background_layer& p_layer) {
 			return to_rect(p_layer.border_box).intersection(to_rect(p_layer.clip_box));
+		}
+
+		Rect2 get_tile_bounds(const background_layer& p_layer, const Rect2& p_clip, bool p_repeat_x, bool p_repeat_y) {
+			const Rect2 tile = to_rect(p_layer.origin_box);
+			return p_clip.intersection(Rect2(p_repeat_x ? p_clip.position.x : tile.position.x,
+				p_repeat_y ? p_clip.position.y : tile.position.y, p_repeat_x ? p_clip.size.x : tile.size.x,
+				p_repeat_y ? p_clip.size.y : tile.size.y));
+		}
+
+		Vector4 box_uniform(const Rect2& p_rect) {
+			return Vector4(p_rect.position.x, p_rect.position.y, p_rect.get_end().x, p_rect.get_end().y);
 		}
 
 		float solid_border_width(const border& p_border, float p_maximum) {
@@ -87,9 +234,45 @@ namespace docrender {
 
 	} // namespace
 
+	LiteHTMLContainer::RoundedRect::RoundedRect(const Rect2& p_rect, const border_radiuses& p_radii) :
+		rect(p_rect), radii_x(p_radii.top_left_x, p_radii.top_right_x, p_radii.bottom_right_x, p_radii.bottom_left_x),
+		radii_y(p_radii.top_left_y, p_radii.top_right_y, p_radii.bottom_right_y, p_radii.bottom_left_y) {
+		for (int i = 0; i < 4; ++i) {
+			if (radii_x[i] <= 0 || radii_y[i] <= 0 || !std::isfinite(radii_x[i]) || !std::isfinite(radii_y[i])) {
+				radii_x[i] = radii_y[i] = 0;
+			}
+		}
+		const auto ratio = [](real_t p_size, real_t p_sum) -> real_t { return p_sum > 0 ? p_size / p_sum : 1; };
+		const real_t scale = std::clamp<real_t>(std::min({
+			ratio(rect.size.x, radii_x.x + radii_x.y), ratio(rect.size.x, radii_x.z + radii_x.w),
+			ratio(rect.size.y, radii_y.x + radii_y.w), ratio(rect.size.y, radii_y.y + radii_y.z) }), 0, 1);
+		radii_x *= scale;
+		radii_y *= scale;
+	}
+
+	LiteHTMLContainer::RoundedRect LiteHTMLContainer::RoundedRect::inset(const Rect2& p_rect) const {
+		const Vector2 leading = p_rect.position - rect.position;
+		const Vector2 trailing = rect.get_end() - p_rect.get_end();
+		border_radiuses radii;
+		radii.top_left_x = radii_x.x - leading.x;
+		radii.top_right_x = radii_x.y - trailing.x;
+		radii.bottom_right_x = radii_x.z - trailing.x;
+		radii.bottom_left_x = radii_x.w - leading.x;
+		radii.top_left_y = radii_y.x - leading.y;
+		radii.top_right_y = radii_y.y - leading.y;
+		radii.bottom_right_y = radii_y.z - trailing.y;
+		radii.bottom_left_y = radii_y.w - trailing.y;
+		return RoundedRect(p_rect, radii);
+	}
+
+	bool LiteHTMLContainer::RoundedRect::has_radius() const {
+		return radii_x != Vector4();
+	}
+
 	LiteHTMLContainer::LiteHTMLContainer(const String& p_base_dir, const Dictionary& p_textures, bool p_fit_images,
-		const HTMLLayout::Fonts& p_fonts) :
-		base_dir(p_base_dir), textures(p_textures), fit_images(p_fit_images), fonts(p_fonts), default_font(p_fonts.text) {
+		const HTMLLayout::Fonts& p_fonts, const Dictionary& p_local_stylesheets) :
+		base_dir(p_base_dir), textures(p_textures), local_stylesheets(p_local_stylesheets),
+		fit_images(p_fit_images), fonts(p_fonts), default_font(p_fonts.text) {
 		ThemeDB* themes = ThemeDB::get_singleton();
 		const Ref<Theme> project_theme = themes->get_project_theme();
 		if (default_font.is_null() && project_theme.is_valid()) {
@@ -346,16 +529,55 @@ namespace docrender {
 		}
 	}
 
-	void LiteHTMLContainer::add_command(Command p_command) {
+	Ref<ShaderMaterial> LiteHTMLContainer::create_material(const RoundedRect* p_shape) {
+		if (paint_shader.is_null()) {
+			paint_shader.instantiate();
+			paint_shader->set_code(PAINT_SHADER_CODE);
+		}
+		Ref<ShaderMaterial> material;
+		material.instantiate();
+		material->set_shader(paint_shader);
+		PackedVector4Array boxes;
+		PackedVector4Array radii_x;
+		PackedVector4Array radii_y;
+		const auto append = [&](const RoundedRect& p_clip) {
+			boxes.push_back(box_uniform(p_clip.rect));
+			radii_x.push_back(p_clip.radii_x);
+			radii_y.push_back(p_clip.radii_y);
+		};
+		for (auto clip = clips.rbegin(); clip != clips.rend() && boxes.size() < MAX_ROUNDED_CLIPS - (p_shape ? 1 : 0); ++clip) {
+			if (clip->shape.has_radius()) {
+				append(clip->shape);
+			}
+		}
+		if (p_shape) {
+			append(*p_shape);
+		}
+		material->set_shader_parameter("clip_count", boxes.size());
+		if (!boxes.is_empty()) {
+			boxes.resize(MAX_ROUNDED_CLIPS);
+			radii_x.resize(MAX_ROUNDED_CLIPS);
+			radii_y.resize(MAX_ROUNDED_CLIPS);
+			material->set_shader_parameter("clip_boxes", boxes);
+			material->set_shader_parameter("clip_radii_x", radii_x);
+			material->set_shader_parameter("clip_radii_y", radii_y);
+		}
+		return material;
+	}
+
+	void LiteHTMLContainer::add_command(Command p_command, Ref<ShaderMaterial> p_material) {
 		std::optional<Rect2> clip;
 		if (!clips.empty()) {
-			if (!clips.back().has_area()) {
+			if (!clips.back().bounds.has_area()) {
 				return;
 			}
-			clip = clips.back();
+			clip = clips.back().bounds;
+			if (p_material.is_null()) {
+				p_material = clips.back().material;
+			}
 		}
-		if (paint_runs.empty() || paint_runs.back().clip != clip) {
-			paint_runs.push_back({ clip,{} });
+		if (paint_runs.empty() || paint_runs.back().clip != clip || paint_runs.back().material != p_material) {
+			paint_runs.push_back({ clip, p_material, {} });
 		}
 		paint_runs.back().commands.push_back(std::move(p_command));
 	}
@@ -491,7 +713,7 @@ namespace docrender {
 		const Rect2 rect = to_rect(p_marker.pos);
 		const Color color = to_color(p_marker.color);
 		if (!p_marker.image.empty()) {
-			const Ref<Texture2D> texture = load_texture(p_marker.image.c_str());
+			const Ref<Texture2D> texture = load_texture(p_marker.image.c_str(), p_marker.baseurl);
 			if (texture.is_valid()) {
 				add_command(Image{ texture, rect, Rect2(Vector2(), texture->get_size()), false });
 				return;
@@ -506,8 +728,48 @@ namespace docrender {
 		}
 	}
 
-	Ref<Texture2D> LiteHTMLContainer::load_texture(const char* p_src) {
-		const String path = resolve_html_image_path(String::utf8(p_src), base_dir);
+	String LiteHTMLContainer::get_url_dir(const char* p_css_base) const {
+		if (!p_css_base || !*p_css_base) {
+			return base_dir;
+		}
+		const String source = String::utf8(p_css_base);
+		return source.get_slice("\n", source.get_slice_count("\n") - 1).get_base_dir();
+	}
+
+	void LiteHTMLContainer::import_css(litehtml::string& r_text, const litehtml::string& p_url, litehtml::string& r_css_base) {
+		r_text.clear();
+		const String path = resolve_html_stylesheet_path(String::utf8(p_url.c_str()), get_url_dir(r_css_base.c_str()));
+		const auto parents = String::utf8(r_css_base.c_str()).split("\n", false);
+		// litehtml carries this base string into nested imports and declarations.
+		if (path.is_empty() || parents.has(path) || parents.size() >= 16 || stylesheet_reads >= 128) {
+			return;
+		}
+		++stylesheet_reads;
+		const Variant stored = local_stylesheets.get(path, Variant());
+		const auto file = stored.get_type() == Variant::STRING ? std::optional<String>(stored) : read_html_stylesheet(path);
+		if (!file) {
+			return;
+		}
+		if (!r_css_base.empty()) {
+			r_css_base += '\n';
+		}
+		r_css_base += path.utf8().get_data();
+		r_text = file->utf8().get_data();
+	}
+
+	void LiteHTMLContainer::link(const std::shared_ptr<litehtml::document>& p_doc, const litehtml::element::ptr& p_element) {
+		const char* rel = p_element->get_attr("rel");
+		const char* href = p_element->get_attr("href");
+		if (rel && href && std::string_view(rel) != "stylesheet" && String::utf8(rel).nocasecmp_to("stylesheet") == 0) {
+			litehtml::string css;
+			litehtml::string base;
+			import_css(css, href, base);
+			p_doc->add_stylesheet(css.c_str(), base.c_str(), p_element->get_attr("media"));
+		}
+	}
+
+	Ref<Texture2D> LiteHTMLContainer::load_texture(const char* p_src, const char* p_css_base) {
+		const String path = resolve_html_image_path(String::utf8(p_src), get_url_dir(p_css_base));
 		if (path.is_empty()) {
 			return {};
 		}
@@ -527,18 +789,18 @@ namespace docrender {
 		return texture;
 	}
 
-	void LiteHTMLContainer::load_image(const char* p_src, const char*, bool) {
-		load_texture(p_src);
+	void LiteHTMLContainer::load_image(const char* p_src, const char* p_css_base, bool) {
+		load_texture(p_src, p_css_base);
 	}
 
-	void LiteHTMLContainer::get_image_size(const char* p_src, const char*, litehtml::size& r_size) {
-		const Ref<Texture2D> texture = load_texture(p_src);
+	void LiteHTMLContainer::get_image_size(const char* p_src, const char* p_css_base, litehtml::size& r_size) {
+		const Ref<Texture2D> texture = load_texture(p_src, p_css_base);
 		const Vector2 size = texture.is_valid() ? texture->get_size() : Vector2();
 		r_size = litehtml::size(size.x, size.y);
 	}
 
-	void LiteHTMLContainer::draw_image(uint_ptr, const background_layer& p_layer, const std::string& p_url, const std::string&) {
-		const Ref<Texture2D> texture = load_texture(p_url.c_str());
+	void LiteHTMLContainer::draw_image(uint_ptr, const background_layer& p_layer, const std::string& p_url, const std::string& p_css_base) {
+		const Ref<Texture2D> texture = load_texture(p_url.c_str(), p_css_base.c_str());
 		const Rect2 tile = to_rect(p_layer.origin_box);
 		if (texture.is_null() || !tile.has_area()) {
 			return;
@@ -547,18 +809,76 @@ namespace docrender {
 		const bool repeat_x = p_layer.repeat == background_repeat_repeat || p_layer.repeat == background_repeat_repeat_x;
 		const bool repeat_y = p_layer.repeat == background_repeat_repeat || p_layer.repeat == background_repeat_repeat_y;
 		const Rect2 bounds = get_background_clip(p_layer);
-		const Rect2 extent(repeat_x ? bounds.position.x : tile.position.x, repeat_y ? bounds.position.y : tile.position.y,
-			repeat_x ? bounds.size.x : tile.size.x, repeat_y ? bounds.size.y : tile.size.y);
-		const Rect2 destination = bounds.intersection(extent);
+		const Rect2 destination = get_tile_bounds(p_layer, bounds, repeat_x, repeat_y);
 		if (destination.has_area()) {
 			const Vector2 scale = texture->get_size() / tile.size;
 			const Rect2 source((destination.position - tile.position) * scale, destination.size * scale);
-			add_command(Image{ texture, destination, source, repeat_x || repeat_y });
+			const RoundedRect shape = RoundedRect(to_rect(p_layer.border_box), p_layer.border_radius).inset(bounds);
+			add_command(Image{ texture, destination, source, repeat_x || repeat_y },
+				shape.has_radius() ? create_material(&shape) : Ref<ShaderMaterial>());
 		}
 	}
 
 	void LiteHTMLContainer::draw_solid_fill(uint_ptr, const background_layer& p_layer, const web_color& p_color) {
-		fill_rect(get_background_clip(p_layer), to_color(p_color));
+		const Rect2 bounds = get_background_clip(p_layer);
+		const Color color = to_color(p_color);
+		if (!bounds.has_area() || color.a <= 0) {
+			return;
+		}
+		const RoundedRect shape = RoundedRect(to_rect(p_layer.border_box), p_layer.border_radius).inset(bounds);
+		add_command(Fill{ bounds, color }, shape.has_radius() ? create_material(&shape) : Ref<ShaderMaterial>());
+	}
+
+	void LiteHTMLContainer::draw_gradient(const background_layer& p_layer, const background_layer::gradient_base& p_gradient,
+		int p_type, const Vector2& p_start, const Vector2& p_parameters) {
+		const Rect2 tile = to_rect(p_layer.origin_box);
+		const Rect2 bounds = get_background_clip(p_layer);
+		const bool repeat_x = p_layer.repeat == background_repeat_repeat || p_layer.repeat == background_repeat_repeat_x;
+		const bool repeat_y = p_layer.repeat == background_repeat_repeat || p_layer.repeat == background_repeat_repeat_y;
+		const Rect2 destination = get_tile_bounds(p_layer, bounds, repeat_x, repeat_y);
+		const auto& points = p_gradient.color_points;
+		if (!tile.has_area() || !destination.has_area() || !p_start.is_finite() || !p_parameters.is_finite() ||
+			points.empty() || points.size() > 4096) {
+			return;
+		}
+		const int count = static_cast<int>(points.size());
+		Ref<godot::Image> stops = godot::Image::create_empty(count, 2, false, godot::Image::FORMAT_RGBAF);
+		float offset = points.front().offset;
+		for (int i = 0; i < count; ++i) {
+			if (!std::isfinite(points[i].offset)) {
+				return;
+			}
+			offset = std::max(offset, points[i].offset);
+			const float span = i + 1 < count ? points[i + 1].offset - offset : 0.0f;
+			const float hint = points[i].hint && span > 0 ? (*points[i].hint - offset) / span : 0.0f;
+			stops->set_pixel(i, 0, to_color(points[i].color));
+			stops->set_pixel(i, 1, Color(offset, hint, 0, 0));
+		}
+		const Ref<ImageTexture> texture = ImageTexture::create_from_image(stops);
+		const RoundedRect shape = RoundedRect(to_rect(p_layer.border_box), p_layer.border_radius).inset(bounds);
+		const Ref<ShaderMaterial> material = create_material(shape.has_radius() ? &shape : nullptr);
+		material->set_shader_parameter("gradient_type", p_type);
+		material->set_shader_parameter("stop_count", count);
+		material->set_shader_parameter("gradient_stops", texture);
+		material->set_shader_parameter("gradient_start", p_start);
+		material->set_shader_parameter("gradient_parameters", p_parameters);
+		material->set_shader_parameter("tile", Vector4(tile.position.x, tile.position.y, tile.size.x, tile.size.y));
+		material->set_shader_parameter("repeat_axes", Vector2i(repeat_x, repeat_y));
+		add_command(Fill{ destination, Color(1, 1, 1) }, material);
+	}
+
+	void LiteHTMLContainer::draw_linear_gradient(uint_ptr, const background_layer& p_layer, const background_layer::linear_gradient& p_gradient) {
+		draw_gradient(p_layer, p_gradient, 1, Vector2(p_gradient.start.x, p_gradient.start.y),
+			Vector2(p_gradient.end.x - p_gradient.start.x, p_gradient.end.y - p_gradient.start.y));
+	}
+
+	void LiteHTMLContainer::draw_radial_gradient(uint_ptr, const background_layer& p_layer, const background_layer::radial_gradient& p_gradient) {
+		draw_gradient(p_layer, p_gradient, 2, Vector2(p_gradient.position.x, p_gradient.position.y),
+			Vector2(p_gradient.radius.x, p_gradient.radius.y));
+	}
+
+	void LiteHTMLContainer::draw_conic_gradient(uint_ptr, const background_layer& p_layer, const background_layer::conic_gradient& p_gradient) {
+		draw_gradient(p_layer, p_gradient, 3, Vector2(p_gradient.position.x, p_gradient.position.y), Vector2(p_gradient.angle / 360.0f, 0));
 	}
 
 	void LiteHTMLContainer::draw_borders(uint_ptr, const borders& p_borders, const litehtml::position& p_position, bool) {
@@ -572,6 +892,24 @@ namespace docrender {
 		const float right = solid_border_width(p_borders.right, rect.size.x - left);
 		const float inner_height = rect.size.y - top - bottom;
 		const Vector2 end = rect.get_end();
+		const RoundedRect outer(rect, p_borders.radius);
+		if (outer.has_radius() && top + right + bottom + left > 0.0f) {
+			const RoundedRect inner = outer.inset(Rect2(rect.position.x + left, rect.position.y + top, rect.size.x - left - right, inner_height));
+			const Ref<ShaderMaterial> material = create_material(&outer);
+			material->set_shader_parameter("draw_border", true);
+			material->set_shader_parameter("inner_box", box_uniform(inner.rect));
+			material->set_shader_parameter("inner_radii_x", inner.radii_x);
+			material->set_shader_parameter("inner_radii_y", inner.radii_y);
+			material->set_shader_parameter("border_widths", Vector4(top, right, bottom, left));
+			const auto color_vector = [](const border& p_border) {
+				const Color color = to_color(p_border.color);
+				return Vector4(color.r, color.g, color.b, color.a);
+			};
+			material->set_shader_parameter("border_colors", PackedVector4Array({
+				color_vector(p_borders.top), color_vector(p_borders.right), color_vector(p_borders.bottom), color_vector(p_borders.left) }));
+			add_command(Fill{ rect, Color(1, 1, 1) }, material);
+			return;
+		}
 		fill_rect(Rect2(rect.position, Vector2(rect.size.x, top)), to_color(p_borders.top.color));
 		fill_rect(Rect2(rect.position.x, end.y - bottom, rect.size.x, bottom), to_color(p_borders.bottom.color));
 		fill_rect(Rect2(rect.position.x, rect.position.y + top, left, inner_height), to_color(p_borders.left.color));
@@ -596,9 +934,14 @@ namespace docrender {
 		r_text = text.utf8().get_data();
 	}
 
-	void LiteHTMLContainer::set_clip(const litehtml::position& p_position, const border_radiuses&) {
+	void LiteHTMLContainer::set_clip(const litehtml::position& p_position, const border_radiuses& p_radii) {
 		const Rect2 rect = to_rect(p_position);
-		clips.push_back(clips.empty() ? rect : clips.back().intersection(rect));
+		Clip clip{ clips.empty() ? rect : clips.back().bounds.intersection(rect), RoundedRect(rect, p_radii),
+			clips.empty() ? Ref<ShaderMaterial>() : clips.back().material };
+		clips.push_back(std::move(clip));
+		if (clips.back().shape.has_radius() && clips.back().bounds.has_area()) {
+			clips.back().material = create_material();
+		}
 	}
 
 	void LiteHTMLContainer::del_clip() {
@@ -625,3 +968,7 @@ namespace docrender {
 		r_culture = locale.get_slice("_", 1).utf8().get_data();
 	}
 } // namespace docrender
+
+void HTMLLayout::release_paint_shader() {
+	docrender::paint_shader.unref();
+}

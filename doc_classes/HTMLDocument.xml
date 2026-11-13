@@ -6,6 +6,7 @@
 	<description>
 		Load an imported [code].html[/code] or [code].htm[/code] file, or create an [HTMLDocument] and set its [member text]. Assign the resource to [member HTMLLabel.document] for automatic display. Use [method create_layout] when drawing directly.
 		Scripts that previously called [code]HTMLDocument.new().parse(html)[/code] should call [code]HTMLLayout.new().parse(html)[/code]. Each [HTMLLayout] keeps its own parsed document, viewport, and drawing state.
+		The HTML importer embeds linked and imported CSS and records their textures as resource dependencies for export. Reimport the HTML file after changing a linked stylesheet.
 		Imported documents include local image dependencies from all media query branches. In a selected-scenes export preset, add [code]addons/docrender/docrender.gdextension[/code] to the include filter so the exported project can load DocRender classes.
 	</description>
 	<methods>

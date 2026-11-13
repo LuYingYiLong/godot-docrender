@@ -5,7 +5,8 @@
 	</brief_description>
 	<description>
 		Use [method parse] to load an HTML document or fragment and [method layout] to set its viewport size. Call [method draw] from the target [CanvasItem]'s [method CanvasItem._draw] callback. Call [method CanvasItem.queue_redraw] after changing the document, viewport size, or drawing position.
-		Supports block and inline layout, lists, tables, text, solid backgrounds and borders, local images, and rectangular overflow clipping. Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.
+		Supports block and inline layout, lists, tables, text, backgrounds, solid borders, and local images. [code]border-radius[/code] rounds backgrounds, borders, and images, and clips overflowing children when [code]overflow: hidden[/code] is set. Backgrounds support [code]linear-gradient()[/code], [code]radial-gradient()[/code], and [code]conic-gradient()[/code] with sRGB color interpolation.
+		Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.
 	</description>
 	<methods>
 		<method name="clear">
@@ -83,7 +84,7 @@
 			<param index="1" name="base_dir" type="String" default="&quot;res://&quot;" />
 			<param index="2" name="stylesheet" type="String" default="&quot;&quot;" />
 			<description>
-				Replaces the document and resets its layout. An empty string creates an empty document. Styles come from inline attributes, [code]&lt;style&gt;[/code] elements, and the optional stylesheet text. Images can be imported PNG, JPEG, WebP, or SVG textures. Relative paths are resolved from [param base_dir] and may use [code]../[/code] within the project. Absolute [code]res://[/code] paths are also supported. A missing or unsupported image is skipped. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside [code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed.
+				Replaces the document and resets its layout. An empty string creates an empty document. Styles come from inline attributes, [code]&lt;style&gt;[/code] elements, [code]&lt;link rel="stylesheet"&gt;[/code], and the optional stylesheet text. Use [code]@import[/code] to include UTF-8 [code].css[/code] files within the project. Relative URLs in a CSS file are resolved from that file's directory. Relative URLs in HTML and stylesheet text are resolved from [param base_dir]. Paths may use [code]../[/code] within the project or absolute [code]res://[/code] paths. Images can be imported PNG, JPEG, WebP, or SVG textures. Missing or unsupported assets are skipped. Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside [code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed.
 			</description>
 		</method>
 	</methods>

@@ -49,7 +49,9 @@ namespace godot {
 		document.instantiate();
 		document->set_text(text);
 		document->set_base_dir(base_dir);
-		document->set_textures(docrender::collect_html_textures(text, base_dir));
+		const auto assets = docrender::collect_html_assets(text, base_dir);
+		document->set_textures(assets.textures);
+		document->set_local_stylesheets(assets.stylesheets);
 		return ResourceSaver::get_singleton()->save(document, p_save_path + String(".res"));
 	}
 }

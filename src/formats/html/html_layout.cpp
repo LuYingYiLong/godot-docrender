@@ -26,6 +26,7 @@ namespace {
 		Callable redraw;
 		Callable exiting;
 		std::vector<RID> items;
+		std::vector<Ref<ShaderMaterial>> materials;
 		int32_t run_count = 0;
 
 		void clear() {
@@ -35,6 +36,7 @@ namespace {
 				}
 			}
 			items.clear();
+			materials.clear();
 			run_count = 0;
 		}
 
@@ -128,7 +130,8 @@ Error HTMLLayout::parse(const String& p_html, const String& p_base_dir, const St
 }
 
 Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, const String& p_stylesheet,
-	const Dictionary& p_textures, bool p_fit_images, const String& p_default_stylesheet, const Fonts& p_fonts) {
+	const Dictionary& p_textures, bool p_fit_images, const String& p_default_stylesheet, const Fonts& p_fonts,
+	const Dictionary& p_local_stylesheets) {
 	clear();
 	const std::optional<String> base_dir = docrender::normalize_html_resource_path(p_base_dir);
 	if (!base_dir) {
@@ -136,7 +139,7 @@ Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, c
 		return state->parse_error = ERR_INVALID_PARAMETER;
 	}
 	try {
-		state->container = std::make_unique<LiteHTMLContainer>(*base_dir, p_textures, p_fit_images, p_fonts);
+		state->container = std::make_unique<LiteHTMLContainer>(*base_dir, p_textures, p_fit_images, p_fonts, p_local_stylesheets);
 		if (!p_html.strip_edges().is_empty()) {
 			const CharString html = p_html.utf8();
 			const CharString stylesheet = p_stylesheet.utf8();
@@ -268,6 +271,7 @@ void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_pos
 		? TextServerManager::get_singleton()->get_primary_interface() : Ref<TextServer>();
 	RID target;
 	std::optional<Rect2> previous_clip;
+	Ref<ShaderMaterial> previous_material;
 	for (const auto& run : runs) {
 		std::optional<Rect2> clip;
 		if (run.clip) {
@@ -280,7 +284,7 @@ void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_pos
 			continue;
 		}
 
-		if (!target.is_valid() || clip != previous_clip) {
+		if (!target.is_valid() || clip != previous_clip || run.material != previous_material) {
 			if (drawing->items.empty()) {
 				drawing->add_item(server, p_canvas->get_canvas_item(), -1);
 			}
@@ -295,9 +299,15 @@ void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_pos
 			else {
 				target = drawing->add_item(server, root, index);
 			}
+			if (run.material.is_valid()) {
+				server.canvas_item_set_material(target, run.material->get_rid());
+				server.canvas_item_set_transform(target, Transform2D(0.0, p_position));
+				drawing->materials.push_back(run.material);
+			}
 			previous_clip = clip;
+			previous_material = run.material;
 		}
-		run.draw(server, target, p_position, text_server.ptr(), search, selection);
+		run.draw(server, target, run.material.is_valid() ? Vector2() : p_position, text_server.ptr(), search, selection);
 	}
 }
 

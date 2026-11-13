@@ -1,10 +1,12 @@
 #include "html_markup.h"
 
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/templates/hash_set.hpp>
 #include <gumbo.h>
 #include <litehtml/css_parser.h>
+#include <litehtml/style.h>
 
 #include <memory>
 #include <string>
@@ -14,6 +16,9 @@ using namespace godot;
 
 namespace docrender {
 	namespace {
+		constexpr int MAX_STYLESHEET_BYTES = 1024 * 1024;
+		constexpr int MAX_STYLESHEETS = 128;
+
 		struct GumboDeleter {
 			void operator()(GumboOutput* p_output) const {
 				gumbo_destroy_output(&kGumboDefaultOptions, p_output);
@@ -52,6 +57,58 @@ namespace docrender {
 				}
 			}
 		}
+
+		class AssetCollector {
+			HashSet<String> checked_stylesheets;
+
+		public:
+			HashSet<String> images;
+			Dictionary stylesheets;
+
+			void add_stylesheet(const String& p_url, const String& p_dir) {
+				const String path = resolve_html_stylesheet_path(p_url, p_dir);
+				if (path.is_empty() || checked_stylesheets.has(path) || checked_stylesheets.size() >= MAX_STYLESHEETS) {
+					return;
+				}
+				checked_stylesheets.insert(path);
+				if (const auto text = read_html_stylesheet(path)) {
+					stylesheets[path] = *text;
+					add_css(text->utf8().get_data(), path.get_base_dir());
+				}
+			}
+
+			void add_css(const char* p_css, const String& p_dir) {
+				using namespace litehtml;
+				const std::string text(p_css);
+				collect_css_paths(p_css, p_dir, images);
+				for (const auto& rule : css_parser::parse_stylesheet(text, true)) {
+					if (rule->type != raw_rule::at || String::utf8(rule->name.c_str()).nocasecmp_to("import") != 0) {
+						continue;
+					}
+					int index = 0;
+					skip_whitespace(rule->prelude, index);
+					if (index >= static_cast<int>(rule->prelude.size())) {
+						continue;
+					}
+					const auto& token = rule->prelude[index];
+					std::string url;
+					if (token.type == STRING) {
+						url = token.str;
+					} else if (!parse_url(token, url)) {
+						continue;
+					}
+					add_stylesheet(String::utf8(url.c_str()), p_dir);
+				}
+			}
+		};
+
+		String resolve_local_path(const String& p_src, const String& p_base_dir) {
+			const String source = decode_html_fragment(p_src.strip_edges()).replace("\\", "/");
+			if (source.is_empty() || source.begins_with("/")) {
+				return {};
+			}
+			return normalize_html_resource_path(source.begins_with("res://") ? source : p_base_dir.path_join(source)).value_or(String());
+		}
 	}
 
 	std::optional<String> normalize_html_resource_path(const String& p_path) {
@@ -61,6 +118,11 @@ namespace docrender {
 		const String relative = p_path.substr(6).replace("\\", "/");
 		if (relative.begins_with("/") || relative.contains(":") || relative.contains("?") || relative.contains("#")) {
 			return std::nullopt;
+		}
+		for (int64_t i = 0; i < relative.length(); ++i) {
+			if (relative[i] < 32) {
+				return std::nullopt;
+			}
 		}
 
 		PackedStringArray components;
@@ -83,21 +145,35 @@ namespace docrender {
 	}
 
 	String resolve_html_image_path(const String& p_src, const String& p_base_dir) {
-		const String source = p_src.strip_edges().uri_decode().replace("\\", "/");
-		if (source.is_empty() || source.begins_with("/")) {
-			return {};
-		}
-
-		const bool absolute = source.begins_with("res://");
-		const std::optional<String> path = normalize_html_resource_path(absolute ? source : p_base_dir.path_join(source));
-		if (!path) {
-			return {};
-		}
-		const String extension = path->get_extension().to_lower();
+		const String path = resolve_local_path(p_src, p_base_dir);
+		const String extension = path.get_extension().to_lower();
 		if (extension != "png" && extension != "jpg" && extension != "jpeg" && extension != "webp" && extension != "svg") {
 			return {};
 		}
-		return *path;
+		return path;
+	}
+
+	String resolve_html_stylesheet_path(const String& p_src, const String& p_base_dir) {
+		const String path = resolve_local_path(p_src, p_base_dir);
+		return path.get_extension().to_lower() == "css" ? path : String();
+	}
+
+	std::optional<String> read_html_stylesheet(const String& p_path) {
+		const Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
+		if (file.is_null()) {
+			return std::nullopt;
+		}
+		const uint64_t length = file->get_length();
+		if (length > MAX_STYLESHEET_BYTES) {
+			return std::nullopt;
+		}
+		const PackedByteArray bytes = file->get_buffer(length);
+		String text;
+		if (static_cast<uint64_t>(bytes.size()) != length ||
+			(!bytes.is_empty() && (bytes.has(0) || text.parse_utf8(reinterpret_cast<const char*>(bytes.ptr()), bytes.size()) != OK))) {
+			return std::nullopt;
+		}
+		return text;
 	}
 
 	HTMLInlineColors parse_html_inline_colors(const String& p_style) {
@@ -190,11 +266,11 @@ namespace docrender {
 		return element.children.length ? String::utf8(child(element, 0)->v.text.text).substr(1) : p_text;
 	}
 
-	Dictionary collect_html_textures(const String& p_html, const String& p_base_dir) {
+	HTMLAssets collect_html_assets(const String& p_html, const String& p_base_dir) {
 		if (p_html.is_empty()) {
 			return {};
 		}
-		HashSet<String> paths;
+		AssetCollector assets;
 		const CharString bytes = p_html.utf8();
 		const GumboTree tree(gumbo_parse_with_options(&kGumboDefaultOptions, bytes.get_data(), bytes.length()));
 		if (!tree || !tree->root) {
@@ -210,16 +286,23 @@ namespace docrender {
 			const GumboElement& element = node->v.element;
 			if (element.tag == GUMBO_TAG_IMG) {
 				if (const GumboAttribute* src = gumbo_get_attribute(&element.attributes, "src")) {
-					add_image_path(paths, src->value, p_base_dir);
+					add_image_path(assets.images, src->value, p_base_dir);
+				}
+			}
+			if (element.tag == GUMBO_TAG_LINK) {
+				const GumboAttribute* rel = gumbo_get_attribute(&element.attributes, "rel");
+				const GumboAttribute* href = gumbo_get_attribute(&element.attributes, "href");
+				if (rel && href && String::utf8(rel->value).nocasecmp_to("stylesheet") == 0) {
+					assets.add_stylesheet(String::utf8(href->value), p_base_dir);
 				}
 			}
 			if (const GumboAttribute* style = gumbo_get_attribute(&element.attributes, "style")) {
-				collect_css_paths(style->value, p_base_dir, paths);
+				collect_css_paths(style->value, p_base_dir, assets.images);
 			}
 			for (size_t i = 0; i < element.children.length; ++i) {
 				const GumboNode* nested = child(element, i);
 				if (element.tag == GUMBO_TAG_STYLE && (nested->type == GUMBO_NODE_TEXT || nested->type == GUMBO_NODE_CDATA)) {
-					collect_css_paths(nested->v.text.text, p_base_dir, paths);
+					assets.add_css(nested->v.text.text, p_base_dir);
 				}
 				nodes.push_back(nested);
 			}
@@ -227,7 +310,7 @@ namespace docrender {
 
 		Dictionary textures;
 		ResourceLoader* loader = ResourceLoader::get_singleton();
-		for (const String& path : paths) {
+		for (const String& path : assets.images) {
 			if (loader->exists(path, "Texture2D")) {
 				const Ref<Texture2D> texture = loader->load(path, "Texture2D");
 				if (texture.is_valid()) {
@@ -235,6 +318,6 @@ namespace docrender {
 				}
 			}
 		}
-		return textures;
+		return { textures, assets.stylesheets };
 	}
 }

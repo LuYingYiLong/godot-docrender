@@ -11,6 +11,7 @@ class HTMLDocument : public godot::Resource {
 	godot::String base_dir = "res://";
 	godot::String stylesheet;
 	godot::Dictionary textures;
+	godot::Dictionary local_stylesheets;
 
 protected:
 	static void _bind_methods();
@@ -24,5 +25,7 @@ public:
 	godot::String get_stylesheet() const;
 	void set_textures(const godot::Dictionary& p_textures);
 	godot::Dictionary get_textures() const;
+	void set_local_stylesheets(const godot::Dictionary& p_stylesheets);
+	godot::Dictionary get_local_stylesheets() const;
 	godot::Ref<HTMLLayout> create_layout() const;
 };
