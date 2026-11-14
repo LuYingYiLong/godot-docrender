@@ -11,6 +11,7 @@ namespace litehtml {
 
 		using context = containing_block_context;
 		using alignment = alignment_keyword;
+		using content_edge = context::content_baseline_edge;
 
 		bool is_definite(context::typed_pixel value) {
 			return is_one_of(value.type, context::cbc_value_type_absolute, context::cbc_value_type_percentage);
@@ -65,45 +66,97 @@ namespace litehtml {
 			return is_one_of(value.keyword, alignment::first_baseline, alignment::last_baseline);
 		}
 
-		bool depends_on_grid_height(const render_item& item) {
+		bool depends_on_grid_size(const render_item& item, bool horizontal = false) {
 			const auto& css = item.css();
 			const auto percentage = [](const css_length& length) {
 				return !length.is_predefined() && length.units() == css_units_percentage;
 			};
-			return percentage(css.get_height()) || percentage(css.get_min_height()) || percentage(css.get_max_height());
+			return horizontal ? percentage(css.get_width()) || percentage(css.get_min_width()) || percentage(css.get_max_width()) :
+				percentage(css.get_height()) || percentage(css.get_min_height()) || percentage(css.get_max_height());
 		}
 
-		struct grid_row_baselines {
+		struct grid_track_baselines {
 			std::optional<pixel_t> first;
 			std::optional<pixel_t> last;
 		};
 
 		struct grid_baseline_sample {
-			std::size_t row;
+			std::size_t track;
 			bool last;
 			pixel_t distance;
 
-			pixel_t shim(const std::vector<grid_row_baselines>& rows) const {
-				return (last ? rows[row].last : rows[row].first).value_or(distance) - distance;
+			pixel_t shim(const std::vector<grid_track_baselines>& groups) const {
+				return (last ? groups[track].last : groups[track].first).value_or(distance) - distance;
 			}
 		};
 
 		struct grid_row_measurement {
-			bool baseline_aligned = false;
+			enum class alignment_mode { positional, self_baseline, content_baseline } mode = alignment_mode::positional;
 			std::optional<grid_baseline_sample> baseline;
 			std::optional<grid_track_contribution> contribution;
 		};
 
-		grid_baseline_sample measure_baseline(const render_item& item, grid_track_range rows, css_alignment align) {
-			const bool last = align.keyword == alignment::last_baseline;
-			const auto offset = item.baseline_or_border_bottom(last);
-			return { last ? rows.end - 1 : rows.start, last, last ? item.height() - offset : offset };
+		content_edge grid_content_edge(const render_item& item, css_alignment self) {
+			if (item.src_el()->is_replaced()) return content_edge::none;
+			const auto content = item.css().get_align_content();
+			const auto preference = is_baseline_alignment(self) && (content.keyword == alignment::normal || is_baseline_alignment(content)) ?
+				self : content;
+			if (preference.keyword == alignment::first_baseline) return content_edge::start;
+			if (preference.keyword == alignment::last_baseline) return content_edge::end;
+			return content_edge::none;
 		}
 
-		void include_baseline(std::vector<grid_row_baselines>& groups, const grid_baseline_sample& sample) {
-			auto& group = sample.last ? groups[sample.row].last : groups[sample.row].first;
+		bool coordinates_content_baseline(const render_item& item, css_alignment self, css_alignment content) {
+			if (item.src_el()->is_replaced() || !is_baseline_alignment(content) || is_baseline_alignment(self)) return false;
+			const auto& margins = item.css().get_margins();
+			const bool auto_top = margins.top.is_predefined();
+			const bool auto_bottom = margins.bottom.is_predefined();
+			if (auto_top || auto_bottom)
+				return content.keyword == alignment::last_baseline ? auto_top && !auto_bottom : auto_bottom && !auto_top;
+			if (content.keyword == alignment::last_baseline)
+				return is_one_of(self.keyword, alignment::end, alignment::self_end, alignment::flex_end,
+					alignment::normal, alignment::stretch);
+			return is_one_of(self.keyword, alignment::start, alignment::self_start, alignment::flex_start,
+				alignment::normal, alignment::stretch);
+		}
+
+		void set_content_baseline_context(context& cell, const render_item& item, css_alignment self, pixel_t padding = 0) {
+			cell.grid_content_edge = grid_content_edge(item, self);
+			cell.grid_baseline_padding = padding;
+		}
+
+		grid_baseline_sample baseline_sample(grid_track_range range, css_alignment align, pixel_t size, pixel_t offset) {
+			const bool last = align.keyword == alignment::last_baseline;
+			return { last ? range.end - 1 : range.start, last, last ? size - offset : offset };
+		}
+
+		grid_baseline_sample measure_row_baseline(const render_item& item, grid_track_range rows, css_alignment align) {
+			return baseline_sample(rows, align, item.height(), item.baseline_or_border_bottom(align.keyword == alignment::last_baseline));
+		}
+
+		void include_baseline(std::vector<grid_track_baselines>& groups, const grid_baseline_sample& sample) {
+			auto& group = sample.last ? groups[sample.track].last : groups[sample.track].first;
 			group = std::max(group.value_or(sample.distance), sample.distance);
 		}
+
+		std::optional<grid_baseline_sample> measure_content_baseline(const render_item& item,
+			grid_track_range rows, css_alignment align) {
+			if (const auto offset = item.layout_baseline(align.keyword == alignment::last_baseline))
+				return baseline_sample(rows, align, item.height(), *offset);
+			return std::nullopt;
+		}
+
+		grid_baseline_sample measure_column_baseline(grid_track_range columns, css_alignment align, pixel_t width, pixel_t left_margin) {
+			// Horizontal writing has no vertical text baseline. The alphabetic
+			// baseline of the synthesized vertical-lr box is its left border edge.
+			return baseline_sample(columns, align, width, left_margin);
+		}
+
+		struct grid_column_measurement {
+			bool baseline_aligned = false;
+			std::optional<grid_track_contribution> contribution;
+			pixel_t left_margin = 0;
+		};
 
 		rendered_width render_intrinsic_width(render_item& item, const context& grid) {
 			// Give the renderer room for unwrapped content and an indefinite percentage basis.
@@ -172,6 +225,15 @@ namespace litehtml {
 			return position_offset(align, free_space);
 		}
 
+		pixel_t align_row_item(render_item& item, css_alignment self, pixel_t height) {
+			const auto& style = item.css().get_margins();
+			auto& margins = item.get_margins();
+			if (!item.src_el()->is_replaced() && stretches(self) &&
+				item.css().get_align_content().keyword == alignment::last_baseline)
+				self = { alignment::self_end, alignment_overflow::safe };
+			return align_item(self, height - item.height(), margins.top, margins.bottom, style.top, style.bottom);
+		}
+
 		struct grid_axis_spacing {
 			pixel_t leading = 0;
 			pixel_t extra_gap = 0;
@@ -233,7 +295,7 @@ namespace litehtml {
 
 		std::optional<pixel_t> grid_content_baseline(const std::vector<render_item*>& items,
 			const std::vector<grid_item_placement>& placements, const grid_axis_geometry& geometry,
-			const std::vector<grid_row_baselines>& groups, bool last) {
+			const std::vector<grid_track_baselines>& groups, bool last) {
 			if (items.empty()) return std::nullopt;
 			const auto row_of = [last](const auto& placement) {
 				return last ? placement.rows.end - 1 : placement.rows.start;
@@ -342,6 +404,7 @@ namespace litehtml {
 	) {
 		first_baseline.reset();
 		last_baseline.reset();
+		occupied_row_height = 0;
 		const auto self = calculate_containing_block_context(containing_block_size);
 		const bool measure_width = containing_block_size.size_mode & context::size_mode_grid_measure_width;
 		const bool fit_content = containing_block_size.size_mode & context::size_mode_content;
@@ -379,7 +442,11 @@ namespace litehtml {
 			placement.items, &grid_item_placement::rows);
 
 		const auto justify_content = css().get_justify_content();
-		const auto align_content = css().get_align_content();
+		auto align_content = css().get_align_content();
+		if (containing_block_size.grid_content_edge != content_edge::none) {
+			align_content = { containing_block_size.grid_content_edge == content_edge::end ? alignment::end : alignment::start,
+				alignment_overflow::safe };
+		}
 		std::vector<grid_item_alignment> alignments;
 		alignments.reserve(items.size());
 		for (const auto* item : items) {
@@ -389,16 +456,24 @@ namespace litehtml {
 			});
 		}
 		std::vector<std::optional<grid_intrinsic_width>> intrinsic(items.size());
-		std::vector<grid_track_contribution> column_content;
-		column_content.reserve(items.size());
+		std::vector<grid_column_measurement> measured_columns(items.size());
+		std::vector<grid_track_baselines> column_minimum_baselines(columns.size());
+		std::vector<grid_track_baselines> column_preferred_baselines(columns.size());
 		for (std::size_t index = 0; index < items.size(); ++index) {
 			const auto range = placement.items[index].columns;
-			if (!grid_range_needs_content(columns, range, definite_width)) continue;
 			auto& item = *items[index];
+			auto& measured = measured_columns[index];
+			const auto align = alignments[index].horizontal;
+			const auto& margins = item.css().get_margins();
+			const bool needs_content = grid_range_needs_content(columns, range, definite_width);
+			measured.baseline_aligned = is_baseline_alignment(align) &&
+				!margins.left.is_predefined() && !margins.right.is_predefined() &&
+				!(needs_content && depends_on_grid_size(item, true));
+			if (!needs_content && !measured.baseline_aligned) continue;
 			const auto widths = render_intrinsic_width(item, self);
 			intrinsic[index] = intrinsic_content_width(item, widths);
-			const auto& width = item.css().get_width();
-			const bool explicit_width = !width.is_predefined() && width.units() != css_units_percentage;
+			const auto& css_width = item.css().get_width();
+			const bool explicit_width = !css_width.is_predefined() && css_width.units() != css_units_percentage;
 			const bool has_min_width = !item.css().get_min_width().is_predefined() &&
 				item.css().get_min_width().units() != css_units_percentage;
 			const auto min_width = has_min_width ? item.css().get_min_width().calc_percent(0) : 0;
@@ -408,7 +483,37 @@ namespace litehtml {
 			const auto minimum = explicit_width ? item.width() : std::max(outer_min_width,
 				has_scrollable_overflow(item) || !auto_minimum ? item.content_offset_width() :
 				nowrap || item.src_el()->is_replaced() ? item.width() : std::min(widths.min_width, item.width()));
-			column_content.push_back({ range, minimum, item.width() });
+			const auto preferred = item.width();
+			if (measured.baseline_aligned) {
+				measured.left_margin = item.margin_left();
+				if (const auto span = fixed_grid_span(columns, range, column_gutters, column_gap, width)) {
+					// Fixed tracks contribute a group reference even though they cannot grow.
+					const auto cell = cell_context(item, self, alignments[index], intrinsic[index], *span, std::nullopt);
+					item.render(0, 0, cell, nullptr);
+					const auto sample = measure_column_baseline(range, align, item.width(), item.margin_left());
+					include_baseline(column_minimum_baselines, sample);
+					include_baseline(column_preferred_baselines, sample);
+				} else if (needs_content) {
+					include_baseline(column_minimum_baselines, measure_column_baseline(range, align, minimum, measured.left_margin));
+					include_baseline(column_preferred_baselines, measure_column_baseline(range, align, preferred, measured.left_margin));
+				}
+			}
+			if (needs_content) measured.contribution = grid_track_contribution{ range, minimum, preferred };
+		}
+		std::vector<grid_track_contribution> column_content;
+		column_content.reserve(items.size());
+		for (std::size_t index = 0; index < items.size(); ++index) {
+			const auto& measured = measured_columns[index];
+			if (!measured.contribution) continue;
+			auto contribution = *measured.contribution;
+			if (measured.baseline_aligned) {
+				const auto align = alignments[index].horizontal;
+				contribution.minimum += measure_column_baseline(contribution.range, align, contribution.minimum,
+					measured.left_margin).shim(column_minimum_baselines);
+				contribution.preferred += measure_column_baseline(contribution.range, align, contribution.preferred,
+					measured.left_margin).shim(column_preferred_baselines);
+			}
+			column_content.push_back(contribution);
 		}
 
 		const auto initial_columns = size_grid_tracks(columns, column_content, column_gutters,
@@ -425,7 +530,8 @@ namespace litehtml {
 		const grid_axis_geometry column_geometry(column_sizes.tracks, column_gutters, horizontal_gap, m_pos.width, justify_content);
 
 		std::vector<grid_row_measurement> measurements(items.size());
-		std::vector<grid_row_baselines> row_baselines(rows.size());
+		using row_alignment = grid_row_measurement::alignment_mode;
+		std::vector<grid_track_baselines> row_baselines(rows.size());
 		for (std::size_t index = 0; index < items.size(); ++index) {
 			const auto& placed = placement.items[index];
 			auto& item = *items[index];
@@ -434,20 +540,29 @@ namespace litehtml {
 			const bool needs_content = grid_range_needs_content(rows, placed.rows, definite_height);
 			const bool contributes = needs_content || (!definite_height && grid_range_needs_content(rows, placed.rows, true));
 			const auto& margins = item.css().get_margins();
-			const bool dependent = depends_on_grid_height(item);
-			// An item cannot influence the baseline of a row that determines its own height.
-			measurement.baseline_aligned = is_baseline_alignment(align.vertical) &&
-				!margins.top.is_predefined() && !margins.bottom.is_predefined() && !(dependent && needs_content);
-			if (!contributes && !measurement.baseline_aligned) continue;
-			const auto span_height = dependent && measurement.baseline_aligned ?
+			const bool dependent = depends_on_grid_size(item);
+			const auto content = item.css().get_align_content();
+			if (!(dependent && needs_content)) {
+				if (is_baseline_alignment(align.vertical) && !margins.top.is_predefined() && !margins.bottom.is_predefined())
+					measurement.mode = row_alignment::self_baseline;
+				else if (coordinates_content_baseline(item, align.vertical, content))
+					measurement.mode = row_alignment::content_baseline;
+			}
+			const bool baseline_aligned = measurement.mode != row_alignment::positional;
+			if (!contributes && !baseline_aligned) continue;
+			const auto span_height = baseline_aligned && (dependent || measurement.mode == row_alignment::content_baseline) ?
 				fixed_grid_span(rows, placed.rows, row_gutters, row_gap, height) : std::nullopt;
 			auto cell = cell_context(item, self, align, intrinsic[index], column_geometry.extent(placed.columns), span_height);
 			cell.size_mode |= context::size_mode_grid_measure_height;
-			if (measurement.baseline_aligned) cell.size_mode |= context::size_mode_grid_measure_baseline;
+			if (baseline_aligned) cell.size_mode |= context::size_mode_grid_measure_baseline;
+			set_content_baseline_context(cell, item, measurement.mode == row_alignment::self_baseline ? align.vertical : css_alignment{});
 			item.render(0, 0, cell, nullptr);
-			if (measurement.baseline_aligned && (!dependent || span_height)) {
-				measurement.baseline = measure_baseline(item, placed.rows, align.vertical);
-				include_baseline(row_baselines, *measurement.baseline);
+			if (!dependent || span_height) {
+				if (measurement.mode == row_alignment::self_baseline)
+					measurement.baseline = measure_row_baseline(item, placed.rows, align.vertical);
+				else if (measurement.mode == row_alignment::content_baseline)
+					measurement.baseline = measure_content_baseline(item, placed.rows, content);
+				if (measurement.baseline) include_baseline(row_baselines, *measurement.baseline);
 			}
 			if (!contributes) continue;
 			const bool explicit_height = !item.css().get_height().is_predefined() &&
@@ -488,8 +603,11 @@ namespace litehtml {
 		const auto row_sizes = resolve_rows ?
 			size_grid_tracks(rows, row_content, row_gutters, vertical_gap, m_pos.height, stretches(align_content)) : initial_rows;
 		const grid_axis_geometry row_geometry(row_sizes.tracks, row_gutters, vertical_gap, m_pos.height, align_content);
+		occupied_row_height = row_geometry.extent() - (row_geometry.offsets.empty() ? 0 : row_geometry.offsets.front());
 		track_extent = { column_geometry.extent(), row_geometry.extent() };
-		std::fill(row_baselines.begin(), row_baselines.end(), grid_row_baselines{});
+		std::fill(row_baselines.begin(), row_baselines.end(), grid_track_baselines{});
+		std::vector<grid_track_baselines> column_baselines(columns.size());
+		std::vector<std::optional<grid_baseline_sample>> final_columns(items.size());
 
 		for (std::size_t index = 0; index < items.size(); ++index) {
 			const auto& placed = placement.items[index];
@@ -497,27 +615,69 @@ namespace litehtml {
 				column_geometry.extent(placed.columns), row_geometry.extent(placed.rows) };
 			auto& item = *items[index];
 			const auto align = alignments[index];
-			const auto cell = cell_context(item, self, align, intrinsic[index], area.width, area.height);
-			item.render(area.x, area.y, cell, nullptr);
+			auto cell = cell_context(item, self, align, intrinsic[index], area.width, area.height);
 			auto& measurement = measurements[index];
-			if (measurement.baseline_aligned) {
-				measurement.baseline = measure_baseline(item, placed.rows, align.vertical);
-				include_baseline(row_baselines, *measurement.baseline);
+			set_content_baseline_context(cell, item, measurement.mode == row_alignment::self_baseline ? align.vertical : css_alignment{});
+			item.render(area.x, area.y, cell, nullptr);
+			measurement.baseline.reset();
+			if (measurement.mode == row_alignment::self_baseline) {
+				measurement.baseline = measure_row_baseline(item, placed.rows, align.vertical);
+			} else {
+				const auto space = area.height - item.height();
+				const auto top = align_row_item(item, align.vertical, area.height);
+				item.pos().y += top;
+				if (measurement.mode == row_alignment::content_baseline) {
+					const auto content = item.css().get_align_content();
+					const bool last = content.keyword == alignment::last_baseline;
+					if (top == (last ? space : 0)) {
+						measurement.baseline = measure_content_baseline(item, placed.rows, content);
+					}
+				}
 			}
-			const auto& css_margins = item.css().get_margins();
-			auto& used_margins = item.get_margins();
-			item.pos().x += align_item(align.horizontal, area.width - item.width(),
-				used_margins.left, used_margins.right, css_margins.left, css_margins.right);
-			if (!measurement.baseline_aligned)
-				item.pos().y += align_item(align.vertical, area.height - item.height(),
-					used_margins.top, used_margins.bottom, css_margins.top, css_margins.bottom);
+			if (measurement.baseline) include_baseline(row_baselines, *measurement.baseline);
 		}
 		for (std::size_t index = 0; index < items.size(); ++index) {
-			const auto& baseline = measurements[index].baseline;
+			auto& measurement = measurements[index];
+			const auto& baseline = measurement.baseline;
 			if (!baseline) continue;
 			auto& item = *items[index];
+			const auto& placed = placement.items[index];
 			const auto shim = baseline->shim(row_baselines);
-			item.pos().y += baseline->last ? row_geometry.extent(placement.items[index].rows) - item.height() - shim : shim;
+			const auto height = row_geometry.extent(placed.rows);
+			if (measurement.mode == row_alignment::self_baseline) {
+				item.pos().y += baseline->last ? height - item.height() - shim : shim;
+			} else if (shim > 0) {
+				const auto width = column_geometry.extent(placed.columns);
+				auto cell = cell_context(item, self, alignments[index], intrinsic[index], width, height);
+				const auto& css = item.css();
+				const bool auto_height = css.get_height().is_predefined() && !(cell.size_mode & context::size_mode_grid_stretch_height);
+				// For a constrained last-baseline item, overflow follows safe end.
+				if (!auto_height && baseline->last && shim > item.pos().height - item.baseline_content_height()) continue;
+				set_content_baseline_context(cell, item, {}, shim);
+				item.render(column_geometry.start(placed.columns), row_geometry.start(placed.rows), cell, nullptr);
+				item.pos().y += align_row_item(item, alignments[index].vertical, height);
+			}
+		}
+		for (std::size_t index = 0; index < items.size(); ++index) {
+			auto& item = *items[index];
+			const auto range = placement.items[index].columns;
+			const auto align = alignments[index].horizontal;
+			const auto& css_margins = item.css().get_margins();
+			auto& used = item.get_margins();
+			if (measured_columns[index].baseline_aligned) {
+				final_columns[index] = measure_column_baseline(range, align, item.width(), item.margin_left());
+				include_baseline(column_baselines, *final_columns[index]);
+			} else {
+				item.pos().x += align_item(align, column_geometry.extent(range) - item.width(),
+					used.left, used.right, css_margins.left, css_margins.right);
+			}
+		}
+		for (std::size_t index = 0; index < items.size(); ++index) {
+			if (const auto& baseline = final_columns[index]) {
+				auto& item = *items[index];
+				const auto shim = baseline->shim(column_baselines);
+				item.pos().x += baseline->last ? column_geometry.extent(placement.items[index].columns) - item.width() - shim : shim;
+			}
 		}
 		first_baseline = grid_content_baseline(items, placement.items, row_geometry, row_baselines, false);
 		last_baseline = grid_content_baseline(items, placement.items, row_geometry, row_baselines, true);

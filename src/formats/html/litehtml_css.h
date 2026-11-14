@@ -29,6 +29,8 @@ namespace litehtml {
 
 	css_alignment initial_alignment(string_id p_property);
 	bool parse_alignment(string_id p_property, const css_token_vector& p_tokens, css_alignment& r_alignment);
+	bool parse_place_alignment(string_id p_align_property, string_id p_justify_property,
+		const css_token_vector& p_tokens, css_alignment& r_align, css_alignment& r_justify);
 	flex_align_items to_flex_item_alignment(css_alignment p_alignment);
 	flex_align_content to_flex_align_content(css_alignment p_alignment);
 	flex_justify_content to_flex_justify_content(css_alignment p_alignment);

@@ -30,12 +30,14 @@ namespace litehtml {
 		return { is_one_of(p_property, _justify_self_, _align_self_) ? alignment::automatic : alignment::normal };
 	}
 
-	bool parse_alignment(string_id p_property, const css_token_vector& p_tokens, css_alignment& r_alignment) {
-		if (p_tokens.empty() || p_tokens.size() > 2) return false;
+	static bool parse_alignment_value(string_id p_property, css_token_vector::const_iterator p_begin,
+		css_token_vector::const_iterator p_end, css_alignment& r_alignment) {
+		const auto count = p_end - p_begin;
+		if (count == 0 || count > 2) return false;
 		const bool content = is_one_of(p_property, _justify_content_, _align_content_);
 		const bool justify = is_one_of(p_property, _justify_items_, _justify_self_, _justify_content_);
-		const auto word = p_tokens.back().ident();
-		auto prefix = p_tokens.size() == 2 ? p_tokens.front().ident() : string();
+		const auto word = (p_end - 1)->ident();
+		auto prefix = count == 2 ? p_begin->ident() : string();
 		const auto keyword_word = prefix == "baseline" && is_one_of(word, "first", "last") ? prefix : word;
 		if (keyword_word != word) prefix = word;
 		const auto found = std::find_if(std::begin(alignment_words), std::end(alignment_words),
@@ -49,7 +51,7 @@ namespace litehtml {
 		if (is_one_of(keyword, alignment::space_between, alignment::space_around, alignment::space_evenly) && !content) return false;
 		if (keyword == alignment::first_baseline && p_property == _justify_content_) return false;
 
-		if (p_tokens.size() == 2) {
+		if (count == 2) {
 			if (keyword == alignment::first_baseline && is_one_of(prefix, "first", "last")) {
 				keyword = prefix == "last" ? alignment::last_baseline : alignment::first_baseline;
 			} else if (is_one_of(prefix, "safe", "unsafe") &&
@@ -62,6 +64,35 @@ namespace litehtml {
 		}
 		r_alignment = { keyword, overflow };
 		return true;
+	}
+
+	bool parse_alignment(string_id p_property, const css_token_vector& p_tokens, css_alignment& r_alignment) {
+		return parse_alignment_value(p_property, p_tokens.begin(), p_tokens.end(), r_alignment);
+	}
+
+	bool parse_place_alignment(string_id p_align_property, string_id p_justify_property,
+		const css_token_vector& p_tokens, css_alignment& r_align, css_alignment& r_justify) {
+		if (p_tokens.empty() || p_tokens.size() > 4) return false;
+		// Baseline and overflow positions can each consume two tokens.
+		const auto begin = p_tokens.begin();
+		const auto end = p_tokens.end();
+		for (auto split = begin + std::min<std::size_t>(2, p_tokens.size()); split != begin; --split) {
+			css_alignment align;
+			css_alignment justify;
+			if (!parse_alignment_value(p_align_property, begin, split, align)) continue;
+			if (split == end) {
+				const bool content_baseline = p_justify_property == _justify_content_ &&
+					is_one_of(align.keyword, alignment::first_baseline, alignment::last_baseline);
+				if (content_baseline) justify.keyword = alignment::start;
+				else if (!parse_alignment_value(p_justify_property, begin, split, justify)) continue;
+			} else if (!parse_alignment_value(p_justify_property, split, end, justify)) {
+				continue;
+			}
+			r_align = align;
+			r_justify = justify;
+			return true;
+		}
+		return false;
 	}
 
 	flex_align_items to_flex_item_alignment(css_alignment p_alignment) {
