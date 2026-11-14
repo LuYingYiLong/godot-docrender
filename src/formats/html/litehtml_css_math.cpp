@@ -170,12 +170,20 @@ namespace litehtml {
 		}
 
 		string serialize_node(const css_math_node& p_node) {
-			if (p_node.op == MathOp::LITERAL) {
-				return std::to_string(p_node.number) + (p_node.unit == css_units_none ? "" : index_value(p_node.unit, css_units_strings));
+			char binary_operator = '\0';
+			switch (p_node.op) {
+				case MathOp::LITERAL:
+					return std::to_string(p_node.number) + (p_node.unit == css_units_none ? "" : index_value(p_node.unit, css_units_strings));
+				case MathOp::ADD: binary_operator = '+'; break;
+				case MathOp::SUBTRACT: binary_operator = '-'; break;
+				case MathOp::MULTIPLY: binary_operator = '*'; break;
+				case MathOp::DIVIDE: binary_operator = '/'; break;
+				case MathOp::MIN:
+				case MathOp::MAX:
+				case MathOp::CLAMP: break;
 			}
-			if (p_node.op <= MathOp::DIVIDE) {
-				static constexpr const char* operators[] = { "", " + ", " - ", " * ", " / " };
-				return "(" + serialize_node(*p_node.args[0]) + operators[static_cast<int>(p_node.op)] + serialize_node(*p_node.args[1]) + ")";
+			if (binary_operator) {
+				return "(" + serialize_node(*p_node.args[0]) + " " + binary_operator + " " + serialize_node(*p_node.args[1]) + ")";
 			}
 			string result = p_node.op == MathOp::MIN ? "min(" : (p_node.op == MathOp::MAX ? "max(" : "clamp(");
 			for (size_t index = 0; index < p_node.args.size(); ++index) {

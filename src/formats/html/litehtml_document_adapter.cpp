@@ -48,9 +48,9 @@ namespace litehtml {
 			return {};
 		}
 		switch (output->document->v.document.doc_type_quirks_mode) {
-			case GUMBO_DOCTYPE_NO_QUIRKS: doc->m_mode = no_quirks_mode; break;
-			case GUMBO_DOCTYPE_QUIRKS: doc->m_mode = quirks_mode; break;
-			case GUMBO_DOCTYPE_LIMITED_QUIRKS: doc->m_mode = limited_quirks_mode; break;
+		case GUMBO_DOCTYPE_NO_QUIRKS: doc->m_mode = no_quirks_mode; break;
+		case GUMBO_DOCTYPE_QUIRKS: doc->m_mode = quirks_mode; break;
+		case GUMBO_DOCTYPE_LIMITED_QUIRKS: doc->m_mode = limited_quirks_mode; break;
 		}
 		// The mode determines how node creation normalizes class and ID selectors.
 		elements_list roots;
@@ -138,7 +138,7 @@ namespace litehtml {
 				p_child->parent(nullptr);
 			}
 			return generated;
-		});
+			});
 		if (auto* tag = dynamic_cast<html_tag*>(&p_element)) {
 			tag->m_style.clear();
 			if (tag->tag() == _a_) {
@@ -219,7 +219,7 @@ namespace litehtml {
 			for (const auto& child : p_element.children()) {
 				p_visit(p_visit, *child);
 			}
-		};
+			};
 		snapshot_font_families(snapshot_font_families, *root);
 		p_container.set_css_source_kind(css_source_kind::style_element);
 		for (const auto& sheet : doc.m_css) {
