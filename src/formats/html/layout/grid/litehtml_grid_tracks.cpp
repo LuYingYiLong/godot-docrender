@@ -596,6 +596,23 @@ namespace litehtml {
 		return false;
 	}
 
+	std::optional<pixel_t> fixed_grid_span(const grid_track_list& tracks, grid_track_range range,
+		const grid_track_gutters& gutters, const css_length& gap, std::optional<pixel_t> available) {
+		const auto gutter_count = gutters.count_inside(range);
+		if (!available && gutter_count && gap.units() == css_units_percentage) return std::nullopt;
+		const auto basis = available.value_or(0);
+		auto extent = static_cast<pixel_t>(gutter_count) * gap.calc_percent(basis);
+		for (auto i = range.start; i < range.end; ++i) {
+			const auto& track = tracks[i];
+			if (used_kind(track.minimum, available.has_value()) != grid_breadth_kind::length ||
+				used_kind(track.maximum, available.has_value()) != grid_breadth_kind::length) return std::nullopt;
+			const auto minimum = track.minimum.length.calc_percent(basis);
+			if (minimum < track.maximum.length.calc_percent(basis)) return std::nullopt;
+			extent += minimum;
+		}
+		return extent;
+	}
+
 	bool grid_range_has_auto_minimum(const grid_track_list& tracks, grid_track_range range, bool definite) {
 		if (span_of(range) == 1) return true;
 		bool automatic = false;

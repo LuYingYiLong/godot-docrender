@@ -104,7 +104,9 @@ Explicit areas may overlap. Automatic placement skips occupied areas and process
 
 `justify-content` and `align-content` align or distribute the tracks within the content box. In addition to positional alignment and `stretch`, they support `space-between`, `space-around`, and `space-evenly`. Distribution adds to the declared gap, and spanning items include the added spacing inside their areas. Collapsed `auto-fit` tracks retain their line numbers and contribute no spacing. [CSS Grid content distribution](https://www.w3.org/TR/css-align-3/#distribution-grid)
 
-Grid baseline alignment, the `place-*` alignment shorthands, the `grid` and `grid-template` shorthands, `subgrid`, and `inline-grid` remain unsupported.
+`align-items` and `align-self` support `baseline` (equivalent to `first baseline`) and `last baseline` for horizontal writing. Text items align their first or last line. Images and empty boxes use their bottom border edge. A row-spanning item joins the baseline group at its start row or end row, respectively. The adjustment contributes to the size needed across the entire span. Auto margins take precedence. A percentage height or height limit that depends on a content-sized track uses safe start or end alignment. [CSS Grid baseline alignment](https://www.w3.org/TR/css-grid-2/#row-align) · [Baseline grouping](https://www.w3.org/TR/css-align-3/#baseline-sharing-group)
+
+Column and `align-content` baseline alignment, the `place-*` alignment shorthands, the `grid` and `grid-template` shorthands, `subgrid`, and `inline-grid` remain unsupported.
 
 ## Font families
 

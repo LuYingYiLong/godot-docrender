@@ -87,6 +87,8 @@ bool parse_grid_axis_placement(const css_token_vector& tokens, grid_axis_placeme
 bool parse_grid_area(const css_token_vector& tokens, std::array<grid_line, 4>& lines);
 bool grid_tracks_use_percentage(const grid_track_list& tracks);
 bool grid_range_needs_content(const grid_track_list& tracks, grid_track_range range, bool definite);
+std::optional<pixel_t> fixed_grid_span(const grid_track_list& tracks, grid_track_range range,
+	const grid_track_gutters& gutters, const css_length& gap, std::optional<pixel_t> available);
 bool grid_range_has_auto_minimum(const grid_track_list& tracks, grid_track_range range, bool definite);
 grid_track_sizes size_grid_tracks(const grid_track_list& tracks,
 	const std::vector<grid_track_contribution>& contributions, const grid_track_gutters& gutters, pixel_t gap,

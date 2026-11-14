@@ -199,6 +199,7 @@ def stage_litehtml_extensions(target, source, env):
 			size_mode_grid_stretch_height = 0x10,
 			size_mode_grid_measure_height = 0x20,
 			size_mode_grid_measure_width = 0x40,
+			size_mode_grid_measure_baseline = 0x80,
 """)
         replace_once('font_style_strings\t\t"normal;italic"', 'font_style_strings\t\t"normal;italic;oblique"')
         replace_once("\t\tfont_style_italic\n", "\t\tfont_style_italic,\n\t\tfont_style_oblique\n")
@@ -452,6 +453,25 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 					}
 """)
     elif path.name == "render_item.h":
+        insert_before('#include <memory>', '#include <optional>\n')
+        insert_before("\t\tvirtual rendered_width", """\
+		virtual std::optional<pixel_t> find_layout_baseline(bool) const { return std::nullopt; }
+""")
+        insert_before("\t\t/**\n\t\t * Get first baseline position.", """\
+		// Layout baselines use the top of the margin box as their origin.
+		std::optional<pixel_t> layout_baseline(bool last) const
+		{
+			auto baseline = find_layout_baseline(last);
+			if (baseline && is_one_of(css().get_overflow(), overflow_hidden, overflow_auto, overflow_scroll))
+				*baseline = std::clamp(*baseline, margin_top(), std::max(margin_top(), height() - margin_bottom()));
+			return baseline;
+		}
+		pixel_t baseline_or_border_bottom(bool last) const
+		{
+			return layout_baseline(last).value_or(height() - margin_bottom());
+		}
+
+""")
         insert_before("\t\tbool is_flex_item() const", """\
 		void paint(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip);
 		bool establishes_positioned_containing_block() const { return src_el()->is_positioned() || css().has_transform(); }
@@ -1029,8 +1049,72 @@ bool html_tag::get_custom_property(string_id name, css_token_vector& result) con
     elif path.name == "el_text.cpp":
         replace_once('->draw_text(hdc, m_use_transformed', '->draw_styled_text(hdc, m_use_transformed')
         replace_once('color, pos);', 'color, pos, *el_parent);')
+    elif path.name in ("render_block_context.h", "render_inline_context.h"):
+        insert_before("\t\tpixel_t get_first_baseline() override;",
+                      "\t\tstd::optional<pixel_t> find_layout_baseline(bool last) const override;\n")
+    elif path.name == "render_block_context.cpp":
+        insert_before("litehtml::pixel_t litehtml::render_item_block_context::get_first_baseline()", """\
+std::optional<litehtml::pixel_t> litehtml::render_item_block_context::find_layout_baseline(bool last) const
+{
+	const auto baseline_of = [&](auto begin, auto end) -> std::optional<pixel_t> {
+		for (auto it = begin; it != end; ++it)
+		{
+			const auto& child = *it;
+			if (!child->src_el()->in_normal_flow() || child->css().get_float() != float_none) continue;
+			if (const auto baseline = child->layout_baseline(last))
+				return content_offset_top() + child->top() + *baseline;
+		}
+		return std::nullopt;
+	};
+	if (last) return baseline_of(m_children.rbegin(), m_children.rend());
+	return baseline_of(m_children.begin(), m_children.end());
+}
+
+""")
+    elif path.name == "render_inline_context.cpp":
+        insert_before("litehtml::pixel_t litehtml::render_item_inline_context::get_first_baseline()", """\
+std::optional<litehtml::pixel_t> litehtml::render_item_inline_context::find_layout_baseline(bool last) const
+{
+	if (m_line_boxes.empty()) return std::nullopt;
+	const auto& line = last ? m_line_boxes.back() : m_line_boxes.front();
+	return content_offset_top() + line->bottom() - line->baseline();
+}
+
+""")
+    elif path.name == "render_table.h":
+        insert_before("\t\t// data for table rendering", "\t\tstd::optional<pixel_t> find_layout_baseline(bool last) const override;\n")
     elif path.name == "render_table.cpp":
         insert_before('#include "document.h"', '#include "document_container.h"\n')
+        insert_before("void litehtml::render_item_table::draw_children", """\
+std::optional<litehtml::pixel_t> litehtml::render_item_table::find_layout_baseline(bool last) const
+{
+	if (!m_grid || m_grid->rows_count() == 0) return std::nullopt;
+	const int edge = last ? m_grid->rows_count() - 1 : 0;
+	std::optional<pixel_t> baseline;
+	std::optional<pixel_t> content_edge;
+	for (int row = 0; row <= edge; ++row)
+	{
+		for (int col = 0; col < m_grid->cols_count(); ++col)
+		{
+			const auto* cell = m_grid->cell(col, row);
+			if (!cell || !cell->el || (last && row + cell->rowspan - 1 < edge)) continue;
+			const auto& item = *cell->el;
+			const auto end = item.bottom() - item.content_offset_bottom();
+			content_edge = std::max(content_edge.value_or(end), end);
+			if (item.css().get_vertical_align() == va_baseline)
+			{
+				if (const auto offset = item.layout_baseline(false))
+				{
+					const auto value = item.top() + *offset;
+					baseline = std::max(baseline.value_or(value), value);
+				}
+			}
+		}
+	}
+	return content_offset_top() + baseline.value_or(content_edge.value_or(m_grid->row(edge).el_row->pos().y));
+}
+
+""")
         replace_once("block_height = self_size.height - (m_padding.height() + m_borders.height());",
                      "block_height = self_size.height -\n"
                      "\t\t\t((containing_block_size.size_mode & containing_block_context::size_mode_grid_stretch_height) ?\n"
@@ -1313,9 +1397,31 @@ const auto& item = m_grid->row(row).el_row;
 """)
     elif path.name in ("render_flex.h", "render_flex.cpp"):
         if path.name == "render_flex.h":
+            insert_before("\t\tstd::list<flex_line> m_lines;", "\t\tstd::optional<pixel_t> find_layout_baseline(bool last) const override;\n")
             replace_once("pixel_t container_main_size, bool single_line);",
                          "pixel_t container_main_size, bool single_line, pixel_t main_gap, bool second_pass);")
         else:
+            insert_before("litehtml::pixel_t litehtml::render_item_flex::get_first_baseline()", """\
+std::optional<litehtml::pixel_t> litehtml::render_item_flex::find_layout_baseline(bool last) const
+{
+	if (m_lines.empty()) return std::nullopt;
+	const bool row = is_one_of(css().get_flex_direction(), flex_direction_row, flex_direction_row_reverse);
+	const bool reverse_lines = !row && css().get_flex_wrap() == flex_wrap_wrap_reverse;
+	const auto& line = last != reverse_lines ? m_lines.back() : m_lines.front();
+	if (line.items.empty()) return std::nullopt;
+	if (row)
+	{
+		const auto& preferred = last ? line.last_baseline : line.first_baseline;
+		const auto& alternate = last ? line.first_baseline : line.last_baseline;
+		const auto& shared = preferred.type() == baseline::baseline_type_none ? alternate : preferred;
+		if (shared.type() != baseline::baseline_type_none)
+			return content_offset_top() + line.cross_start + shared.get_offset_from_top(line.cross_size);
+	}
+	const auto& item = *(last ? line.items.back()->el : line.items.front()->el);
+	return content_offset_top() + item.top() + item.baseline_or_border_bottom(last);
+}
+
+""")
             replace_once("bool /*second_pass*/", "bool second_pass")
             replace_once("bool single_line)\n{", "bool single_line, pixel_t main_gap, bool second_pass)\n{")
             start = text.index("\tbool single_line = css().get_flex_wrap()")
@@ -1429,7 +1535,7 @@ for header in Glob(f"{litehtml}/include/*.h") + Glob(f"{litehtml}/include/liteht
                                           header, expose_litehtml_editing)
     elif header_path.stem in ("style", "string_id", "types", "css_length", "css_tokenizer", "document_container",
                               "css_properties", "font_description",
-                              "render_flex", "render_item", "flex_line"):
+                              "render_block_context", "render_inline_context", "render_flex", "render_item", "render_table", "flex_line"):
         staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
                                           header, stage_litehtml_extensions)
     else:
@@ -1459,7 +1565,8 @@ for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp"
         source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
         if source_path.as_posix() in ("src/style", "src/html_tag", "src/css_properties", "src/el_text",
                                       "src/css_parser", "src/css_length", "src/document", "src/element",
-                                      "src/render_block", "src/render_flex", "src/render_image", "src/render_item", "src/render_table",
+                                      "src/render_block", "src/render_block_context", "src/render_inline_context",
+                                      "src/render_flex", "src/render_image", "src/render_item", "src/render_table",
                                       "src/flex_item", "src/flex_line"):
             source = html_env.Command(f"src/gen/html/{source_path.as_posix()}.cpp",
                                       source, stage_litehtml_extensions)[0]
