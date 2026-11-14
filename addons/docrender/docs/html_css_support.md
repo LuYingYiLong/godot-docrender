@@ -1,15 +1,15 @@
 # HTML CSS support
 
-DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layout. The Godot drawing code supplies text, borders, images, gradients, shadows, and clips. This reference covers common declarations and known limits. It applies to `HTMLLayout`, `HTMLLabel`, and HTML blocks in `MarkdownLabel`.
+DocRender parses CSS declarations with its own C++ modules. litehtml v0.10 (`9bc84b8`) provides tokens, stylesheet rules, selector matching, the cascade, and basic layout. This reference applies to `HTMLLayout`, `HTMLLabel`, and HTML blocks in `MarkdownLabel`.
 
 ## Selectors and rules
 
 | Feature | Support |
 | --- | --- |
 | Basic selectors | Type, class, ID, attribute, selector lists, descendant, child, and sibling combinators |
-| Pseudo-classes | `:root`, `:is()`, `:not()`, `:nth-child()` and related structural selectors. `HTMLLabel` supplies the state for `:hover`. `:has()` and `:where()` are unsupported. |
+| Pseudo-classes | `:root`, `:is()`, `:not()`, `:nth-child()` and related structural selectors. `HTMLLabel` supplies `:hover`. Its `<button type="button">` elements also support `:active`, `:focus`, `:focus-visible`, `:enabled`, and `:disabled`. `:has()` and `:where()` are unsupported. |
 | Pseudo-elements | `::before` and `::after` with generated content. `::first-line` and `::first-letter` are unsupported. |
-| Cascade | Specificity, source order, `!important`, custom properties, and `var()`. Support for CSS-wide keywords varies by property. |
+| Cascade | Specificity, source order, `!important`, custom properties, and `var()`. Supported declarations share the CSS-wide keywords `inherit`, `initial`, `unset`, `revert`, and `revert-layer`. |
 | Style sources | Inline `style`, `<style>`, the extra `stylesheet` string, and local project stylesheets loaded through `<link>` or `@import`. |
 | At-rules | `@media` supports viewport conditions such as width, height, and orientation. `@import` supports a local path and optional media condition. `@supports`, `@layer`, `@font-face`, and `@keyframes` are unsupported. |
 
@@ -22,7 +22,7 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 | Grid | Track lists support named lines and `repeat()`, including `auto-fill` and `auto-fit`. Grid items support placement by name, line number, or span. Grid supports automatic placement, patterned implicit tracks, item alignment, and track distribution. |
 | Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
 | Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. `calc()`, `min()`, `max()`, and `clamp()` support the layout properties listed below. |
-| Colors | Named and hex colors, `rgb()` and `hsl()` variants, and `currentColor` where applicable. `oklch()` and `color-mix()` are unsupported. |
+| Colors | Named and hex colors, `rgb()` and `hsl()` variants, absolute `oklch()`, and `currentColor` where applicable. |
 | Backgrounds | Solid colors, local images, and linear, radial, and conic gradients. |
 | Borders and shadows | `solid`, `dashed`, `dotted`, `double`, per-side widths and colors, and `border-radius`. DocRender adds `box-shadow`, including `inset` and multiple layers. `groove`, `ridge`, `inset`, and `outset` border styles parse but have no drawing implementation. |
 | Text | Theme fonts, font size and weight, italic text, wrapping, alignment, and line height. `font-family` accepts a prioritized list of installed family names and generic families, including in the `font` shorthand. `text-decoration` supports underline, overline, and line-through in five styles, with `auto`, `from-font`, length, and percentage thickness. `text-shadow` supports offsets, blur, and multiple layers on glyphs and decorations. Text emphasis marks parse but have no drawing implementation. |
@@ -40,7 +40,13 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 
 Custom property names are case-sensitive. Values resolve before inheritance. `var()` supports repeated references, nested and empty fallbacks, and detects cycles, including references in fallback arguments. Invalid substitutions use the property's inherited or initial value. Declaration diagnostics identify the affected element and retain the original declaration. [CSS Custom Properties](https://www.w3.org/TR/css-variables-1/#using-variables)
 
+Shorthands validate the full value before applying their longhands. Omitted components reset to their shorthand defaults. A shorthand with `var()` resolves once per element and updates the longhands it still wins. A winning declaration with an invalid substitution uses `unset`. In DocRender's unlayered cascade, `revert` and `revert-layer` both restore the default stylesheet or HTML presentational hint for each property. A property without a default declaration uses `unset`. [CSS Cascading and Inheritance](https://www.w3.org/TR/css-cascade-5/)
+
 Length expressions are supported in `width`, `height`, their `min-` and `max-` variants, `margin`, `padding`, `top`, `right`, `bottom`, `left`, `flex-basis`, Flexbox and Grid gaps, and length entries in Grid track lists. Addition and subtraction require spaces around the operator. Multiplication takes a number on at least one side, and division takes a numeric divisor. Percentages use the basis supplied by each layout property. [CSS Values and Units](https://www.w3.org/TR/css-values-4/#math)
+
+## OkLCh colors
+
+`oklch(65% 0.15 40deg / 80%)` is valid wherever DocRender accepts a CSS color. Lightness, chroma, and alpha accept numbers and percentages. A chroma of `100%` represents `0.4`. Hue accepts a number in degrees or an angle in `deg`, `grad`, `rad`, or `turn`. Each component accepts `none`, treated as zero for rendering. Colors convert to sRGB with out-of-gamut channels clipped to the existing 8-bit output range. Relative colors, component math, and `color-mix()` remain outside the supported grammar. [CSS Color 4](https://www.w3.org/TR/css-color-4/#ok-lab)
 
 ## 2D transforms
 
@@ -143,4 +149,4 @@ The editor's HTML source preview outlines visible elements with CSS declaration 
 | `unsupported_value` | `grid-template-areas: "head head" "head ."` |
 | `not_rendered` | `border-top-style: groove` |
 
-Diagnostics cover declarations reached by litehtml's parser. For a declaration using `var()`, the value is checked when litehtml resolves it on an element. Selector and at-rule support is listed above. Use `get_render_error()` for parse and layout failures.
+Diagnostics cover declarations reached by the stylesheet parser. For a declaration using `var()`, the value is checked when DocRender resolves it on an element. Drawing diagnostics identify the winning declaration after shorthand expansion. Use `get_render_error()` for parse and layout failures.

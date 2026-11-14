@@ -387,7 +387,7 @@ Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
 	}
 	else {
 		// Viewport units also change when all media queries keep matching.
-		document->root()->compute_styles();
+		DocumentAdapter::compute_styles(*document);
 	}
 	document->render(p_viewport_size.x);
 	state->geometry.rebuild(document->root_render());
@@ -709,15 +709,19 @@ void HTMLLayout::set_edit_callback(const Callable& p_callback) {
 }
 
 void HTMLLayout::invalidate_styles() {
-	state->pending_update = State::Update::STYLE;
+	mark_styles_pending();
 	state->implicit_empty_document = false;
-	state->anchors.clear();
 	if (state->edit_callback.is_valid()) {
 		state->edit_callback.call();
 	}
 	else {
 		queue_reflow();
 	}
+}
+
+void HTMLLayout::mark_styles_pending() {
+	state->pending_update = State::Update::STYLE;
+	state->anchors.clear();
 }
 
 void HTMLLayout::queue_reflow() {
@@ -927,6 +931,72 @@ std::string_view HTMLLayout::get_cursor_at(const Vector2& p_position, bool& r_ov
 	return element ? std::string_view(element->css().get_cursor()) : std::string_view();
 }
 
+Ref<HTMLElement> HTMLLayout::get_button_ancestor(const Ref<HTMLElement>& p_element) const {
+	if (p_element.is_valid() && p_element->get_owner() == this) {
+		for (auto element = p_element->element.lock(); element; element = element->parent()) {
+			if (DocumentAdapter::is_command_button(*element)) {
+				return make_element(element);
+			}
+		}
+	}
+	return {};
+}
+
+bool HTMLLayout::is_enabled_button(const Ref<HTMLElement>& p_element) const {
+	if (p_element.is_null() || p_element->get_owner() != this) {
+		return false;
+	}
+	const auto element = p_element->element.lock();
+	return element && DocumentAdapter::is_command_button(*element) && !element->get_attr("disabled") &&
+		get_element_scroll_bounds(p_element).has_value();
+}
+
+std::vector<Ref<HTMLElement>> HTMLLayout::get_tab_buttons(bool& r_has_enabled_buttons) const {
+	struct TabButton {
+		Ref<HTMLElement> element;
+		int64_t index;
+	};
+	std::vector<TabButton> buttons;
+	r_has_enabled_buttons = false;
+	if (state->has_layout() && state->document) {
+		visit_elements(state->document->root(), [&](const litehtml::element::ptr& p_element) {
+			if (DocumentAdapter::is_command_button(*p_element)) {
+				const auto handle = make_element(p_element);
+				if (is_enabled_button(handle)) {
+					r_has_enabled_buttons = true;
+					const char* value = p_element->get_attr("tabindex");
+					const String index_text = value ? String::utf8(value).strip_edges() : String();
+					const int64_t index = index_text.is_valid_int() ? index_text.to_int() : 0;
+					if (index >= 0) {
+						buttons.push_back({ handle, index });
+					}
+				}
+			}
+			return false;
+		});
+	}
+	std::stable_sort(buttons.begin(), buttons.end(), [](const TabButton& p_left, const TabButton& p_right) {
+		if (p_left.index == 0 || p_right.index == 0) {
+			return p_left.index > p_right.index;
+		}
+		return p_left.index < p_right.index;
+	});
+	std::vector<Ref<HTMLElement>> result;
+	result.reserve(buttons.size());
+	for (auto& button : buttons) {
+		result.push_back(std::move(button.element));
+	}
+	return result;
+}
+
+bool HTMLLayout::set_interaction_pseudo(const Ref<HTMLElement>& p_element, const char* p_name, bool p_enabled) {
+	if (p_element.is_null() || p_element->get_owner() != this) {
+		return false;
+	}
+	const auto element = p_element->element.lock();
+	return element && element->set_pseudo_class(litehtml::_id(p_name), p_enabled);
+}
+
 bool HTMLLayout::update_hover(const std::optional<Vector2>& p_position) {
 	const auto target = p_position ? find_html_ancestor(hit_test_element(*p_position)) : nullptr;
 	std::vector<std::weak_ptr<litehtml::element>> next;
@@ -957,8 +1027,7 @@ bool HTMLLayout::update_hover(const std::optional<Vector2>& p_position) {
 	if (!state->has_hover_styles) {
 		return false;
 	}
-	state->pending_update = State::Update::STYLE;
-	state->anchors.clear();
+	mark_styles_pending();
 	return true;
 }
 

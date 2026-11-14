@@ -1,8 +1,59 @@
 diff --git a/src/html_tag.cpp b/src/html_tag.cpp
-index 2b494b7..440e6d0 100644
 --- a/src/html_tag.cpp
 +++ b/src/html_tag.cpp
-@@ -325,16 +325,16 @@ void litehtml::html_tag::draw(uint_ptr hdc, pixel_t x, pixel_t y, const position
+@@ -206,41 +206,16 @@
+ 			if(sel->is_media_valid())
+ 			{
+ 				auto apply_before_after = [&]()
+-					{
+-						const auto& content_property = sel->m_style->get_property(_content_);
+-						bool content_none = content_property.is<string>() && content_property.get<string>() == "none";
+-						bool create = !content_none && (sel->m_right.m_attrs.size() > 1 || sel->m_right.m_tag != star_id);
+-
+-						element::ptr el;
+-						if(apply & select_match_with_after)
+-						{
+-							el = get_element_after(*sel->m_style, create);
+-						} else if(apply & select_match_with_before)
+-						{
+-							el = get_element_before(*sel->m_style, create);
+-						} else
+-						{
+-							return;
+-						}
+-						if(el)
+-						{
+-							if(!content_none)
+-							{
+-								el->add_style(*sel->m_style);
+-							} else
+-							{
+-								el->parent()->removeChild(el);
+-							}
+-						} else
+-						{
+-							if(!content_none)
+-							{
+-								add_style(*sel->m_style);
+-							}
+-						}
+-						us->m_used = true;
+-					};
+-
++				{
++					element::ptr el;
++					if (apply & select_match_with_after)
++						el = get_element_after(*sel->m_style, true);
++					else if (apply & select_match_with_before)
++						el = get_element_before(*sel->m_style, true);
++
++					if (el) el->add_style(*sel->m_style);
++					us->m_used = true;
++				};
+ 
+ 				if(apply & select_match_pseudo_class)
+ 				{
+@@ -325,16 +300,16 @@
  
  bool html_tag::get_custom_property(string_id name, css_token_vector& result) const
  {
@@ -14,9 +65,10 @@ index 2b494b7..440e6d0 100644
 -		return true;
 -	}
 -	else if (auto _parent = dynamic_cast<html_tag*>(parent().get()))
-+	for (auto tag = this; tag;)
- 	{
+-	{
 -		return _parent->get_custom_property(name, result);
++	for (auto tag = this; tag;)
++	{
 +		bool local = false;
 +		if (const auto* value = tag->m_style.get_custom_property(name, local))
 +		{
@@ -28,7 +80,7 @@ index 2b494b7..440e6d0 100644
  	}
  	return false;
  }
-@@ -346,11 +346,29 @@ void litehtml::html_tag::compute_styles(bool recursive)
+@@ -346,10 +321,19 @@
  
  	if (style)
  	{
@@ -37,29 +89,19 @@ index 2b494b7..440e6d0 100644
  	}
  
  	m_style.subst_vars(this);
- 
++	handle_counter_properties();
++
 +	if (const auto* diagnostics = m_style.get_diagnostics())
 +	{
 +		for (const auto& diagnostic : *diagnostics)
-+		{
-+			const auto remains_unsupported = [&](const auto& item) {
-+				const auto& value = m_style.get_property(item.first);
-+				return item.first == _text_emphasis_style_
-+					? value.is<string>() && lowcase(value.get<string>()) != "none"
-+					: value.is<int>() && value.get<int>() == item.second;
-+			};
-+			if (diagnostic.drawing_values.empty() ||
-+				std::any_of(diagnostic.drawing_values.begin(), diagnostic.drawing_values.end(), remains_unsupported))
-+			{
-+				doc->container()->report_css_diagnostic(diagnostic, this);
-+			}
-+		}
++			doc->container()->report_css_diagnostic(diagnostic, this);
 +	}
-+
++	for (const auto& diagnostic : m_style.get_computed_diagnostics())
++		doc->container()->report_css_diagnostic(diagnostic, this);
+ 
  	m_css.compute(this, doc);
  
- 	if (recursive)
-@@ -860,6 +878,11 @@ bool litehtml::html_tag::is_break() const
+@@ -860,6 +844,11 @@
  void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, const position *clip,
  										 const std::shared_ptr<render_item> &ri)
  {
@@ -71,7 +113,7 @@ index 2b494b7..440e6d0 100644
  	if(m_css.get_display() != display_inline && m_css.get_display() != display_table_row)
  	{
  		position pos = ri->pos();
-@@ -870,6 +893,10 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+@@ -870,6 +859,10 @@
  		border_box += ri->get_paddings();
  		border_box += ri->get_borders();
  
@@ -82,7 +124,7 @@ index 2b494b7..440e6d0 100644
  		if(border_box.does_intersect(clip) || is_root())
  		{
  			auto v_offset = ri->get_draw_vertical_offset();
-@@ -900,6 +927,7 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+@@ -900,6 +893,7 @@
  				}
  			}
  
@@ -90,7 +132,7 @@ index 2b494b7..440e6d0 100644
  			borders bdr = m_css.get_borders();
  			if(bdr.is_visible())
  			{
-@@ -960,6 +988,10 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+@@ -960,6 +954,10 @@
  					bdr.right	= m_css.get_borders().right;
  				}
  
@@ -101,7 +143,7 @@ index 2b494b7..440e6d0 100644
  				if(bg)
  				{
  					int num_layers = bg->get_layers_number();
-@@ -978,6 +1010,7 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+@@ -978,6 +976,7 @@
  						bg->draw_layer(hdc, i, layer, get_document()->container());
  					}
  				}
@@ -109,7 +151,7 @@ index 2b494b7..440e6d0 100644
  				if(bdr.is_visible())
  				{
  					borders b = bdr;
-@@ -1153,7 +1186,7 @@ void litehtml::html_tag::draw_list_marker( uint_ptr hdc, const position& pos, co
+@@ -1153,7 +1152,7 @@
  				text_pos.move_to(text_pos.right() - tw, text_pos.y);
  				text_pos.width = tw;
  				text_pos.round();
@@ -118,3 +160,58 @@ index 2b494b7..440e6d0 100644
  			}
  		}
  	}
+@@ -1400,30 +1399,34 @@
+ 
+ void litehtml::html_tag::handle_counter_properties()
+ {
+-	const auto& reset_property = m_style.get_property(_counter_reset_);
+-	if (reset_property.is<string_vector>()) {
+-		auto reset_function = [&](const string_id&name_id, const int value) {
+-			reset_counter(name_id, value);
+-		};
+-		parse_counter_tokens(reset_property.get<string_vector>(), 0, reset_function);
+-		return;
+-	}
+-
+-	const auto& inc_property = m_style.get_property(_counter_increment_);
+-	if (inc_property.is<string_vector>()) {
+-		auto inc_function = [&](const string_id&name_id, const int value) {
+-			increment_counter(name_id, value);
+-		};
+-		parse_counter_tokens(inc_property.get<string_vector>(), 1, inc_function);
+-		return;
+-	}
+-}
+-
++	const auto counter_property = [&](string_id name) -> const property_value& {
++		for (const html_tag* tag = this; tag; tag = dynamic_cast<const html_tag*>(tag->parent().get()))
++		{
++			const auto& value = tag->m_style.get_property(name);
++			if (!value.is<inherit>()) return value;
++		}
++		static const property_value unset;
++		return unset;
++	};
++	const auto& reset_property = counter_property(_counter_reset_);
++	if (reset_property.is<string_vector>())
++	{
++		parse_counter_tokens(reset_property.get<string_vector>(), 0, [&](const string_id& name, int value) {
++			reset_counter(name, value);
++		});
++	}
++	const auto& increment_property = counter_property(_counter_increment_);
++	if (increment_property.is<string_vector>())
++	{
++		parse_counter_tokens(increment_property.get<string_vector>(), 1, [&](const string_id& name, int value) {
++			increment_counter(name, value);
++		});
++	}
++}
+ 
+ void litehtml::html_tag::add_style(const style& style)
+ {
+ 	m_style.combine(style);
+-	handle_counter_properties();
+ }
+ 
+ void litehtml::html_tag::refresh_styles()

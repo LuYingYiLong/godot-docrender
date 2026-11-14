@@ -16,6 +16,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 namespace godot {
 	class CanvasItem;
@@ -61,6 +62,11 @@ class HTMLLayout : public godot::RefCounted {
 	std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_position) const;
 	godot::Ref<HTMLElement> wrap_hit_element(std::shared_ptr<litehtml::element> p_element) const;
 	bool update_hover(const std::optional<godot::Vector2>& p_position);
+	godot::Ref<HTMLElement> get_button_ancestor(const godot::Ref<HTMLElement>& p_element) const;
+	bool is_enabled_button(const godot::Ref<HTMLElement>& p_element) const;
+	std::vector<godot::Ref<HTMLElement>> get_tab_buttons(bool& r_has_enabled_buttons) const;
+	bool set_interaction_pseudo(const godot::Ref<HTMLElement>& p_element, const char* p_name, bool p_enabled);
+	void mark_styles_pending();
 	std::string_view get_cursor_at(const godot::Vector2& p_position, bool& r_over_link) const;
 	void record_css_diagnostics();
 	godot::TypedArray<godot::Dictionary> get_css_diagnostics_for(const litehtml::element& p_element) const;

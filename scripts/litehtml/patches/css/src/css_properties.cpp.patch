@@ -1,8 +1,7 @@
 diff --git a/src/css_properties.cpp b/src/css_properties.cpp
-index 59ef0f7..ae3ca42 100644
 --- a/src/css_properties.cpp
 +++ b/src/css_properties.cpp
-@@ -108,7 +108,26 @@ void litehtml::css_properties::compute(const html_tag* el, const document::ptr&
+@@ -108,7 +108,26 @@
  	}
  	// 5. Otherwise, the remaining 'display' property values apply as specified.
  
@@ -29,7 +28,7 @@ index 59ef0f7..ae3ca42 100644
  	pixel_t font_size = get_font_size();
  
  	const css_length _auto = css_length::predef_value(0);
-@@ -253,6 +272,67 @@ void litehtml::css_properties::compute(const html_tag* el, const document::ptr&
+@@ -253,6 +272,67 @@
  	m_order = el->get_property<int>(_order_, false, 0, offset(m_order));
  
  	compute_background(el, doc);
@@ -97,7 +96,7 @@ index 59ef0f7..ae3ca42 100644
  	compute_flex(el, doc);
  }
  
-@@ -361,10 +441,10 @@ void litehtml::css_properties::compute_font(const html_tag* el, const document::
+@@ -361,10 +441,10 @@
  	m_font_size = (float)font_size;
  
  	// initialize font
@@ -110,7 +109,31 @@ index 59ef0f7..ae3ca42 100644
  								m_float == float_none && !is_one_of(m_el_position, element_position_absolute, element_position_fixed);
  
  	m_text_decoration_line = el->get_property<int>(_text_decoration_line_, propagate_decoration, text_decoration_line_none, offset(m_text_decoration_line));
-@@ -434,7 +514,7 @@ void litehtml::css_properties::compute_font(const html_tag* el, const document::
+@@ -387,22 +467,10 @@
+ 	}
+ 
+ 	// text-emphasis
+-	m_text_emphasis_style = el->get_property<string>(_text_emphasis_style_, true, "", offset(m_text_emphasis_style));
++	m_text_emphasis_style = el->get_property<string>(_text_emphasis_style_, true, "none", offset(m_text_emphasis_style));
+ 	m_text_emphasis_position = el->get_property<int>(_text_emphasis_position_, true, text_emphasis_position_over, offset(m_text_emphasis_position));
+ 	m_text_emphasis_color = get_color_property(el, _text_emphasis_color_, true, web_color::current_color, offset(m_text_emphasis_color));
+ 
+-	if(el->parent())
+-	{
+-		if(m_text_emphasis_style.empty() || m_text_emphasis_style == "initial" || m_text_emphasis_style == "unset")
+-		{
+-			m_text_emphasis_style = el->parent()->css().get_text_emphasis_style();
+-		}
+-		if(m_text_emphasis_color == web_color::current_color)
+-		{
+-			m_text_emphasis_color = el->parent()->css().get_text_emphasis_color();
+-		}
+-		m_text_emphasis_position |= el->parent()->css().get_text_emphasis_position();
+-	}
+ 
+ 	if(m_font_weight.is_predefined())
+ 	{
+@@ -434,7 +502,7 @@
  	}
  
  	font_description descr;
@@ -119,7 +142,7 @@ index 59ef0f7..ae3ca42 100644
  	descr.size					= std::round(font_size);
  	descr.style					= m_font_style;
  	descr.weight				= (int) m_font_weight.val();
-@@ -446,6 +526,18 @@ void litehtml::css_properties::compute_font(const html_tag* el, const document::
+@@ -446,6 +514,18 @@
  	descr.emphasis_color		= m_text_emphasis_color;
  	descr.emphasis_position		= m_text_emphasis_position;
  
@@ -138,10 +161,20 @@ index 59ef0f7..ae3ca42 100644
  	m_font = doc->get_font(descr, &m_font_metrics);
  }
  
-@@ -500,16 +592,23 @@ void litehtml::css_properties::compute_background(const html_tag* el, const docu
+@@ -500,28 +580,30 @@
  
  void litehtml::css_properties::compute_flex(const html_tag* el, const document::ptr& doc)
  {
+-	if (m_display == display_flex || m_display == display_inline_flex)
+-	{
+-		m_flex_direction = (flex_direction) el->get_property<int>(_flex_direction_, false, flex_direction_row, offset(m_flex_direction));
+-		m_flex_wrap = (flex_wrap) el->get_property<int>(_flex_wrap_, false, flex_wrap_nowrap, offset(m_flex_wrap));
+-
+-		m_flex_justify_content = (flex_justify_content) el->get_property<int>(_justify_content_, false, flex_justify_content_flex_start, offset(m_flex_justify_content));
+-		m_flex_align_items = (flex_align_items) el->get_property<int>(_align_items_, false, flex_align_items_normal, offset(m_flex_align_items));
+-		m_flex_align_content = (flex_align_content) el->get_property<int>(_align_content_, false, flex_align_content_stretch, offset(m_flex_align_content));
+-	}
+-	m_flex_align_self = (flex_align_items) el->get_property<int>(_align_self_, false, flex_align_items_auto, offset(m_flex_align_self));
 +
 +	// Keep computed values on all elements so explicit inheritance works through block ancestors.
 +	m_row_gap = el->get_property(_row_gap_, false, css_length(), offset(m_row_gap));
@@ -149,20 +182,32 @@ index 59ef0f7..ae3ca42 100644
 +	doc->cvt_units(m_row_gap, m_font_metrics, 0);
 +	doc->cvt_units(m_column_gap, m_font_metrics, 0);
 +
- 	if (m_display == display_flex || m_display == display_inline_flex)
- 	{
- 		m_flex_direction = (flex_direction) el->get_property<int>(_flex_direction_, false, flex_direction_row, offset(m_flex_direction));
- 		m_flex_wrap = (flex_wrap) el->get_property<int>(_flex_wrap_, false, flex_wrap_nowrap, offset(m_flex_wrap));
- 
--		m_flex_justify_content = (flex_justify_content) el->get_property<int>(_justify_content_, false, flex_justify_content_flex_start, offset(m_flex_justify_content));
--		m_flex_align_items = (flex_align_items) el->get_property<int>(_align_items_, false, flex_align_items_normal, offset(m_flex_align_items));
--		m_flex_align_content = (flex_align_content) el->get_property<int>(_align_content_, false, flex_align_content_stretch, offset(m_flex_align_content));
-+		m_flex_justify_content = to_flex_justify_content(m_justify_content);
-+		m_flex_align_items = to_flex_item_alignment(m_align_items);
-+		m_flex_align_content = to_flex_align_content(m_align_content);
- 	}
--	m_flex_align_self = (flex_align_items) el->get_property<int>(_align_self_, false, flex_align_items_auto, offset(m_flex_align_self));
++	m_flex_direction = (flex_direction) el->get_property<int>(_flex_direction_, false, flex_direction_row, offset(m_flex_direction));
++	m_flex_wrap = (flex_wrap) el->get_property<int>(_flex_wrap_, false, flex_wrap_nowrap, offset(m_flex_wrap));
++	m_flex_justify_content = to_flex_justify_content(m_justify_content);
++	m_flex_align_items = to_flex_item_alignment(m_align_items);
++	m_flex_align_content = to_flex_align_content(m_align_content);
 +	m_flex_align_self = to_flex_item_alignment(m_align_self);
++
++	m_flex_grow = el->get_property<float>(_flex_grow_, false, 0, offset(m_flex_grow));
++	m_flex_shrink = el->get_property<float>(_flex_shrink_, false, 1, offset(m_flex_shrink));
++	m_flex_basis = el->get_property<css_length>(_flex_basis_, false, css_length::predef_value(flex_basis_auto), offset(m_flex_basis));
++	if (!m_flex_basis.is_predefined() && m_flex_basis.units() == css_units_none && m_flex_basis.val() != 0)
++		m_flex_basis.predef(flex_basis_auto);
++	doc->cvt_units(m_flex_basis, m_font_metrics, 0);
++
  	auto parent = el->parent();
  	if (parent && (parent->css().m_display == display_flex || parent->css().m_display == display_inline_flex))
  	{
+-		m_flex_grow = el->get_property<float>(_flex_grow_, false, 0, offset(m_flex_grow));
+-		m_flex_shrink = el->get_property<float>(_flex_shrink_, false, 1, offset(m_flex_shrink));
+-		m_flex_basis = el->get_property<css_length>(_flex_basis_, false, css_length::predef_value(flex_basis_auto), offset(m_flex_basis));
+-		if(!m_flex_basis.is_predefined() && m_flex_basis.units() == css_units_none && m_flex_basis.val() != 0)
+-		{
+-			// flex-basis property must contain units
+-			m_flex_basis.predef(flex_basis_auto);
+-		}
+-		doc->cvt_units(m_flex_basis, m_font_metrics, 0);
+ 		if(m_display == display_inline || m_display == display_inline_block)
+ 		{
+ 			m_display = display_block;

@@ -1,17 +1,19 @@
 diff --git a/src/css_parser.cpp b/src/css_parser.cpp
-index fb59521..7ea18ca 100644
 --- a/src/css_parser.cpp
 +++ b/src/css_parser.cpp
-@@ -39,12 +39,24 @@ void filter_code_points(string& input)
+@@ -39,12 +39,27 @@
  	input = result;
  }
  
-+static void remember_math_whitespace(css_token_vector& tokens)
++static void remember_whitespace(css_token_vector& tokens)
 +{
-+	for (size_t index = 1; index + 1 < tokens.size(); ++index)
++	for (size_t index = 1; index < tokens.size(); ++index)
 +	{
 +		auto& token = tokens[index];
-+		if ((token.ch == '+' || token.ch == '-') && tokens[index - 1].type == WHITESPACE &&
++		if (tokens[index - 1].type != WHITESPACE)
++			continue;
++		token.preceded_by_space = true;
++		if ((token.ch == '+' || token.ch == '-') && index + 1 < tokens.size() &&
 +			tokens[index + 1].type == WHITESPACE)
 +			token.spaced_operator = true;
 +	}
@@ -23,15 +25,15 @@ index fb59521..7ea18ca 100644
  
  void remove_whitespace_large(css_token_vector& tokens, keep_whitespace_fn keep_whitespace)
  {
-+	remember_math_whitespace(tokens);
++	remember_whitespace(tokens);
  	std::vector<int> keep_idx;
  	keep_idx.reserve(tokens.size());
  	for (int i = 0; i < static_cast<int>(tokens.size()); ++i)
-@@ -82,6 +94,7 @@ void remove_whitespace_large(css_token_vector& tokens, keep_whitespace_fn keep_w
+@@ -82,6 +97,7 @@
  
  void remove_whitespace_small(css_token_vector& tokens, keep_whitespace_fn keep_whitespace)
  {
-+	remember_math_whitespace(tokens);
++	remember_whitespace(tokens);
  	for (int i = 0; i < (int)tokens.size(); i++)
  	{
  		auto& tok = tokens[i];

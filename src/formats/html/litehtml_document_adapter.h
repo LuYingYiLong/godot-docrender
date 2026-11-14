@@ -20,6 +20,7 @@ namespace litehtml {
 			const string& p_user_styles
 		);																			// 解析 UTF-8 文档并应用初始样式
 		static bool media_changed(document& p_document);							// 检查媒体条件的匹配结果是否改变
+		static void compute_styles(document& p_document);							// 按文档顺序更新计算样式与计数器
 		static void restyle(
 			const document::ptr& p_document,
 			docrender::LiteHTMLContainer& p_container,
@@ -28,6 +29,7 @@ namespace litehtml {
 		);																			// 在原有元素树上重算样式并重建渲染树
 		static bool has_hover_styles(const document& p_document);					// 检查已解析的样式表是否引用悬停伪类
 		static void set_hover(element& p_element, bool p_hovered);					// 更新元素的悬停伪类状态
+		static bool is_command_button(const element& p_element);					// 判断元素是否为显式声明的普通按钮
 		static const std::vector<box_shadow>* get_box_shadows(
 			const html_tag& p_element
 		);																			// 读取层叠后的阴影列表

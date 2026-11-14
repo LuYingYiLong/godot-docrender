@@ -38,7 +38,8 @@ if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc
 
 tex_render = File("src/formats/latex/tex_render.cpp")
 mermaid_render = File("src/formats/mermaid/mermaid_render.cpp")
-html_sources = Glob("src/formats/html/*.cpp") + Glob("src/formats/html/layout/*.cpp") + Glob("src/formats/html/layout/grid/*.cpp")
+html_sources = (Glob("src/formats/html/*.cpp") + Glob("src/formats/html/css/*.cpp")
+                + Glob("src/formats/html/layout/*.cpp") + Glob("src/formats/html/layout/grid/*.cpp"))
 pdfium_sources = (Glob("src/formats/pdf/reader/*.cpp") + Glob("src/formats/pdf/writer/*.cpp")
                   + Glob("src/formats/pdf/pdfium/*.cpp"))
 format_sources = Glob("src/formats/*.cpp") + Glob("src/formats/*/*.cpp")

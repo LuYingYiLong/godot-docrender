@@ -42,6 +42,7 @@ namespace litehtml {
 				r_budget -= cost;
 				if (token.is_component_value()) {
 					css_token component(token.type, token.str);
+					component.preceded_by_space = token.preceded_by_space;
 					if (!append_tokens(token.value, component.value, r_budget)) return false;
 					r_output.push_back(component);
 				}
@@ -164,8 +165,11 @@ namespace litehtml {
 	bool css_variable_resolver::substitute(const css_token_vector& p_tokens, size_t p_start, css_token_vector& r_output,
 		size_t& r_budget, int p_depth) {
 		if (p_depth >= MAX_DEPTH) return false;
+		bool removed_space = false;
 		for (size_t index = p_start; index < p_tokens.size(); ++index) {
 			const auto& token = p_tokens[index];
+			const bool preceded_by_space = token.preceded_by_space || removed_space;
+			removed_space = false;
 			const auto cost = 1 + token.repr.size() + token.str.size();
 			if (cost > r_budget || r_output.size() >= MAX_EXPANDED_TOKENS) return false;
 			r_budget -= cost;
@@ -173,6 +177,7 @@ namespace litehtml {
 				const auto name = variable_name(token);
 				const auto& args = token.value;
 				if (name.empty() || (args.size() > 1 && args[1].ch != ',')) return false;
+				const size_t start = r_output.size();
 				const auto& resolved = resolve(_id(name), p_depth + 1);
 				if (resolved) {
 					if (resolved->size() > MAX_EXPANDED_TOKENS - r_output.size() || !append_tokens(*resolved, r_output, r_budget)) return false;
@@ -180,14 +185,22 @@ namespace litehtml {
 				else if (args.size() < 2 || !substitute(args, 2, r_output, r_budget, p_depth + 1)) {
 					return false;
 				}
+				if (start != r_output.size()) {
+					r_output[start].preceded_by_space = preceded_by_space;
+				}
+				else {
+					removed_space = preceded_by_space;
+				}
 			}
 			else if (token.is_component_value()) {
 				css_token component(token.type, token.str);
+				component.preceded_by_space = preceded_by_space;
 				if (!substitute(token.value, 0, component.value, r_budget, p_depth + 1)) return false;
 				r_output.push_back(component);
 			}
 			else {
 				r_output.push_back(token);
+				r_output.back().preceded_by_space = preceded_by_space;
 			}
 		}
 		return true;

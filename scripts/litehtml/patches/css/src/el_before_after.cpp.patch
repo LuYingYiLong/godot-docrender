@@ -1,0 +1,141 @@
+diff --git a/src/el_before_after.cpp b/src/el_before_after.cpp
+--- a/src/el_before_after.cpp
++++ b/src/el_before_after.cpp
+@@ -10,71 +10,72 @@
+ 	m_tag = before ? __tag_before_ : __tag_after_;
+ }
+ 
+-void litehtml::el_before_after_base::add_style(const style& style)
+-{
+-	html_tag::add_style(style);
+-
+-	auto children = m_children;
+-	m_children.clear();
+-
+-	const auto& content_property = style.get_property(_content_);
+-	if(content_property.is<string>() && !content_property.get<string>().empty())
+-	{
+-		const string& str = content_property.get<string>();
+-		int idx = value_index(str, content_property_string);
+-		if(idx < 0)
+-		{
+-			string fnc;
+-			string::size_type i = 0;
+-			while(i < str.length() && i != string::npos)
+-			{
+-				if(str.at(i) == '"' || str.at(i) == '\'')
+-				{
+-					auto chr = str.at(i);
+-					fnc.clear();
+-					i++;
+-					string::size_type pos = str.find(chr, i);
+-					string txt;
+-					if(pos == string::npos)
+-					{
+-						txt = str.substr(i);
+-						i = string::npos;
+-					} else
+-					{
+-						txt = str.substr(i, pos - i);
+-						i = pos + 1;
+-					}
+-					add_text(txt);
+-				} else if(str.at(i) == '(')
+-				{
+-					i++;
+-					litehtml::trim(fnc);
+-					litehtml::lcase(fnc);
+-					string::size_type pos = str.find(')', i);
+-					string params;
+-					if(pos == string::npos)
+-					{
+-						params = str.substr(i);
+-						i = string::npos;
+-					} else
+-					{
+-						params = str.substr(i, pos - i);
+-						i = pos + 1;
+-					}
+-					add_function(fnc, params);
+-					fnc.clear();
+-				} else
+-				{
+-					fnc += str.at(i);
+-					i++;
+-				}
+-			}
+-		}
+-	}
+-
+-	if(m_children.empty())
+-	{
+-		m_children = children;
++void litehtml::el_before_after_base::compute_styles(bool recursive)
++{
++	html_tag::compute_styles(false);
++	const auto& content = css().get_content();
++	if (content.empty() || value_index(content, content_property_string) >= 0)
++		css_w().set_display(display_none);
++	resolve_content(content);
++
++	if (recursive)
++	{
++		for (const auto& child : children())
++			child->compute_styles();
++	}
++}
++
++void litehtml::el_before_after_base::resolve_content(const string& str)
++{
++	if (str == materialized_content) return;
++	materialized_content = str;
++	clearRecursive();
++	if (str.empty() || value_index(str, content_property_string) >= 0) return;
++
++	string fnc;
++	string::size_type i = 0;
++	while(i < str.length() && i != string::npos)
++	{
++		if(str.at(i) == '"' || str.at(i) == '\'')
++		{
++			auto chr = str.at(i);
++			fnc.clear();
++			i++;
++			string::size_type pos = str.find(chr, i);
++			string txt;
++			if(pos == string::npos)
++			{
++				txt = str.substr(i);
++				i = string::npos;
++			} else
++			{
++				txt = str.substr(i, pos - i);
++				i = pos + 1;
++			}
++			add_text(txt);
++		} else if(str.at(i) == '(')
++		{
++			i++;
++			litehtml::trim(fnc);
++			litehtml::lcase(fnc);
++			string::size_type pos = str.find(')', i);
++			string params;
++			if(pos == string::npos)
++			{
++				params = str.substr(i);
++				i = string::npos;
++			} else
++			{
++				params = str.substr(i, pos - i);
++				i = pos + 1;
++			}
++			add_function(fnc, params);
++			fnc.clear();
++		} else
++		{
++			fnc += str.at(i);
++			i++;
++		}
+ 	}
+ }
+ 

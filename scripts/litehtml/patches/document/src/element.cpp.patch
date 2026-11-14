@@ -1,8 +1,10 @@
 diff --git a/src/element.cpp b/src/element.cpp
-index ba339ea..6fbd9a6 100644
 --- a/src/element.cpp
 +++ b/src/element.cpp
-@@ -2,6 +2,7 @@
+@@ -1,7 +1,10 @@
++#include <limits>
++
+ #include "html.h"
  #include "element.h"
  #include "document.h"
  #include "render_item.h"
@@ -10,7 +12,7 @@ index ba339ea..6fbd9a6 100644
  #include "render_flex.h"
  #include "render_inline.h"
  #include "render_table.h"
-@@ -53,7 +54,8 @@ bool element::is_inline() const
+@@ -53,7 +56,8 @@
  		   css().get_display() == display_inline_table ||
  		   css().get_display() == display_inline_block ||
  		   css().get_display() == display_inline_text ||
@@ -20,7 +22,7 @@ index ba339ea..6fbd9a6 100644
  	{
  		return true;
  	}
-@@ -64,7 +66,8 @@ bool element::is_inline_box() const
+@@ -64,7 +68,8 @@
  {
  	if(	css().get_display() == display_inline_table ||
  		   css().get_display() == display_inline_block ||
@@ -30,7 +32,7 @@ index ba339ea..6fbd9a6 100644
  	{
  		return true;
  	}
-@@ -159,6 +162,8 @@ std::shared_ptr<render_item> element::create_render_item(const std::shared_ptr<r
+@@ -159,6 +164,8 @@
  	{
  		ret = std::make_shared<render_item_flex>(shared_from_this());
  	}
@@ -39,7 +41,7 @@ index ba339ea..6fbd9a6 100644
  	if(ret)
  	{
  		if (css().get_display() == display_table ||
-@@ -282,6 +287,10 @@ bool element::is_block_formatting_context() const
+@@ -282,6 +289,10 @@
  			return true;
  		}
  	}
@@ -50,3 +52,13 @@ index ba339ea..6fbd9a6 100644
  	if(	m_css.get_display() == display_inline_block ||
  		   m_css.get_display() == display_table_cell ||
  		   m_css.get_display() == display_inline_flex ||
+@@ -401,7 +412,8 @@
+ {
+ 	std::map<string_id, int>::iterator i;
+ 	if (find_counter(counter_name_id, i)) {
+-		i->second = i->second + increment;
++		const auto sum = static_cast<int64_t>(i->second) + increment;
++		i->second = static_cast<int>(std::clamp<int64_t>(sum, std::numeric_limits<int>::min(), std::numeric_limits<int>::max()));
+ 	}
+ 	else {
+ 		// if counter is not found, initialize one on this element

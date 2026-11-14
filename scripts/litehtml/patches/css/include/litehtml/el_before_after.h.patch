@@ -1,0 +1,15 @@
+diff --git a/include/litehtml/el_before_after.h b/include/litehtml/el_before_after.h
+--- a/include/litehtml/el_before_after.h
++++ b/include/litehtml/el_before_after.h
+@@ -10,8 +10,10 @@
+ 	public:
+ 		el_before_after_base(const std::shared_ptr<document>& doc, bool before);
+ 
+-		void add_style(const style& style) override;
++		void compute_styles(bool recursive) override;
+ 	private:
++		string materialized_content;
++		void resolve_content(const string& content);
+ 		void	add_text(const string& txt);
+ 		void	add_function(const string& fnc, const string& params);
+ 		static string convert_escape(const char* txt);

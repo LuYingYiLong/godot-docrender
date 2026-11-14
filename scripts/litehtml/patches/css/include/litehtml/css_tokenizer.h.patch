@@ -1,21 +1,21 @@
 diff --git a/include/litehtml/css_tokenizer.h b/include/litehtml/css_tokenizer.h
-index f4a61af..978e559 100644
 --- a/include/litehtml/css_tokenizer.h
 +++ b/include/litehtml/css_tokenizer.h
-@@ -83,7 +83,7 @@ struct css_token
+@@ -83,7 +83,7 @@
  		if (is_component_value()) new(&value) vector<css_token>;
  	}
  
 -	css_token(const css_token& token) : type(token.type), str(token.str), repr(token.repr)
-+	css_token(const css_token& token) : type(token.type), str(token.str), spaced_operator(token.spaced_operator), repr(token.repr)
++	css_token(const css_token& token) : type(token.type), str(token.str), spaced_operator(token.spaced_operator), preceded_by_space(token.preceded_by_space), repr(token.repr)
  	{
  		switch (type)
  		{
-@@ -148,6 +148,7 @@ struct css_token
+@@ -148,6 +148,8 @@
  		vector<css_token> value; // CV_FUNCTION, XXX_BLOCK
  	};
  
 +	bool spaced_operator = false;
++	bool preceded_by_space = false;
  	string repr; // https://www.w3.org/TR/css-syntax-3/#representation
  };
  

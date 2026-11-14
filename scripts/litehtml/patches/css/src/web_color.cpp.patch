@@ -1,0 +1,19 @@
+diff --git a/src/web_color.cpp b/src/web_color.cpp
+--- a/src/web_color.cpp
++++ b/src/web_color.cpp
+@@ -1,5 +1,6 @@
+ #include "html.h"
+ #include "web_color.h"
++#include "formats/html/css/css_color.h"
+ #include "css_parser.h"
+ #include "os_types.h"
+ #include "document_container.h"
+@@ -379,7 +380,7 @@
+ // https://drafts.csswg.org/css-color-5/#typedef-color-function
+ bool parse_func_color(const css_token& tok, web_color& color)
+ {
+-	return parse_rgb_func(tok, color) || parse_hsl_func(tok, color);
++	return parse_rgb_func(tok, color) || parse_hsl_func(tok, color) || parse_oklch(tok, color);
+ }
+ 
+ string resolve_name(const string& name, document_container* container)

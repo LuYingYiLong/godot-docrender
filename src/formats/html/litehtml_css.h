@@ -5,7 +5,6 @@
 #include <litehtml/web_color.h>
 
 namespace litehtml {
-	struct property_value;
 	struct css_font_family {
 		string name;
 		bool generic = false;
@@ -58,14 +57,6 @@ namespace litehtml {
 		string property;
 		string value;
 		css_source source;
-		std::vector<std::pair<string_id, int>> drawing_values;
-	};
-
-	struct css_declaration_result {
-		bool accepted = false;
-		std::vector<std::pair<string_id, int>> drawing_values;
-
-		void accept(string_id p_name, const property_value& p_value);
 	};
 
 	struct text_decoration {

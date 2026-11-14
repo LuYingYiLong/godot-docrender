@@ -1,5 +1,4 @@
 diff --git a/include/litehtml/style.h b/include/litehtml/style.h
-index e68a05b..c83c2ee 100644
 --- a/include/litehtml/style.h
 +++ b/include/litehtml/style.h
 @@ -6,6 +6,11 @@
@@ -14,19 +13,21 @@ index e68a05b..c83c2ee 100644
  #include "web_color.h"
  
  namespace litehtml
-@@ -13,8 +18,11 @@ namespace litehtml
+@@ -13,8 +18,13 @@
  	struct invalid {}; // indicates "not found" condition in style::get_property
  	struct inherit {}; // "inherit" was specified as the value of this property
  
 +	struct initial_value {};
++	struct revert_value {};
 +
  	struct property_value : variant<
  		invalid,
 +		initial_value,
++		revert_value,
  		inherit,
  		int,
  		int_vector,
-@@ -26,15 +34,33 @@ namespace litehtml
+@@ -26,15 +36,41 @@
  		string,
  		string_vector,
  		size_vector,
@@ -54,6 +55,14 @@ index e68a05b..c83c2ee 100644
 +			css_source source;
 +		};
 +		std::shared_ptr<const deferred_declaration> deferred;
++
++		struct declaration_origin
++		{
++			string_id name;
++			string value;
++			css_source source;
++		};
++		std::shared_ptr<const declaration_origin> origin;
  
  		property_value() {}
 -		template<class T> property_value(const T& val, bool important, bool has_var = false)
@@ -63,16 +72,16 @@ index e68a05b..c83c2ee 100644
  	};
  
  	class html_tag;
-@@ -48,10 +74,15 @@ namespace litehtml
+@@ -48,10 +84,14 @@
  		typedef std::vector<style::ptr>		vector;
  	private:
  		props_map							m_properties;
+-		static std::map<string_id, string>	m_valid_values;
 +		css_computed_variables computed_variables;
 +		props_map computed_declarations;
-+		css_declaration_result* declaration_result = nullptr;
 +		std::shared_ptr<std::vector<css_diagnostic>> diagnostics;
-+		std::shared_ptr<const property_value> default_font_family;
- 		static std::map<string_id, string>	m_valid_values;
++		std::vector<css_diagnostic> computed_diagnostics;
++		props_map default_properties;
  	public:
 -		void add(const css_token_vector& tokens, const string& baseurl = "", document_container* container = nullptr);
 -		void add(const string& txt,              const string& baseurl = "", document_container* container = nullptr);
@@ -81,12 +90,13 @@ index e68a05b..c83c2ee 100644
  
  		void add_property(string_id name, const css_token_vector& tokens, const string& baseurl = "", bool important = false, document_container* container = nullptr);
  		void add_property(string_id name, const string& val,              const string& baseurl = "", bool important = false, document_container* container = nullptr);
-@@ -61,12 +92,29 @@ namespace litehtml
+@@ -61,48 +101,26 @@
  		void combine(const style& src);
  		void clear()
  		{
 +			diagnostics.reset();
-+			default_font_family.reset();
++			computed_diagnostics.clear();
++			default_properties.clear();
 +			computed_variables.clear();
 +			computed_declarations.clear();
  			m_properties.clear();
@@ -94,28 +104,51 @@ index e68a05b..c83c2ee 100644
  
 +		const css_token_vector* get_custom_property(string_id name, bool& local) const;
 +		const std::vector<css_diagnostic>* get_diagnostics() const { return diagnostics.get(); }
-+		void snapshot_default_font_family();
++		const std::vector<css_diagnostic>& get_computed_diagnostics() const { return computed_diagnostics; }
++		void snapshot_defaults();
  		void subst_vars(const html_tag* el);
  
  	private:
-+
-+		void add_checked_property(string_id name, const css_token_vector& value, const string& baseurl,
-+			bool important, document_container* container, const css_source& source, const html_tag* element);
-+		void report_diagnostic(document_container& container, css_diagnostic_kind kind, string_id name,
-+			const string& value, const css_source& source, const html_tag* element,
-+			std::vector<std::pair<string_id, int>> drawing_values = {});
-+		void remember_diagnostic(const css_diagnostic& diagnostic);
-+		void add_deferred_property(string_id name, const css_token_vector& value, const string& baseurl, bool important,
-+			const css_source& source = {});
-+		void add_gap_property(string_id name, const css_token_vector& value, bool important);
- 		void inherit_property(string_id name, bool important);
+-		void inherit_property(string_id name, bool important);
  
- 		void parse_background(const css_token_vector& tokens, const string& baseurl, bool important, document_container* container);
-@@ -97,7 +145,6 @@ namespace litehtml
- 
- 		void parse_flex_flow(const css_token_vector& tokens, bool important);
- 		void parse_flex(const css_token_vector& tokens, bool important);
+-		void parse_background(const css_token_vector& tokens, const string& baseurl, bool important, document_container* container);
+-		bool parse_bg_layer(const css_token_vector& tokens, document_container* container, background& bg, bool final_layer);
+-		// parse the value of background-image property, which is comma-separated list of <bg-image>s
+-		void parse_background_image(const css_token_vector& tokens, const string& baseurl, bool important, document_container* container);
+-
+-		// parse comma-separated list of keywords
+-		void parse_keyword_comma_list(string_id name, const css_token_vector& tokens, bool important);
+-		void parse_background_position(const css_token_vector& tokens, bool important);
+-		void parse_background_size(const css_token_vector& tokens, bool important);
+-
+-		void parse_border(const css_token_vector& tokens, bool important, document_container* container);
+-		void parse_border_side(string_id name, const css_token_vector& tokens, bool important, document_container* container);
+-		void parse_border_radius(const css_token_vector& tokens, bool important);
+-
+-		bool parse_list_style_image(const css_token& tok, string& url);
+-		void parse_list_style(const css_token_vector& tokens, string baseurl, bool important);
+-
+-		void parse_font(css_token_vector tokens, bool important);
+-		void parse_text_decoration(const css_token_vector& tokens, bool important, document_container* container);
+-		bool parse_text_decoration_color(const css_token& token, bool important, document_container* container);
+-		void parse_text_decoration_line(const css_token_vector& tokens, bool important);
+-
+-		void parse_text_emphasis(const css_token_vector& tokens, bool important, document_container* container);
+-		bool parse_text_emphasis_color(const css_token& token, bool important, document_container* container);
+-		void parse_text_emphasis_position(const css_token_vector& tokens, bool important);
+-
+-		void parse_flex_flow(const css_token_vector& tokens, bool important);
+-		void parse_flex(const css_token_vector& tokens, bool important);
 -		void parse_align_self(string_id name, const css_token_vector& tokens, bool important);
+-
+-		void add_parsed_property(string_id name, const property_value& propval);
+-		void add_length_property(string_id name, css_token val, string keywords, int options, bool important);
+-		template<class T> void add_four_properties(string_id top_name, T val[4], int n, bool important);
+-		void remove_property(string_id name, bool important);
++		void add_declaration(string_id name, const css_token_vector& tokens, const string& baseurl, bool important,
++			document_container* container, const css_source& source, const html_tag* element);
++		void remember_diagnostic(const css_diagnostic& diagnostic);
++		void add_parsed_property(string_id name, property_value value);
+ 	};
  
- 		void add_parsed_property(string_id name, const property_value& propval);
- 		void add_length_property(string_id name, css_token val, string keywords, int options, bool important);
+ 	bool parse_url(const css_token& token, string& url);

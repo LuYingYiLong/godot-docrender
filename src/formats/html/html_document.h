@@ -13,7 +13,7 @@ class HTMLDocument : public godot::Resource {
 	godot::String stylesheet;
 	godot::Dictionary textures;
 	godot::Dictionary local_stylesheets;
-	void parse_into(HTMLLayout& p_layout) const;
+	void parse_into(HTMLLayout& p_layout, const godot::String& p_default_stylesheet = {}) const;
 
 protected:
 	static void _bind_methods();

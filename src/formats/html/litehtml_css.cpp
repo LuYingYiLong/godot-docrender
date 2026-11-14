@@ -161,27 +161,6 @@ namespace litehtml {
 		return true;
 	}
 
-	void css_declaration_result::accept(string_id p_name, const property_value& p_value) {
-		accepted = true;
-		switch (p_name) {
-			case _border_top_style_:
-			case _border_right_style_:
-			case _border_bottom_style_:
-			case _border_left_style_:
-				if (p_value.is<int>() && p_value.get<int>() >= border_style_groove) {
-					drawing_values.emplace_back(p_name, p_value.get<int>());
-				}
-				break;
-			case _text_emphasis_style_:
-				if (p_value.is<string>() && lowcase(p_value.get<string>()) != "none") {
-					drawing_values.emplace_back(p_name, 0);
-				}
-				break;
-			default:
-				break;
-		}
-	}
-
 	bool parse_decoration_line(const css_token_vector& p_tokens, int& r_line) {
 		if (p_tokens.size() == 1 && p_tokens.front().ident() == "none") {
 			r_line = text_decoration_line_none;

@@ -81,6 +81,6 @@ Ref<HTMLLayout> HTMLDocument::create_layout() const {
 	return result;
 }
 
-void HTMLDocument::parse_into(HTMLLayout& p_layout) const {
-	p_layout.parse_source(text, base_dir, stylesheet, textures, false, {}, {}, local_stylesheets);
+void HTMLDocument::parse_into(HTMLLayout& p_layout, const String& p_default_stylesheet) const {
+	p_layout.parse_source(text, base_dir, stylesheet, textures, false, p_default_stylesheet, {}, local_stylesheets);
 }

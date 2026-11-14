@@ -22,6 +22,7 @@
     <Filter Include="Header Files\formats\latex">
       <UniqueIdentifier>{85908c06-a8d2-5e29-96b8-294f478ca0ca}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\formats\html\css" />
     <Filter Include="Header Files\formats\html">
       <UniqueIdentifier>{458d247b-1727-407d-8723-386218d28393}</UniqueIdentifier>
     </Filter>
@@ -58,6 +59,7 @@
     <Filter Include="Source Files\formats\latex">
       <UniqueIdentifier>{3073cf9d-b70f-5475-a972-e4b25d2d9632}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\formats\html\css" />
     <Filter Include="Source Files\formats\html">
       <UniqueIdentifier>{ce13e574-6124-4bc6-bca6-240a08c6d482}</UniqueIdentifier>
     </Filter>
@@ -128,6 +130,24 @@
     </ClCompile>
     <ClCompile Include="src\formats\html\html_text_mask.cpp">
       <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_color.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_declarations.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_values_background.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_values_box.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_values_layout.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_values_text.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
     </ClCompile>
     <ClCompile Include="src\formats\html\litehtml_css.cpp">
       <Filter>Source Files\formats\html</Filter>
@@ -328,6 +348,15 @@
     </ClInclude>
     <ClInclude Include="src\formats\html\html_text_mask.h">
       <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\css\css_color.h">
+      <Filter>Header Files\formats\html\css</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\css\css_declarations.h">
+      <Filter>Header Files\formats\html\css</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\css\css_value_parser.h">
+      <Filter>Header Files\formats\html\css</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_css.h">
       <Filter>Header Files\formats\html</Filter>
