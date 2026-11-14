@@ -17,14 +17,44 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 
 | Area | Support |
 | --- | --- |
-| Layout | Block and inline layout, lists, tables, Flexbox, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Grid and sticky positioning are unsupported. |
+| Layout | Block and inline layout, lists, tables, Flexbox, block Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Sticky positioning is unsupported. |
+| Grid tracks | `grid-template-columns` and `grid-template-rows` accept `none`, lengths, percentages, `auto`, `fr`, and `minmax()`. Grid places one item per cell in row order, sorted by `order`. See the Grid section below. |
 | Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
-| Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. Percentages depend on the property. `calc()`, `min()`, `max()`, and `clamp()` length expressions are unsupported. |
+| Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. `calc()`, `min()`, `max()`, and `clamp()` support the layout properties listed below. |
 | Colors | Named and hex colors, `rgb()` and `hsl()` variants, and `currentColor` where applicable. `oklch()` and `color-mix()` are unsupported. |
 | Backgrounds | Solid colors, local images, and linear, radial, and conic gradients. |
 | Borders and shadows | `solid`, `dashed`, `dotted`, `double`, per-side widths and colors, and `border-radius`. DocRender adds `box-shadow`, including `inset` and multiple layers. `groove`, `ridge`, `inset`, and `outset` border styles parse but have no drawing implementation. |
 | Text | Theme fonts, font size and weight, italic text, wrapping, alignment, and line height. `font-family` accepts a prioritized list of installed family names and generic families, including in the `font` shorthand. `text-decoration` supports underline, overline, and line-through in five styles, with `auto`, `from-font`, length, and percentage thickness. `text-shadow` supports offsets, blur, and multiple layers on glyphs and decorations. Text emphasis marks parse but have no drawing implementation. |
 | Cursor | `HTMLLabel` maps common CSS keywords to Godot cursor shapes. Image cursors and unmapped keywords use the control's fallback. |
+
+## Variables and length expressions
+
+```css
+:root { --gutter: 16px; }
+.panel {
+  width: min(100%, calc(48rem - 2 * var(--gutter, 16px)));
+  padding: clamp(8px, 2vw, 24px);
+}
+```
+
+Custom property names are case-sensitive. Values resolve before inheritance. `var()` supports repeated references, nested and empty fallbacks, and detects cycles, including references in fallback arguments. Invalid substitutions use the property's inherited or initial value. Declaration diagnostics identify the affected element and retain the original declaration. [CSS Custom Properties](https://www.w3.org/TR/css-variables-1/#using-variables)
+
+Length expressions are supported in `width`, `height`, their `min-` and `max-` variants, `margin`, `padding`, `top`, `right`, `bottom`, `left`, `flex-basis`, Flexbox and Grid gaps, and length entries in Grid track lists. Addition and subtraction require spaces around the operator. Multiplication takes a number on at least one side, and division takes a numeric divisor. Percentages use the basis supplied by each layout property. [CSS Values and Units](https://www.w3.org/TR/css-values-4/#math)
+
+## Grid
+
+```css
+.cards {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
+  grid-template-rows: auto;
+  gap: 12px 16px;
+}
+```
+
+Empty explicit tracks are kept. With no explicit columns, the first item creates an implicit `auto` column. Additional rows size automatically. Consecutive direct text forms an anonymous item. Whitespace-only runs and out-of-flow children take no cells. `minmax()` accepts non-negative lengths, percentages, and `auto` on either side, with fractions also accepted as the maximum. [CSS Grid track sizing](https://www.w3.org/TR/css-grid-2/#track-sizes)
+
+`row-gap`, `column-gap`, and the `gap` shorthand add spacing between tracks. `normal` resolves to zero. Percentage tracks use `auto` and the percentage portion of a gap resolves against zero during intrinsic sizing. Final layout resolves percentages against the content box. `repeat()`, explicit placement, spans, named lines and areas, `subgrid`, `inline-grid`, and Grid alignment properties are unsupported. [CSS percentage gaps](https://www.w3.org/TR/css-gaps-1/#gap-percent)
 
 ## Font families
 
@@ -45,8 +75,8 @@ The editor's HTML source preview outlines visible elements with CSS declaration 
 
 | Kind | Example |
 | --- | --- |
-| `unknown_property` | `grid-template-columns: 1fr 1fr` |
-| `unsupported_value` | `width: calc(100% - 1em)` |
+| `unknown_property` | `grid-template-areas: "header header"` |
+| `unsupported_value` | `grid-template-columns: repeat(2, 1fr)` |
 | `not_rendered` | `border-top-style: groove` |
 
 Diagnostics cover declarations reached by litehtml's parser. For a declaration using `var()`, the value is checked when litehtml resolves it on an element. Selector and at-rule support is listed above. Use `get_render_error()` for parse and layout failures.

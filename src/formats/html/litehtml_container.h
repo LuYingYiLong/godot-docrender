@@ -136,10 +136,19 @@ namespace docrender {
 		void begin_css_diagnostics();												// 清空上一轮样式诊断
 		void set_css_source_kind(litehtml::css_source_kind p_kind);					// 设置当前样式表来源
 		godot::TypedArray<godot::Dictionary> get_css_diagnostics() const;			// 返回诊断快照
-		const std::vector<int64_t>* get_element_diagnostics(const litehtml::element& p_element) const;
-		const godot::Dictionary& get_css_diagnostic(int64_t p_index) const;
-		void record_css_diagnostic(const litehtml::render_item& p_item, const godot::Rect2& p_box);
-		const std::vector<PaintRun>& get_diagnostic_runs() const { return diagnostic_runs; }
+		const std::vector<int64_t>* get_element_diagnostics(
+			const litehtml::element& p_element
+		) const;
+		const godot::Dictionary& get_css_diagnostic(
+			int64_t p_index
+		) const;
+		void record_css_diagnostic(
+			const litehtml::render_item& p_item,
+			const godot::Rect2& p_box
+		);
+		const std::vector<PaintRun>& get_diagnostic_runs() const {
+			return diagnostic_runs;
+		}
 		int64_t hit_test_text(const godot::Vector2& p_point) const;					// 查找最接近文档坐标的文本光标偏移
 		godot::TypedArray<godot::Rect2> get_selection_rects(
 			int64_t p_from,

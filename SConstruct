@@ -85,6 +85,16 @@ def expose_litehtml_editing(target, source, env):
     if text.count(declaration) != 1:
         raise ValueError(f"Update the DocRender editing adapter for {header}")
     text = text.replace(declaration, declaration + "\n\t\tfriend struct docrender_editor;")
+    if name == "element":
+        anchor = "\t\t\tcss().get_display() == display_flex ||"
+        if text.count(anchor) != 1:
+            raise ValueError(f"Update the DocRender Grid block classification for {header}")
+        text = text.replace(anchor, anchor + "\n\t\t\tcss().get_display() == display_grid ||")
+    if name == "html_tag":
+        anchor = "\t\telse if (inherited || value.is<inherit>())"
+        if text.count(anchor) != 1:
+            raise ValueError(f"Update the DocRender CSS property getter for {header}")
+        text = text.replace(anchor, "\t\telse if ((inherited && !value.is<initial_value>()) || value.is<inherit>())")
     Path(str(target[0])).write_text(text, encoding="utf-8", newline="\n")
 
 
@@ -102,15 +112,31 @@ def stage_litehtml_extensions(target, source, env):
         replace_once(anchor, addition + anchor)
 
     if path.name == "style.h":
+        insert_before('#include "web_color.h"', '#include "formats/html/litehtml_grid_tracks.h"\n')
+        insert_before("\t\tcss_token_vector\n", "\t\tgrid_track_list,\n")
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_css.h"\n')
         insert_before("\t\tcss_token_vector\n", "\t\tstd::vector<box_shadow>,\n")
         insert_before("\t\tcss_token_vector\n", "\t\tcss_font_families,\n")
-        insert_before("\t\tproperty_value() {}", """
-		std::shared_ptr<const css_declaration_origin> diagnostic_origin;
-		bool pending_gap_shorthand = false;
+        insert_before("\tstruct property_value :", "\tstruct initial_value {};\n\n")
+        insert_before("\t\tinherit,\n", "\t\tinitial_value,\n")
+        insert_before("\t\tproperty_value() {}", """\
+		struct deferred_declaration
+		{
+			string_id name;
+			css_token_vector tokens;
+			string baseurl;
+			css_source source;
+		};
+		std::shared_ptr<const deferred_declaration> deferred;
 
 """)
+        insert_before('#include "web_color.h"', '#include "formats/html/litehtml_css_variables.h"\n')
+        insert_before("\t\tstatic std::map<string_id, string>", "\t\tcss_computed_variables computed_variables;\n\t\tprops_map computed_declarations;\n")
+        insert_before("\t\tvoid subst_vars(", "\t\tconst css_token_vector* get_custom_property(string_id name, bool& local) const;\n")
+        replace_once("\t\tbool m_has_var   = false; // css_token_vector, parsing is delayed because of var()\n", "")
+        replace_once("bool important, bool has_var = false)\n\t\t\t: base(val), m_important(important), m_has_var(has_var)",
+                     "bool important)\n\t\t\t: base(val), m_important(important)")
         insert_before("\t\tstatic std::map<string_id, string>", """\
 		css_declaration_result* declaration_result = nullptr;
 		std::shared_ptr<std::vector<css_diagnostic>> diagnostics;
@@ -119,19 +145,18 @@ def stage_litehtml_extensions(target, source, env):
 		const std::vector<css_diagnostic>* get_diagnostics() const { return diagnostics.get(); }
 		void snapshot_default_font_family();
 """)
-        insert_before("\t\t\tm_properties.clear();", "\t\t\tdiagnostics.reset();\n\t\t\tdefault_font_family.reset();\n")
+        insert_before("\t\t\tm_properties.clear();", "\t\t\tdiagnostics.reset();\n\t\t\tdefault_font_family.reset();\n\t\t\tcomputed_variables.clear();\n\t\t\tcomputed_declarations.clear();\n")
         insert_before("\t\tstatic std::map<string_id, string>", "\t\tstd::shared_ptr<const property_value> default_font_family;\n")
         insert_before("\t\tvoid inherit_property", """
 		void add_checked_property(string_id name, const css_token_vector& value, const string& baseurl,
-			bool important, document_container* container, const css_source& source, const string* original_value = nullptr,
-			bool pending_gap_shorthand = false, const html_tag* element = nullptr);
+			bool important, document_container* container, const css_source& source, const html_tag* element);
 		void report_diagnostic(document_container& container, css_diagnostic_kind kind, string_id name,
 			const string& value, const css_source& source, const html_tag* element,
 			std::vector<std::pair<string_id, int>> drawing_values = {});
 		void remember_diagnostic(const css_diagnostic& diagnostic);
-		void add_deferred_property(string_id name, const css_token_vector& value, bool important,
-			std::shared_ptr<const css_declaration_origin> origin = {});
-		void add_gap_property(string_id name, const css_token_vector& value, bool important, bool pending_shorthand = false);
+		void add_deferred_property(string_id name, const css_token_vector& value, const string& baseurl, bool important,
+			const css_source& source = {});
+		void add_gap_property(string_id name, const css_token_vector& value, bool important);
 """)
         replace_once("const css_token_vector& tokens, const string& baseurl = \"\", document_container* container = nullptr);",
                      "const css_token_vector& tokens, const string& baseurl = \"\", document_container* container = nullptr, const html_tag* element = nullptr);")
@@ -158,13 +183,222 @@ def stage_litehtml_extensions(target, source, env):
 				out += std::to_string(family.name.size()) + ':' + family.name;
 			}""")
     elif path.name == "types.h":
+        replace_once('flex;inline-flex"', 'flex;inline-flex;grid"')
+        replace_once("\t\tdisplay_inline_flex,\n", "\t\tdisplay_inline_flex,\n\t\tdisplay_grid,\n")
+        insert_before("\t\t\tsize_mode_content = 0x04,\n", """\
+			size_mode_grid_stretch_width = 0x08,
+			size_mode_grid_stretch_height = 0x10,
+			size_mode_grid_measure_height = 0x20,
+			size_mode_grid_measure_width = 0x40,
+""")
         replace_once('font_style_strings\t\t"normal;italic"', 'font_style_strings\t\t"normal;italic;oblique"')
         replace_once("\t\tfont_style_italic\n", "\t\tfont_style_italic,\n\t\tfont_style_oblique\n")
+    elif path.name == "css_tokenizer.h":
+        insert_before("\tstring repr;", "\tbool spaced_operator = false;\n")
+        replace_once("str(token.str), repr(token.repr)", "str(token.str), spaced_operator(token.spaced_operator), repr(token.repr)")
+    elif path.name == "css_parser.cpp":
+        insert_before("static const size_t kLargeSize = 50;", """\
+static void remember_math_whitespace(css_token_vector& tokens)
+{
+	for (size_t index = 1; index + 1 < tokens.size(); ++index)
+	{
+		auto& token = tokens[index];
+		if ((token.ch == '+' || token.ch == '-') && tokens[index - 1].type == WHITESPACE &&
+			tokens[index + 1].type == WHITESPACE)
+			token.spaced_operator = true;
+	}
+}
+
+""")
+        for function in ("remove_whitespace_large", "remove_whitespace_small"):
+            anchor = f"void {function}(css_token_vector& tokens, keep_whitespace_fn keep_whitespace)\n{{\n"
+            replace_once(anchor, anchor + "\tremember_math_whitespace(tokens);\n")
+    elif path.name == "css_length.h":
+        insert_before("namespace litehtml", "#include <memory>\n\n")
+        insert_before("\t// from_token options", "\tstruct css_math_expression;\n\n")
+        insert_before("\t\tf_positive   = 16", "\t\tf_math       = 32, // CSS length math functions\n")
+        insert_before("\t\tunion\n", "\t\tstd::shared_ptr<const css_math_expression> m_expression;\n")
+        insert_before("\t\tpixel_t\t\tcalc_percent", """\
+		const auto& expression() const { return m_expression; }
+		void set_expression(std::shared_ptr<const css_math_expression> p_expression);
+		pixel_t evaluate_expression(pixel_t basis) const;
+""")
+        for signature in ("css_length&\tcss_length::operator=(float val)", "void css_length::predef(int val)",
+                          "void css_length::set_value(float val, css_units units)"):
+            start = text.index(signature)
+            brace = text.index("\n", text.index("{", start))
+            text = text[:brace] + "\n\t\tm_expression.reset();" + text[brace:]
+        replace_once("inline pixel_t css_length::calc_percent(pixel_t width) const\n\t{",
+                     "inline pixel_t css_length::calc_percent(pixel_t width) const\n\t{\n\t\tif (m_expression) return evaluate_expression(width);")
+    elif path.name == "css_length.cpp":
+        insert_before('#include "css_length.h"', '#include "formats/html/litehtml_css_math.h"\n')
+        insert_before("bool css_length::from_token", """\
+void css_length::set_expression(std::shared_ptr<const css_math_expression> p_expression)
+{
+	set_value(0, p_expression->has_percentage ? css_units_percentage : css_units_px);
+	m_expression = std::move(p_expression);
+}
+
+pixel_t css_length::evaluate_expression(pixel_t basis) const
+{
+	return static_cast<pixel_t>(m_expression->evaluate(basis));
+}
+
+""")
+        anchor = "bool css_length::from_token(const css_token& token, int options, const string& keywords)\n{\n"
+        replace_once(anchor, anchor + """\
+	if (token.type == CV_FUNCTION && (options & f_math))
+	{
+		if (auto expression = parse_css_math(token, options))
+		{
+			set_expression(std::move(expression));
+			return true;
+		}
+		return false;
+	}
+	m_expression.reset();
+""")
+        replace_once("string css_length::to_string() const\n{", "string css_length::to_string() const\n{\n\tif (m_expression) return m_expression->to_string();")
+    elif path.name == "document.cpp":
+        insert_before('#include "document.h"', '#include "formats/html/litehtml_css_math.h"\n')
+        anchor = "void document::cvt_units( css_length& val, const font_metrics& metrics, pixel_t size ) const\n{\n"
+        replace_once(anchor, anchor + """\
+	if (const auto& expression = val.expression())
+	{
+		auto computed = compute_css_math(*expression, *this, metrics);
+		if (computed->has_percentage)
+			val.set_expression(std::move(computed));
+		else
+			val.set_value(static_cast<float>(computed->evaluate(0)), css_units_px);
+		return;
+	}
+""")
+    elif path.name == "element.cpp":
+        insert_before('#include "render_flex.h"', '#include "formats/html/litehtml_render_grid.h"\n')
+        insert_before("\tif(ret)\n", """\
+	if (css().get_display() == display_grid)
+		ret = std::make_shared<render_item_grid>(shared_from_this());
+""")
+        insert_before("\tif(\tm_css.get_display() == display_inline_block ||", """\
+	if (m_css.get_display() == display_grid)
+		return true;
+	if (const auto p = parent(); p && p->css().get_display() == display_grid && m_css.get_display() != display_inline_text)
+		return true;
+""")
+    elif path.name == "render_item.cpp":
+        # Carry the distinction between a known zero basis and an auto height through sizing.
+        replace_once("const css_length& len, pixel_t percent_base, containing_block_context::typed_pixel& out_value",
+                     "const css_length& len, containing_block_context::typed_pixel percent_base, containing_block_context::typed_pixel& out_value")
+        insert_before("\t\tif(len.units() == litehtml::css_units_percentage)", """\
+		if (len.expression() && len.units() == css_units_percentage &&
+			is_one_of(percent_base.type, containing_block_context::cbc_value_type_auto, containing_block_context::cbc_value_type_none))
+			return;
+""")
+        replace_once("calc_cb_length(*width, cb_context.width, ret.width);",
+                     "calc_cb_length(*width, width_basis, ret.width);")
+        for limit in ("min_width", "max_width"):
+            replace_once(f"calc_cb_length(src_el()->css().get_{limit}(), cb_context.width, ret.{limit});",
+                         f"calc_cb_length(src_el()->css().get_{limit}(), width_basis, ret.{limit});")
+        insert_before("\t// Calculate width if css property is not auto", """\
+	auto width_basis = cb_context.width;
+	if (!(cb_context.size_mode & containing_block_context::size_mode_content))
+		width_basis.type = containing_block_context::cbc_value_type_absolute;
+
+""")
+        # A mixed calculation resolved against a definite size follows the explicit-size path.
+        replace_once("out_value.type = litehtml::containing_block_context::cbc_value_type_percentage;",
+                     "out_value.type = len.expression() ? containing_block_context::cbc_value_type_absolute : containing_block_context::cbc_value_type_percentage;")
+        insert_before("\t// Calculate width if css property is not auto", """\
+	const bool stretch_width = cb_context.size_mode & containing_block_context::size_mode_grid_stretch_width;
+	const bool stretch_height = cb_context.size_mode & containing_block_context::size_mode_grid_stretch_height;
+""")
+        for axis in ("width", "height"):
+            replace_once(f"if(cb_context.size_mode & containing_block_context::size_mode_exact_{axis})\n\t\t{{\n\t\t\tret.{axis}.value = cb_context.{axis};",
+                         f"if((cb_context.size_mode & containing_block_context::size_mode_exact_{axis}) || stretch_{axis})\n"
+                         f"\t\t{{\n\t\t\tret.{axis}.value = stretch_{axis} ? std::max<pixel_t>(0, cb_context.{axis} - render_offset_{axis}()) : cb_context.{axis};")
+        insert_before("\t\tif (len.expression() && len.units() == css_units_percentage &&",
+                      "\t\tconst bool grid_sizing = css().get_display() == display_grid || is_grid_item();\n")
+        replace_once("if (len.expression() && len.units() == css_units_percentage &&",
+                     "if ((len.expression() || grid_sizing) && len.units() == css_units_percentage &&")
+        replace_once("out_value.type = len.expression() ? containing_block_context::cbc_value_type_absolute",
+                     "out_value.type = (len.expression() || grid_sizing) ? containing_block_context::cbc_value_type_absolute")
+        replace_once("if ((src_el()->css().get_display() == display_block || src_el()->css().get_display() == display_table) &&",
+                     "if ((src_el()->css().get_display() == display_block || src_el()->css().get_display() == display_table ||\n"
+                     "            src_el()->css().get_display() == display_grid || is_grid_item()) &&")
+        replace_once("if(src_el()->is_block_formatting_context() || ! fmt_ctx)",
+                     "if(src_el()->is_block_formatting_context() || is_grid_item() || ! fmt_ctx)")
+        replace_once("\tcalc_outlines(containing_block_size.width);",
+                     "\tcalc_outlines(containing_block_size.size_mode & containing_block_context::size_mode_grid_measure_width ?\n"
+                     "\t\t0 : containing_block_size.width.value);")
+        insert_before("\t\t\t\tfor(const auto& el : m_children)\n\t\t\t\t{\n\t\t\t\t\tel->calc_document_size(child_size", "\t\t\t\tchild_size = layout_overflow();\n")
+        insert_before("\t\t\t\t\tfor(const auto& el : m_children)\n\t\t\t\t\t{\n\t\t\t\t\t\tel->calc_document_size(sz", """\
+					if (css().get_display() == display_grid && css().get_position() != element_position_fixed)
+					{
+						const auto overflow_size = layout_overflow();
+						sz.width = std::max(sz.width, x + m_pos.x + overflow_size.width);
+						sz.height = std::max(sz.height, y + m_pos.y + overflow_size.height);
+					}
+""")
+    elif path.name == "render_item.h":
+        replace_once("const css_length& len, pixel_t percent_base, containing_block_context::typed_pixel& out_value",
+                     "const css_length& len, containing_block_context::typed_pixel percent_base, containing_block_context::typed_pixel& out_value")
+        insert_before("\t\tvirtual rendered_width", "\t\tvirtual size layout_overflow() const { return {}; }\n")
+        insert_before("\t\tbool is_flex_item() const", """\
+		bool is_grid_item() const
+		{
+			auto p = parent();
+			return p && p->css().get_display() == display_grid && src_el()->in_normal_flow();
+		}
+
+""")
+        for edge in ("top", "bottom"):
+            insert_before(f"                   m_margins.{edge} >= 0 &&", """\
+                   css().get_display() != display_grid &&
+                   !is_grid_item() &&
+""")
+    elif path.name == "flex_item.cpp":
+        insert_before("\n\tif (flex_basis_predefined)\n\t{\n\t\tif(predef == flex_basis_auto && el->css().get_height()", """\
+
+	if (!flex_basis_predefined && el->css().get_flex_basis().expression() && el->css().get_flex_basis().units() == css_units_percentage &&
+		self_size.height.type == containing_block_context::cbc_value_type_auto)
+	{
+		flex_basis_predefined = true;
+		predef = flex_basis_fit_content;
+	}
+""")
     elif path.name == "string_id.h":
         insert_before("\t_flex_flow_,", "\t_gap_,\n\t_row_gap_,\n\t_column_gap_,\n")
+        insert_before("\t_flex_flow_,", "\t_grid_template_columns_,\n\t_grid_template_rows_,\n")
     elif path.name == "style.cpp":
         insert_before('#include <set>', '#include <cmath>\n')
         insert_before('#include "document.h"', '#include "document_container.h"\n')
+        for anchor in (
+            'return add_length_property(name, val, "", f_length_percentage|f_positive, important);',
+            'return add_length_property(name, val, "auto", f_length_percentage, important);',
+            'return add_length_property(name, val, "auto", f_length_percentage|f_positive, important);',
+            'return add_length_property(name, val, "none", f_length_percentage|f_positive, important);',
+            'add_length_property(name, val, flex_basis_strings, f_length_percentage|f_positive, important);',
+        ):
+            replace_once(anchor, anchor.replace(", important);", "|f_math, important);"))
+        replace_once('parse_1234_lengths(value, len, f_length_percentage, "auto")',
+                     'parse_1234_lengths(value, len, f_length_percentage | f_math, "auto")')
+        replace_once('parse_1234_lengths(value, len, f_length_percentage | f_positive))\n\t\t\tadd_four_properties(_padding_top_',
+                     'parse_1234_lengths(value, len, f_length_percentage | f_positive | f_math))\n\t\t\tadd_four_properties(_padding_top_')
+        replace_once('m_basis.from_token(tok, f_length_percentage | f_positive, flex_basis_strings)',
+                     'm_basis.from_token(tok, f_length_percentage | f_positive | f_math, flex_basis_strings)')
+        insert_before("\t{ _font_,", """\
+	{ _gap_, {_row_gap_, _column_gap_}},
+	{ _background_position_, {_background_position_x_, _background_position_y_}},
+	{ _background_image_, {_background_image_, _background_image_baseurl_}},
+	{ _list_style_image_, {_list_style_image_, _list_style_image_baseurl_}},
+	{ _border_spacing_, {__litehtml_border_spacing_x_, __litehtml_border_spacing_y_}},
+	{ _border_radius_, {_border_top_left_radius_x_, _border_top_left_radius_y_, _border_top_right_radius_x_, _border_top_right_radius_y_,
+		_border_bottom_left_radius_x_, _border_bottom_left_radius_y_, _border_bottom_right_radius_x_, _border_bottom_right_radius_y_}},
+	{ _border_top_left_radius_, {_border_top_left_radius_x_, _border_top_left_radius_y_}},
+	{ _border_top_right_radius_, {_border_top_right_radius_x_, _border_top_right_radius_y_}},
+	{ _border_bottom_left_radius_, {_border_bottom_left_radius_x_, _border_bottom_left_radius_y_}},
+	{ _border_bottom_right_radius_, {_border_bottom_right_radius_x_, _border_bottom_right_radius_y_}},
+""")
         replace_once("bool parse_font_family(const css_token_vector& tokens, string& font_family);\n", "")
         start = text.index("// https://drafts.csswg.org/css-fonts/#propdef-font-family")
         end = text.index("// https://developer.mozilla.org/en-US/docs/Web/CSS/font", start)
@@ -187,12 +421,25 @@ def stage_litehtml_extensions(target, source, env):
         replace_once('if(tokens.size() == 1 && (tokens[0].type == STRING || tokens[0].type == IDENT) && value_in_list(tokens[0].str, font_system_family_name_strings))\n\t{\n\t\tfont_family = tokens[0].str;',
                      'if (tokens.size() == 1 && value_in_list(tokens[0].ident(), font_system_family_name_strings))\n\t{\n\t\tfont_family.push_back({ "system-ui", true });')
         replace_once("if (!parse_font_family(tokens, font_family))", "if (!parse_font_families(tokens, font_family))")
+        insert_before("\tcase _order_:", """\
+	case _grid_template_columns_:
+	case _grid_template_rows_:
+	{
+		grid_track_list tracks;
+		if (ident == "initial" || ident == "unset" || parse_grid_tracks(value, tracks))
+			add_parsed_property(name, property_value(std::move(tracks), important));
+		break;
+	}
+""")
         parser = text.split("void style::add_property(string_id name, const css_token_vector&", 1)[1].split(
             "void style::add_property(string_id name, const string&", 1)[0]
         property_cases = re.findall(r"^\s*case (_\w+_):", parser, re.MULTILINE)
         if len(property_cases) < 90 or len(set(property_cases)) != len(property_cases):
             raise ValueError(f"Update the DocRender CSS property dispatch for {path}")
-        insert_before("bool has_var(", """
+        start = text.index("bool has_var(")
+        end = text.index("void style::inherit_property", start)
+        text = text[:start] + text[end:]
+        insert_before("void style::inherit_property", """
 static bool is_known_css_property(string_id name)
 {
 	if (name == _id("box-shadow") || name == _id("text-shadow")) return true;
@@ -219,7 +466,7 @@ static bool is_known_css_property(string_id name)
 		if (source.kind == css_source_kind::none)
 			add_property(_id(name), decl.value, baseurl, decl.important, container);
 		else
-			add_checked_property(_id(name), decl.value, baseurl, decl.important, container, source, nullptr, false, element);""")
+			add_checked_property(_id(name), decl.value, baseurl, decl.important, container, source, element);""")
         insert_before("void style::inherit_property", """
 void style::snapshot_default_font_family()
 {
@@ -249,31 +496,26 @@ void style::remember_diagnostic(const css_diagnostic& diagnostic)
 }
 
 void style::add_checked_property(string_id name, const css_token_vector& value, const string& baseurl,
-	bool important, document_container* container, const css_source& source, const string* original_value,
-	bool pending_gap_shorthand, const html_tag* element)
+	bool important, document_container* container, const css_source& source, const html_tag* element)
 {
-	const auto spelling = [&] { return original_value ? *original_value : (value.empty() ? string() : get_repr(value, 0, -1, true)); };
-	const auto reported_name = pending_gap_shorthand ? _gap_ : name;
+	const auto spelling = [&] { return value.empty() ? string() : get_repr(value, 0, -1, true); };
+	const bool custom = _s(name).compare(0, 2, "--") == 0;
 	if (!is_known_css_property(name))
 	{
 		report_diagnostic(*container, css_diagnostic_kind::unknown_property, name, spelling(), source, element);
 		add_property(name, value, baseurl, important, container);
 		return;
 	}
-	if (has_var(value))
+	const auto variables = inspect_css_variables(value);
+	if (variables == css_variable_syntax::invalid)
 	{
-		if (original_value)
-		{
-			report_diagnostic(*container, css_diagnostic_kind::unsupported_value, reported_name, spelling(), source, element);
-			return;
-		}
-		if (_s(name).compare(0, 2, "--") == 0)
-		{
-			add_property(name, value, baseurl, important, container);
-			return;
-		}
-		add_deferred_property(name, value, important,
-			std::make_shared<css_declaration_origin>(css_declaration_origin{ source, spelling() }));
+		report_diagnostic(*container, css_diagnostic_kind::unsupported_value, name, spelling(), source, element);
+		return;
+	}
+	if (variables == css_variable_syntax::valid)
+	{
+		if (custom) add_property(name, value, baseurl, important, container);
+		else add_deferred_property(name, value, baseurl, important, source);
 		return;
 	}
 
@@ -284,39 +526,30 @@ void style::add_checked_property(string_id name, const css_token_vector& value, 
 			~reset_result() { target = nullptr; }
 		} reset{ declaration_result };
 		declaration_result = &result;
-		if (pending_gap_shorthand)
-			add_gap_property(name, value, important, true);
-		else
-			add_property(name, value, baseurl, important, container);
+		add_property(name, value, baseurl, important, container);
 	}
 	if (!result.accepted)
-		report_diagnostic(*container, css_diagnostic_kind::unsupported_value, reported_name, spelling(), source, element);
+		report_diagnostic(*container, css_diagnostic_kind::unsupported_value, name, spelling(), source, element);
 	else if (!result.drawing_values.empty())
-		report_diagnostic(*container, css_diagnostic_kind::not_rendered, reported_name, spelling(), source, element,
+		report_diagnostic(*container, css_diagnostic_kind::not_rendered, name, spelling(), source, element,
 			std::move(result.drawing_values));
 }
 
-void style::add_deferred_property(string_id name, const css_token_vector& value, bool important,
-	std::shared_ptr<const css_declaration_origin> origin)
+void style::add_deferred_property(string_id name, const css_token_vector& value, const string& baseurl, bool important,
+	const css_source& source)
 {
-	property_value deferred(value, important, true);
-	deferred.diagnostic_origin = std::move(origin);
-	if (name == _gap_)
-	{
-		// Expand the pending shorthand in place so each axis cascades independently.
-		deferred.pending_gap_shorthand = true;
-		add_parsed_property(_row_gap_, deferred);
-		add_parsed_property(_column_gap_, deferred);
-	}
+	property_value deferred(invalid{}, important);
+	deferred.deferred = std::make_shared<property_value::deferred_declaration>(property_value::deferred_declaration{ name, value, baseurl, source });
+	const auto longhands = shorthands.find(name);
+	if (longhands != shorthands.end())
+		for (const auto longhand : longhands->second) add_parsed_property(longhand, deferred);
 	else
-	{
 		add_parsed_property(name, deferred);
-	}
 }
 
-void style::add_gap_property(string_id name, const css_token_vector& value, bool important, bool pending_shorthand)
+void style::add_gap_property(string_id name, const css_token_vector& value, bool important)
 {
-	const bool shorthand = name == _gap_ || pending_shorthand;
+	const bool shorthand = name == _gap_;
 	if (value.empty() || value.size() > (shorthand ? 2 : 1)) return;
 
 	const string keyword = value.size() == 1 ? value.front().ident() : string();
@@ -333,7 +566,7 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
 	else
 	{
 		const auto parse_length = [](const css_token& token, css_length& gap) {
-			return gap.from_token(token, f_length_percentage | f_positive, "normal") &&
+			return gap.from_token(token, f_length_percentage | f_positive | f_math, "normal") &&
 				(gap.is_predefined() || std::isfinite(gap.val()));
 		};
 		css_length row_length;
@@ -358,28 +591,110 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
 			remember_diagnostic(diagnostic);
 	}
 """)
-        insert_before("\t\treturn it->second;\n\t}\n\tstatic property_value dummy;", """\
+        replace_once("\tauto it = m_properties.find(name);\n\tif (it != m_properties.end())\n\t{\n\t\treturn it->second;\n\t}", """\
+	const auto computed = computed_declarations.find(name);
+	const auto specified = m_properties.find(name);
+	const auto* value = computed != computed_declarations.end() ? &computed->second :
+		(specified != m_properties.end() ? &specified->second : nullptr);
+	if (value)
+	{
 		// Author rules share one unlayered cascade. Roll back to default styles or inheritance.
-		if (name == _font_family_ && it->second.is<string>())
+		if (name == _font_family_ && value->is<string>())
 		{
 			static const property_value inherited{ inherit(), false };
 			return default_font_family ? *default_font_family : inherited;
 		}
-""")
-        replace_once('\t\t\tadd_property(prop.first, value, "", prop.second.m_important, el->get_document()->container());', """
-			auto* container = el->get_document()->container();
-			const auto origin = prop.second.diagnostic_origin;
-			const bool pending_gap = prop.second.pending_gap_shorthand;
-			if (origin)
+		return *value;
+	}""")
+        start = text.index("// var( <custom-property-name>")
+        text = text[:start] + """\
+const css_token_vector* style::get_custom_property(string_id name, bool& local) const
+{
+	const auto it = computed_variables.find(name);
+	local = it != computed_variables.end();
+	return local && it->second ? &*it->second : nullptr;
+}
+
+void style::subst_vars(const html_tag* el)
+{
+	computed_declarations.clear();
+	css_custom_properties custom_properties;
+	bool has_deferred = false;
+	for (const auto& [name, property] : m_properties)
+	{
+		has_deferred |= bool(property.deferred);
+		if (_s(name).compare(0, 2, "--") != 0) continue;
+		if (property.is<css_token_vector>())
+			custom_properties.emplace(name, &property.get<css_token_vector>());
+		else if (!property.is<inherit>())
+			custom_properties.emplace(name, nullptr);
+	}
+	if (custom_properties.empty() && !has_deferred)
+	{
+		computed_variables.clear();
+		return;
+	}
+	const auto parent = el->parent();
+	css_variable_resolver resolver(dynamic_cast<const html_tag*>(parent.get()), custom_properties);
+	auto* container = el->get_document()->container();
+	std::map<const property_value::deferred_declaration*, props_map> parsed_declarations;
+	for (const auto& [name, property] : m_properties)
+	{
+		if (!property.deferred) continue;
+		const auto& declaration = *property.deferred;
+		auto [entry, inserted] = parsed_declarations.try_emplace(&declaration);
+		if (inserted)
+		{
+			style parsed;
+			css_declaration_result result;
+			parsed.declaration_result = &result;
+			if (const auto value = resolver.substitute(declaration.tokens))
 			{
-				add_checked_property(prop.first, value, "", prop.second.m_important, container, origin->source, &origin->value, pending_gap, el);
+				const auto keyword = value->size() == 1 ? value->front().ident() : string();
+				if (keyword == "initial" || keyword == "unset")
+				{
+					result.accepted = true;
+					if (keyword == "initial")
+					{
+						const auto longhands = shorthands.find(declaration.name);
+						if (longhands != shorthands.end())
+							for (const auto longhand : longhands->second) parsed.m_properties[longhand] = property_value(initial_value{}, property.m_important);
+						else
+							parsed.m_properties[declaration.name] = property_value(initial_value{}, property.m_important);
+					}
+				}
+				else
+					parsed.add_property(declaration.name, *value, declaration.baseurl, property.m_important, container);
 			}
-			else if (pending_gap)
-				add_gap_property(prop.first, value, prop.second.m_important, true);
-			else
-				add_property(prop.first, value, "", prop.second.m_important, container);""")
-        replace_once("\t\treturn add_parsed_property(name, property_value(value, important, true));", """
-		return add_deferred_property(name, value, important);
+			entry->second = std::move(parsed.m_properties);
+			if (declaration.source.kind != css_source_kind::none && (!result.accepted || !result.drawing_values.empty()))
+			{
+				const auto kind = result.accepted ? css_diagnostic_kind::not_rendered : css_diagnostic_kind::unsupported_value;
+				container->report_css_diagnostic({ kind, _s(declaration.name), get_repr(declaration.tokens, 0, -1, true),
+					declaration.source, std::move(result.drawing_values) }, el);
+			}
+		}
+		if (const auto it = entry->second.find(name); it != entry->second.end())
+			computed_declarations.emplace(name, it->second);
+	}
+	computed_variables = resolver.take_computed();
+}
+
+} // namespace litehtml
+"""
+        replace_once("\tif (has_var(value))\n\t\treturn add_parsed_property(name, property_value(value, important, true));", """\
+	const auto variables = inspect_css_variables(value);
+	if (variables == css_variable_syntax::invalid) return;
+	if (_s(name).compare(0, 2, "--") == 0 && _s(name).size() > 2)
+	{
+		const auto keyword = value.size() == 1 ? value.front().ident() : string();
+		if (is_one_of(keyword, "inherit", "unset", "revert", "revert-layer")) return inherit_property(name, important);
+		if (keyword == "initial") return add_parsed_property(name, property_value(invalid{}, important));
+		if (value.empty() || is_declaration_value(value)) add_parsed_property(name, property_value(value, important));
+		return;
+	}
+	if (variables == css_variable_syntax::valid)
+		return add_deferred_property(name, value, baseurl, important);
 	if (is_one_of(name, _gap_, _row_gap_, _column_gap_))
 		return add_gap_property(name, value, important);""")
         start = text.index("void style::parse_text_decoration(")
@@ -425,6 +740,26 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
 """)
     elif path.name == "html_tag.cpp":
         replace_once('m_style.add(style, "", doc->container());', 'm_style.add(style, "", doc->container(), this);')
+        start = text.index("bool html_tag::get_custom_property(")
+        end = text.index("void litehtml::html_tag::compute_styles", start)
+        text = text[:start] + """\
+bool html_tag::get_custom_property(string_id name, css_token_vector& result) const
+{
+	for (auto tag = this; tag;)
+	{
+		bool local = false;
+		if (const auto* value = tag->m_style.get_custom_property(name, local))
+		{
+			result = *value;
+			return true;
+		}
+		if (local) return false;
+		tag = dynamic_cast<const html_tag*>(tag->parent().get());
+	}
+	return false;
+}
+
+""" + text[end:]
         insert_before("\n\tm_css.compute(this, doc);", """
 	if (const auto* diagnostics = m_style.get_diagnostics())
 	{
@@ -470,6 +805,12 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
         replace_once('->draw_text(hdc, m_use_transformed', '->draw_styled_text(hdc, m_use_transformed')
         replace_once('color, pos);', 'color, pos, *el_parent);')
     elif path.name == "css_properties.h":
+        insert_before('#include "background.h"', '#include "formats/html/litehtml_grid_tracks.h"\n')
+        insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
+		const grid_track_list& get_grid_template_columns() const { return m_grid_template_columns; }
+		const grid_track_list& get_grid_template_rows() const { return m_grid_template_rows; }
+""")
+        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", "\t\tgrid_track_list m_grid_template_columns, m_grid_template_rows;\n")
         insert_before('#include "background.h"', '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before('#include "background.h"', '#include "formats/html/litehtml_css.h"\n')
         replace_once("string\t\t\t\t\tm_font_family;", "css_font_families\t\tm_font_families;")
@@ -481,6 +822,37 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
         insert_before("\t\tconst string& get_cursor()", "\t\tconst std::vector<box_shadow>& get_text_shadows() const { return m_text_shadows; }\n\n")
         insert_before("\t\telement_position\t\tm_el_position;", "\t\tstd::vector<box_shadow> m_text_shadows;\n")
     elif path.name == "css_properties.cpp":
+        insert_before("\tcompute_flex(el, doc);", """\
+	m_grid_template_columns = el->get_property(_grid_template_columns_, false, grid_track_list(), offset(m_grid_template_columns));
+	m_grid_template_rows = el->get_property(_grid_template_rows_, false, grid_track_list(), offset(m_grid_template_rows));
+	for (auto* tracks : {&m_grid_template_columns, &m_grid_template_rows})
+		for (auto& track : *tracks)
+			for (auto* breadth : {&track.minimum, &track.maximum})
+				if (breadth->kind == grid_breadth_kind::length) doc->cvt_units(breadth->length, m_font_metrics, 0);
+
+	if (const auto p = el->parent(); p && p->css().get_display() == display_grid && el->in_normal_flow())
+	{
+		m_float = float_none;
+		m_clear = clear_none;
+		switch (m_display)
+		{
+			case display_inline_table: m_display = display_table; break;
+			case display_inline_flex: m_display = display_flex; break;
+			case display_inline:
+			case display_inline_block:
+			case display_table_caption:
+			case display_table_cell:
+			case display_table_row:
+			case display_table_column:
+			case display_table_column_group:
+			case display_table_row_group:
+			case display_table_header_group:
+			case display_table_footer_group: m_display = display_block; break;
+			default: break;
+		}
+	}
+
+""")
         replace_once("m_font_family\t\t=              el->get_property<string>(    _font_family_,\t\ttrue, doc->container()->get_default_font_name(),\toffset(m_font_family));",
                      "m_font_families = el->get_property(_font_family_, true, css_font_families(), offset(m_font_families));")
         replace_once("descr.family \t\t\t\t= m_font_family;", "descr.families\t\t\t\t= m_font_families;")
@@ -573,6 +945,33 @@ void style::add_gap_property(string_id name, const css_token_vector& value, bool
         replace_once("\t\t_render_content(x, y, true, self_size.new_width(m_pos.width), fmt_ctx);", """\
 		// new_width() takes the CSS width, while m_pos.width is already the content width.
 		_render_content(x, y, true, self_size.new_width(m_pos.width + self_size.width - self_size.render_width), fmt_ctx);""")
+        replace_once("if(!(containing_block_size.size_mode & containing_block_context::size_mode_content))",
+                     "if (!(containing_block_size.size_mode & containing_block_context::size_mode_content) ||\n"
+                     "\t\t((containing_block_size.size_mode & containing_block_context::size_mode_grid_measure_width) &&\n"
+                     "\t\t self_size.width.type == containing_block_context::cbc_value_type_absolute))")
+        insert_before("\t// Fix height with min-height attribute", """\
+	if (is_grid_item() && self_size.min_height.type != containing_block_context::cbc_value_type_none &&
+		self_size.max_height.type != containing_block_context::cbc_value_type_none)
+		self_size.max_height.value = std::max(self_size.max_height.value, self_size.min_height.value);
+
+""")
+    elif path.name == "render_image.cpp":
+        insert_before('#include "render_image.h"', '#include "formats/html/litehtml_render_grid.h"\n')
+        replace_once("    calc_outlines(parent_width);\n\n", "")
+        anchor = "    src_el()->get_content_size(sz, containing_block_size.width);\n"
+        replace_once(anchor, anchor + """\
+
+	if (is_grid_item())
+	{
+		const auto used = size_grid_image(*this, self_size, sz);
+		m_pos.width = used.width;
+		m_pos.height = used.height;
+		m_pos.move_to(x + content_offset_left(), y + content_offset_top());
+		src_el()->css_w().line_height_w().computed_value = height();
+		return {width(), width()};
+	}
+
+""")
     elif path.name in ("render_flex.h", "render_flex.cpp"):
         if path.name == "render_flex.h":
             replace_once("pixel_t container_main_size, bool single_line);",
@@ -689,8 +1088,9 @@ for header in Glob(f"{litehtml}/include/*.h") + Glob(f"{litehtml}/include/liteht
     if header_path.stem in ("document", "element", "html_tag"):
         staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
                                           header, expose_litehtml_editing)
-    elif header_path.stem in ("style", "string_id", "types", "document_container", "css_properties", "font_description",
-                              "render_flex", "flex_line"):
+    elif header_path.stem in ("style", "string_id", "types", "css_length", "css_tokenizer", "document_container",
+                              "css_properties", "font_description",
+                              "render_flex", "render_item", "flex_line"):
         staged_headers += html_env.Command(f"{litehtml_headers}/{relative_path.as_posix()}",
                                           header, stage_litehtml_extensions)
     else:
@@ -719,7 +1119,9 @@ for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp"
     for source in library_sources:
         source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
         if source_path.as_posix() in ("src/style", "src/html_tag", "src/css_properties", "src/el_text",
-                                      "src/render_block", "src/render_flex", "src/flex_line"):
+                                      "src/css_parser", "src/css_length", "src/document", "src/element",
+                                      "src/render_block", "src/render_flex", "src/render_image", "src/render_item",
+                                      "src/flex_item", "src/flex_line"):
             source = html_env.Command(f"src/gen/html/{source_path.as_posix()}.cpp",
                                       source, stage_litehtml_extensions)[0]
         objects = build_object(f"src/gen/html/{source_path.as_posix()}{env['OBJSUFFIX']}", source)

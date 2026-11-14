@@ -40,11 +40,6 @@ namespace litehtml {
 		std::vector<std::pair<string_id, int>> drawing_values;
 	};
 
-	struct css_declaration_origin {
-		css_source source;
-		string value;
-	};
-
 	struct css_declaration_result {
 		bool accepted = false;
 		std::vector<std::pair<string_id, int>> drawing_values;
