@@ -65,7 +65,7 @@
 		<method name="get_client_rects" qualifiers="const">
 			<return type="Rect2[]" />
 			<description>
-				Returns the element's border-box fragments in document pixel coordinates, before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box.
+				Returns the axis-aligned bounds of the element's border-box fragments in document pixel coordinates after CSS transforms and before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box.
 			</description>
 		</method>
 		<method name="get_css_diagnostics" qualifiers="const">

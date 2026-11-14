@@ -2,6 +2,7 @@
 #define DOCRENDER_LITEHTML_CONTAINER_H
 
 #include "html_layout.h"
+#include "layout/html_geometry.h"
 
 #include <godot_cpp/classes/text_line.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
@@ -26,26 +27,11 @@ namespace godot {
 
 namespace docrender {
 	class LiteHTMLContainer final : public litehtml::document_container {
-		struct RoundedRect {
-			godot::Rect2 rect;
-			godot::Vector4 radii_x;
-			godot::Vector4 radii_y;
-
-			RoundedRect(const godot::Rect2& p_rect, const litehtml::border_radiuses& p_radii);
-			
-			RoundedRect inset(const godot::Rect2& p_rect) const;					// 返回内缩到指定矩形并相应缩小圆角后的形状
-			RoundedRect spread(godot::real_t p_distance) const;						// 按阴影扩张距离调整边界和圆角
-			bool has_radius() const;												// 检查是否存在有效的圆角
-			bool has_point(const godot::Vector2& p_position) const;					// 检查指定坐标是否在圆角矩形内
-		};
-
 		struct Clip {
 			godot::Rect2 bounds;
 			RoundedRect shape;
-			godot::Ref<godot::ShaderMaterial> material;
+			godot::Transform2D matrix;
 		};
-
-		static RoundedRect get_overflow_clip(litehtml::render_item& p_item);
 
 		struct Fill {
 			godot::Rect2 rect;
@@ -58,6 +44,7 @@ namespace docrender {
 			godot::Color color;
 			int64_t offset = -1;
 			int64_t length = 0;
+			const litehtml::render_item* renderer = nullptr;
 		};
 
 		struct TextRun {
@@ -66,6 +53,9 @@ namespace docrender {
 			godot::Rect2 visible_rect;
 			int64_t offset;
 			int64_t length;
+			godot::Transform2D matrix;
+			godot::Transform2D inverse;
+			std::vector<TransformedClip> clips;
 		};
 
 		struct Image {
@@ -94,6 +84,8 @@ namespace docrender {
 
 		struct PaintRun {
 			std::optional<godot::Rect2> clip;
+			godot::Transform2D matrix;
+			std::vector<TransformedClip> clips;
 			godot::Ref<godot::ShaderMaterial> material;
 			std::vector<Command> commands;
 
@@ -118,9 +110,11 @@ namespace docrender {
 		void set_viewport(const godot::Vector2i& p_size);							// 更新排版和媒体查询使用的视口尺寸
 		void record(
 			litehtml::document& p_document,
-			const godot::Vector2i& p_content_size
+			const godot::Vector2i& p_content_size,
+			const HTMLGeometryIndex& p_geometry
 		);																			// 记录已排版文档的绘制命令并建立可选择文本的索引
 		const std::vector<PaintRun>& get_paint_runs() const;						// 返回最近一次记录生成的绘制批次
+		std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_point) const;
 		const godot::String& get_plain_text() const;								// 返回从排版结果提取的纯文本
 		const litehtml::string_map* get_source_attributes(
 			const litehtml::element& p_element
@@ -143,7 +137,7 @@ namespace docrender {
 			int64_t p_index
 		) const;
 		void record_css_diagnostic(
-			const litehtml::render_item& p_item,
+			const RenderGeometry& p_geometry,
 			const godot::Rect2& p_box
 		);
 		const std::vector<PaintRun>& get_diagnostic_runs() const {
@@ -154,15 +148,6 @@ namespace docrender {
 			int64_t p_from,
 			int64_t p_to
 		) const;																	// 返回指定文本范围的可见选区矩形
-		static bool is_hit_visible(
-			const litehtml::render_item& p_item,
-			const godot::Vector2& p_position
-		);																			// 判断文档坐标是否通过元素及祖先的裁剪
-		static bool has_visible_area(
-			const litehtml::render_item& p_item,
-			const godot::Rect2& p_box
-		);																			// 检查指定矩形经过元素及祖先裁剪后是否仍有可见面积
-
 	private:
 		struct FontData {
 			godot::Ref<godot::Font> font;
@@ -200,9 +185,15 @@ namespace docrender {
 		std::vector<PaintRun> paint_runs;
 		std::vector<PaintRun> diagnostic_runs;
 		std::vector<Clip> clips;
+		godot::Ref<godot::ShaderMaterial> clip_material;
+		godot::Transform2D clip_material_matrix;
+		const HTMLGeometryIndex* recording_geometry = nullptr;
+		const RenderGeometry* active_geometry = nullptr;
+		std::vector<const RenderGeometry*> painted_elements;
 		godot::String plain_text;
 		std::vector<TextRun> text_runs;
 		godot::HashMap<godot::Vector2, std::vector<Text*>> painted_text;
+		godot::HashMap<const litehtml::render_item*, std::vector<Text*>> painted_text_by_renderer;
 
 		void index_text(const litehtml::element::ptr& p_element, godot::String& r_separator);
 
@@ -246,6 +237,11 @@ namespace docrender {
 			const litehtml::position& p_position, bool) override;
 		void transform_text(litehtml::string& r_text, litehtml::text_transform p_transform) override;
 		void set_clip(const litehtml::position& p_position, const litehtml::border_radiuses&) override;
+		void set_render_item_clip(const litehtml::position& p_position, const litehtml::border_radiuses& p_radii,
+			const litehtml::render_item& p_item) override;
+		bool begin_render_item(const litehtml::render_item& p_item, const litehtml::position*& r_clip) override;
+		void end_render_item() override;
+		void push_clip(const RoundedRect& p_shape, const godot::Transform2D& p_matrix);
 		void del_clip() override;
 		void get_viewport(litehtml::position& r_viewport) const override;
 		void get_media_features(litehtml::media_features& r_media) const override;

@@ -18,7 +18,8 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 | Area | Support |
 | --- | --- |
 | Layout | Block and inline layout, lists, tables, Flexbox, block Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Sticky positioning is unsupported. |
-| Grid tracks | `grid-template-columns` and `grid-template-rows` accept `none`, lengths, percentages, `auto`, `fr`, and `minmax()`. Grid places one item per cell in row order, sorted by `order`. See the Grid section below. |
+| 2D transforms | `transform` accepts `none` and lists of `translate()`, `translateX()`, `translateY()`, `rotate()`, `scale()`, `scaleX()`, and `scaleY()`. `transform-origin` supports one or two position components. See the 2D transforms section below. |
+| Grid | `grid-template-columns` and `grid-template-rows` accept `none`, lengths, percentages, `auto`, `fr`, `minmax()`, and `repeat()` with a fixed count, `auto-fill`, or `auto-fit`. Grid items support numeric line placement and row or column spans. |
 | Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
 | Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. `calc()`, `min()`, `max()`, and `clamp()` support the layout properties listed below. |
 | Colors | Named and hex colors, `rgb()` and `hsl()` variants, and `currentColor` where applicable. `oklch()` and `color-mix()` are unsupported. |
@@ -41,20 +42,46 @@ Custom property names are case-sensitive. Values resolve before inheritance. `va
 
 Length expressions are supported in `width`, `height`, their `min-` and `max-` variants, `margin`, `padding`, `top`, `right`, `bottom`, `left`, `flex-basis`, Flexbox and Grid gaps, and length entries in Grid track lists. Addition and subtraction require spaces around the operator. Multiplication takes a number on at least one side, and division takes a numeric divisor. Percentages use the basis supplied by each layout property. [CSS Values and Units](https://www.w3.org/TR/css-values-4/#math)
 
+## 2D transforms
+
+```css
+.card {
+  transform-origin: left top;
+  transform: translate(10%, 12px) rotate(8deg) scale(1.1);
+}
+```
+
+Translation and origin offsets accept lengths, percentages, and length expressions. Percentages use the border-box width or height. The default origin is the center of that box. Rotation accepts `deg`, `grad`, `rad`, `turn`, and unitless zero. Scale accepts finite factors, including negative factors. A singular transform such as `scale(0)` hides the subtree while preserving its place in the flow.
+
+Transforms affect painting, element rectangles, links, selection, and scrollable overflow. Non-replaced inline boxes and table columns or column groups can inherit an ancestor's transform as part of its subtree. Use an inline-block for a transform on an inline element itself. In Markdown, downward overflow expands the HTML block and the column bounds clip horizontal overflow. Skew, 3D transforms, `transform-box`, standalone transform properties, and animation are outside the supported set. [CSS Transforms Level 1](https://www.w3.org/TR/css-transforms-1/)
+
 ## Grid
 
 ```css
 .cards {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   grid-template-rows: auto;
   gap: 12px 16px;
 }
+
+.cards .featured {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
 ```
 
-Empty explicit tracks are kept. With no explicit columns, the first item creates an implicit `auto` column. Additional rows size automatically. Consecutive direct text forms an anonymous item. Whitespace-only runs and out-of-flow children take no cells. `minmax()` accepts non-negative lengths, percentages, and `auto` on either side, with fractions also accepted as the maximum. [CSS Grid track sizing](https://www.w3.org/TR/css-grid-2/#track-sizes)
+Use a positive integer in `repeat()` to repeat one or more track sizes. For example, `repeat(2, 80px minmax(0, 1fr))` creates four tracks. An axis can declare up to 10,000 explicit tracks. Implicit tracks use `auto`. `minmax()` accepts non-negative lengths, percentages, and `auto` on either side, with fractions also accepted as the maximum. [CSS Grid track sizing](https://www.w3.org/TR/css-grid-2/#track-sizes)
 
-`row-gap`, `column-gap`, and the `gap` shorthand add spacing between tracks. `normal` resolves to zero. Percentage tracks use `auto` and the percentage portion of a gap resolves against zero during intrinsic sizing. Final layout resolves percentages against the content box. `repeat()`, explicit placement, spans, named lines and areas, `subgrid`, `inline-grid`, and Grid alignment properties are unsupported. [CSS percentage gaps](https://www.w3.org/TR/css-gaps-1/#gap-percent)
+Each axis accepts one `repeat(auto-fill, …)` or `repeat(auto-fit, …)`. Every track in a template containing an automatic repeat needs a length or percentage as at least one of its sizing bounds. Each layout pass counts repetitions using the container's content box and gaps. With only a definite minimum size, it rounds the count up to meet that minimum. Without a definite size constraint, it repeats once. [CSS Grid automatic repetition](https://www.w3.org/TR/css-grid-2/#auto-repeat)
+
+`auto-fill` keeps every repeated track. `auto-fit` collapses repeated tracks that no in-flow item occupies or spans. The remaining tracks have one gap between them, and the grid retains its original line numbers after collapse. [CSS Grid gutters](https://www.w3.org/TR/css-grid-2/#gutters)
+
+`grid-row`, `grid-column`, and their `-start` and `-end` longhands accept nonzero integer line numbers, `span N`, and `auto`. Positive line numbers count from the start of the explicit grid. Negative line numbers count back from its end, so `grid-column: 1 / -1` spans the explicit grid even when implicit columns exist. Placement coordinates are limited to 10,000 tracks on each side of the explicit origin. An area entirely beyond the limit uses the nearest edge track. [CSS Grid placement](https://www.w3.org/TR/css-grid-2/#placement) · [Large grid limits](https://www.w3.org/TR/css-grid-2/#overlarge-grids)
+
+Explicit areas may overlap. Automatic placement fills rows in `order` and document order, skips occupied areas, and leaves gaps behind its cursor. Consecutive direct text forms an anonymous item. Whitespace-only runs and out-of-flow children take no cells. A numeric `z-index` establishes a stacking context on a Grid item, including one with `position: static`. [CSS Grid auto-placement](https://www.w3.org/TR/css-grid-2/#auto-placement-algo) · [CSS Grid painting order](https://www.w3.org/TR/css-grid-2/#z-order)
+
+`row-gap`, `column-gap`, and the `gap` shorthand add spacing between tracks, including between tracks in a spanning item's area. `normal` resolves to zero. Percentage tracks use `auto` and the percentage portion of a gap resolves against zero during intrinsic sizing. Final layout resolves percentages against the content box. Named lines and areas, `grid-area`, dense or column auto-placement, `subgrid`, `inline-grid`, and Grid alignment properties are outside the supported set. [CSS percentage gaps](https://www.w3.org/TR/css-gaps-1/#gap-percent)
 
 ## Font families
 
@@ -76,7 +103,7 @@ The editor's HTML source preview outlines visible elements with CSS declaration 
 | Kind | Example |
 | --- | --- |
 | `unknown_property` | `grid-template-areas: "header header"` |
-| `unsupported_value` | `grid-template-columns: repeat(2, 1fr)` |
+| `unsupported_value` | `grid-template-columns: repeat(auto-fit, 1fr)` |
 | `not_rendered` | `border-top-style: groove` |
 
 Diagnostics cover declarations reached by litehtml's parser. For a declaration using `var()`, the value is checked when litehtml resolves it on an element. Selector and at-rule support is listed above. Use `get_render_error()` for parse and layout failures.

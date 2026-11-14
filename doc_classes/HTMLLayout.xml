@@ -9,6 +9,7 @@
 		Text uses the project theme's default font or Godot's fallback font. Run the renderer on the main thread.
 		[code]box-shadow[/code] supports offsets, blur, spread, and comma-separated layers. Use [code]inset[/code] for an inner shadow. Shadows follow [code]border-radius[/code] and leave layout and scroll ranges unaffected.
 		[code]text-shadow[/code] supports horizontal and vertical offsets, optional blur and color, and comma-separated layers. The first layer is drawn closest to the text. Use [code]none[/code] to clear inherited text shadows.
+		CSS [code]transform[/code] supports 2D translation, rotation, and scaling. [code]transform-origin[/code] sets their pivot in the element's border box. Drawing, element and link hit tests, and text selection follow the transformed boxes.
 	</description>
 	<tutorials>
 		<link title="CSS support reference">https://github.com/LuYingYiLong/godot-docrender/blob/main/addons/docrender/docs/html_css_support.md</link>
@@ -41,13 +42,13 @@
 			<return type="Rect2" />
 			<param index="0" name="id" type="String" />
 			<description>
-				Returns the bounds of the first laid-out element with the given case-sensitive HTML [code]id[/code], in document coordinates. Pass the ID without [code]#[/code]. Returns an empty rectangle if the element has no layout or the ID is absent.
+				Returns the visual bounds of the first laid-out element with the given case-sensitive HTML [code]id[/code], in document coordinates. Pass the ID without [code]#[/code]. Returns an empty rectangle if the element has no layout or the ID is absent.
 			</description>
 		</method>
 		<method name="get_content_size" qualifiers="const">
 			<return type="Vector2i" />
 			<description>
-				Returns the content size in pixels from the most recent successful layout of the current document. Returns [constant Vector2i.ZERO] before layout and for an empty document.
+				Returns the content size in pixels from the most recent successful layout of the current document, including scrollable overflow from CSS transforms. Returns [constant Vector2i.ZERO] before layout and for an empty document.
 			</description>
 		</method>
 		<method name="get_element_at" qualifiers="const">
@@ -95,7 +96,7 @@
 			<param index="0" name="from" type="int" />
 			<param index="1" name="to" type="int" />
 			<description>
-				Returns highlight rectangles in document coordinates for the character range from [param from] up to [param to]. Offsets refer to [method get_plain_text] and are clamped to its length. Rectangles are clipped to the HTML layout's visible regions.
+				Returns axis-aligned bounds in document coordinates for the visible highlights of the character range from [param from] up to [param to]. These bounds account for CSS transforms and overflow clipping. Offsets refer to [method get_plain_text] and are clamped to its length.
 			</description>
 		</method>
 		<method name="hit_test_text" qualifiers="const">

@@ -1,6 +1,7 @@
 #include "html_layout.h"
 
 #include "html_markup.h"
+#include "layout/html_geometry.h"
 #include "litehtml_container.h"
 #include "litehtml_document_adapter.h"
 
@@ -23,7 +24,9 @@
 #include <unordered_set>
 
 using namespace godot;
+using docrender::HTMLGeometryIndex;
 using docrender::LiteHTMLContainer;
+using docrender::translate_rect;
 using DocumentAdapter = litehtml::docrender_editor;
 
 namespace {
@@ -55,9 +58,6 @@ namespace {
 			return item;
 		}
 	};
-
-	using RenderItems = std::vector<std::shared_ptr<litehtml::render_item>>;
-	using RenderIndex = HashMap<const litehtml::element*, RenderItems>;
 
 	bool is_valid_tag_name(std::string_view p_name) {
 		const auto is_letter = [](unsigned char p_byte) {
@@ -152,45 +152,28 @@ namespace {
 		return false;
 	}
 
-	void index_render_items(const std::shared_ptr<litehtml::render_item>& p_item, RenderIndex& r_items) {
-		if (p_item->css().get_display() != litehtml::display_inline_text) {
-			r_items[p_item->src_el().get()].emplace_back(p_item);
-		}
-		for (const auto& child : p_item->children()) {
-			index_render_items(child, r_items);
-		}
-	}
-
-	template <typename Visitor>
-	void visit_boxes(const litehtml::render_item& p_item, bool p_use_placement, const Visitor& p_visit) {
-		litehtml::position::vector boxes;
-		p_item.get_rendering_boxes(boxes);
-		if (boxes.empty() && p_use_placement) {
-			boxes.push_back(p_item.get_placement());
-		}
-		for (const auto& box : boxes) {
-			const Rect2 rect(box.x, box.y, box.width, box.height);
-			if (rect.is_finite() && rect.size.x >= 0 && rect.size.y >= 0) {
-				p_visit(rect);
-			}
-		}
-	}
-
-	void collect_anchors(const litehtml::element& p_element, const RenderIndex& p_items, HashMap<String, Rect2>& r_anchors) {
+	void collect_anchors(const litehtml::element& p_element, const HTMLGeometryIndex& p_geometry, HashMap<String, Rect2>& r_anchors) {
 		if (p_element.css().get_display() == litehtml::display_none) {
 			return;
 		}
 		const char* id = p_element.get_attr("id");
 		if (id && *id) {
 			const String name = String::utf8(id);
-			const auto* renderers = p_items.getptr(&p_element);
+			const auto* renderers = p_geometry.find_element(&p_element);
 			if (renderers && !r_anchors.has(name)) {
 				std::optional<Rect2> bounds;
-				for (const auto& item : *renderers) {
-					if (item->is_visible()) {
-						visit_boxes(*item, true, [&](const Rect2& rect) {
-							bounds = bounds ? bounds->merge(rect) : rect;
-						});
+				const auto include = [&](const Rect2& p_rect) {
+					bounds = bounds ? bounds->merge(p_rect) : p_rect;
+				};
+				for (const auto* renderer : *renderers) {
+					if (!renderer->item->is_visible() || !renderer->inverse) {
+						continue;
+					}
+					for (const Rect2& box : renderer->visual_boxes) {
+						include(box);
+					}
+					if (renderer->anchor_fallback) {
+						include(*renderer->anchor_fallback);
 					}
 				}
 				if (bounds) {
@@ -199,7 +182,7 @@ namespace {
 			}
 		}
 		for (const auto& child : p_element.children()) {
-			collect_anchors(*child, p_items, r_anchors);
+			collect_anchors(*child, p_geometry, r_anchors);
 		}
 	}
 
@@ -269,7 +252,7 @@ struct HTMLLayout::State {
 	litehtml::document::ptr document;
 	HashMap<uint64_t, CanvasDrawing> drawings;
 	uint64_t next_redraw_id = 0;
-	RenderIndex render_items;
+	HTMLGeometryIndex geometry;
 	HashMap<const litehtml::element*, ObjectID> element_handles;
 	HashMap<const litehtml::element*, std::weak_ptr<HTMLElement::DetachedTree>> detached_trees;
 	HashMap<String, Rect2> anchors;
@@ -410,7 +393,7 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 		}
 		catch (const std::exception& p_error) {
 			state->anchors.clear();
-			state->render_items.clear();
+			state->geometry.clear();
 			state->error = "Could not lay out HTML. " + String::utf8(p_error.what());
 			return ERR_INVALID_DATA;
 		}
@@ -423,7 +406,7 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
 	using Update = State::Update;
 	state->anchors.clear();
-	state->render_items.clear();
+	state->geometry.clear();
 	state->container->set_viewport(p_viewport_size);
 	const auto& document = state->document;
 	if (state->pending_update == Update::STYLE || DocumentAdapter::media_changed(*document)) {
@@ -437,19 +420,20 @@ Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
 		document->root()->compute_styles();
 	}
 	document->render(p_viewport_size.x);
-	const double width = std::ceil(document->width());
-	const double height = std::ceil(document->height());
+	state->geometry.rebuild(document->root_render());
+	const Vector2 original_size(document->width(), document->height());
+	const Vector2 overflow = state->geometry.has_transforms() ? state->geometry.extend_overflow(original_size) : original_size;
+	const double width = std::ceil(overflow.x);
+	const double height = std::ceil(overflow.y);
 	constexpr double MAX_SIZE = std::numeric_limits<int32_t>::max();
 	if (!std::isfinite(width) || !std::isfinite(height) || width > MAX_SIZE || height > MAX_SIZE) {
+		state->geometry.clear();
 		state->error = "The HTML content size is outside the supported range.";
 		return ERR_INVALID_DATA;
 	}
 	const Vector2i size(static_cast<int32_t>(std::max(0.0, width)), static_cast<int32_t>(std::max(0.0, height)));
-	if (const auto root = document->root_render()) {
-		index_render_items(root, state->render_items);
-	}
-	collect_anchors(*document->root(), state->render_items, state->anchors);
-	state->container->record(*document, size);
+	collect_anchors(*document->root(), state->geometry, state->anchors);
+	state->container->record(*document, size, state->geometry);
 	record_css_diagnostics();
 	state->content_size = size;
 	return OK;
@@ -523,10 +507,11 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 	RID target;
 	std::optional<Rect2> previous_clip;
 	Ref<ShaderMaterial> previous_material;
+	Transform2D previous_matrix;
 	const auto submit_run = [&](const LiteHTMLContainer::PaintRun& run) {
 		std::optional<Rect2> clip;
 		if (run.clip) {
-			clip = Rect2(run.clip->position + p_position, run.clip->size);
+			clip = translate_rect(*run.clip, p_position);
 		}
 		if (p_clip != Rect2()) {
 			clip = clip ? clip->intersection(p_clip) : p_clip;
@@ -535,7 +520,7 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 			return;
 		}
 
-		if (!target.is_valid() || clip != previous_clip || run.material != previous_material) {
+		if (!target.is_valid() || clip != previous_clip || run.material != previous_material || run.matrix != previous_matrix) {
 			if (drawing->items.empty()) {
 				drawing->add_item(server, p_canvas.get_canvas_item(), -1);
 			}
@@ -552,13 +537,17 @@ void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_pos
 			}
 			if (run.material.is_valid()) {
 				server.canvas_item_set_material(target, run.material->get_rid());
-				server.canvas_item_set_transform(target, Transform2D(0.0, p_position));
 				drawing->materials.push_back(run.material);
+			}
+			if (run.material.is_valid() || run.matrix != Transform2D()) {
+				server.canvas_item_set_transform(target, Transform2D(0.0, p_position) * run.matrix);
 			}
 			previous_clip = clip;
 			previous_material = run.material;
+			previous_matrix = run.matrix;
 		}
-		run.draw(server, target, run.material.is_valid() ? Vector2() : p_position, text_server.ptr(), search, selection);
+		run.draw(server, target, run.material.is_valid() || run.matrix != Transform2D() ? Vector2() : p_position,
+			text_server.ptr(), search, selection);
 	};
 	for (const auto& run : runs) {
 		submit_run(run);
@@ -935,10 +924,12 @@ Ref<HTMLElement> HTMLLayout::get_element_by_id(const String& p_id) const {
 
 TypedArray<Rect2> HTMLLayout::get_element_rects(const litehtml::element::ptr& p_element) const {
 	TypedArray<Rect2> result;
-	if (const auto* items = state->render_items.getptr(p_element.get()); state->has_layout() && items) {
-		for (const auto& item : *items) {
-			if (!item->skip()) {
-				visit_boxes(*item, false, [&](const Rect2& p_rect) { result.append(p_rect); });
+	if (const auto* renderers = state->geometry.find_element(p_element.get()); state->has_layout() && renderers) {
+		for (const auto* renderer : *renderers) {
+			if (!renderer->item->skip()) {
+				for (const Rect2& box : renderer->visual_boxes) {
+					result.append(box);
+				}
 			}
 		}
 	}
@@ -962,16 +953,20 @@ litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) c
 	if (!root) {
 		return {};
 	}
+	if (state->geometry.has_transforms()) {
+		return state->container->hit_test_element(p_position);
+	}
+	const auto accepts_geometry = [&](const docrender::RenderGeometry* p_geometry) {
+		return p_geometry && p_geometry->item->is_visible() && p_geometry->contains_visible_point(p_position);
+	};
 	const auto accepts = [&](const std::shared_ptr<litehtml::render_item>& p_item) {
 		// Some litehtml fallback paths offer another fragment of the same element.
-		const auto* current = state->render_items.getptr(p_item->src_el().get());
-		return current && std::find(current->begin(), current->end(), p_item) != current->end() &&
-			p_item->is_visible() && LiteHTMLContainer::is_hit_visible(*p_item, p_position);
+		return accepts_geometry(state->geometry.find_renderer(p_item.get()));
 	};
 	struct SkippedItems {
-		RenderItems items;
+		std::vector<litehtml::render_item*> items;
 		~SkippedItems() {
-			for (const auto& item : items) {
+			for (auto* item : items) {
 				item->skip(false);
 			}
 		}
@@ -982,17 +977,18 @@ litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) c
 		if (!element) {
 			return {};
 		}
-		const auto* items = state->render_items.getptr(element.get());
-		if (!items) {
+		const auto* renderers = state->geometry.find_element(element.get());
+		if (!renderers) {
 			return {};
 		}
-		if (std::any_of(items->begin(), items->end(), accepts)) {
+		if (std::any_of(renderers->begin(), renderers->end(), accepts_geometry)) {
 			return element;
 		}
 
 		// litehtml's float fallback bypasses the filter. Exclude its rejected boxes and retry in the same order.
 		const size_t previous_size = skipped.items.size();
-		for (const auto& item : *items) {
+		for (const auto* renderer : *renderers) {
+			auto* item = renderer->item.get();
 			if (item->is_visible()) {
 				skipped.items.push_back(item);
 				item->skip(true);
@@ -1009,16 +1005,17 @@ std::optional<Rect2> HTMLLayout::get_element_scroll_bounds(const Ref<HTMLElement
 		return std::nullopt;
 	}
 	const auto element = p_element->element.lock();
-	const auto* items = state->render_items.getptr(element.get());
+	const auto* renderers = state->geometry.find_element(element.get());
 	std::optional<Rect2> bounds;
-	if (items) {
-		for (const auto& item : *items) {
-			if (item->is_visible()) {
-				visit_boxes(*item, false, [&](const Rect2& p_rect) {
-					if (LiteHTMLContainer::has_visible_area(*item, p_rect)) {
-						bounds = bounds ? bounds->merge(p_rect) : p_rect;
+	if (renderers) {
+		for (const auto* renderer : *renderers) {
+			if (renderer->item->is_visible()) {
+				for (const auto& fragment : renderer->fragments) {
+					if (renderer->has_visible_area(fragment.rect)) {
+						const Rect2 box = renderer->matrix.xform(fragment.rect);
+						bounds = bounds ? bounds->merge(box) : box;
 					}
-				});
+				}
 			}
 		}
 	}
@@ -1126,17 +1123,17 @@ void HTMLLayout::record_css_diagnostics() {
 		return;
 	}
 	visit_elements(state->document->root(), [&](const litehtml::element::ptr& p_element) {
-		const auto* items = state->render_items.getptr(p_element.get());
-		if (items && state->container->get_element_diagnostics(*p_element)) {
-			for (const auto& item : *items) {
-				if (!item->is_visible()) {
+		const auto* renderers = state->geometry.find_element(p_element.get());
+		if (renderers && state->container->get_element_diagnostics(*p_element)) {
+			for (const auto* renderer : *renderers) {
+				if (!renderer->item->is_visible()) {
 					continue;
 				}
-				visit_boxes(*item, false, [&](const Rect2& p_box) {
-					if (p_box.has_area()) {
-						state->container->record_css_diagnostic(*item, p_box);
+				for (const auto& fragment : renderer->fragments) {
+					if (fragment.rect.has_area()) {
+						state->container->record_css_diagnostic(*renderer, fragment.rect);
 					}
-				});
+				}
 			}
 		}
 		return false;
@@ -1178,7 +1175,7 @@ void HTMLLayout::clear() {
 	while (!state->drawings.is_empty()) {
 		_detach_canvas(state->drawings.begin()->key);
 	}
-	state->render_items.clear();
+	state->geometry.clear();
 	state->element_handles.clear();
 	for (const auto& entry : state->detached_trees) {
 		if (const auto tree = entry.value.lock()) {

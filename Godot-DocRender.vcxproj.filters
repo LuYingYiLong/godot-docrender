@@ -25,6 +25,12 @@
     <Filter Include="Header Files\formats\html">
       <UniqueIdentifier>{458d247b-1727-407d-8723-386218d28393}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\formats\html\layout">
+      <UniqueIdentifier>{a0c05941-511c-4ed6-a491-3e2053e775d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\formats\html\layout\grid">
+      <UniqueIdentifier>{a5956efc-2f3e-4e7c-aa2e-131ffd1b5f39}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Header Files\formats\markdown">
       <UniqueIdentifier>{6376da64-0698-50fe-92ed-a1f1170fef65}</UniqueIdentifier>
     </Filter>
@@ -54,6 +60,12 @@
     </Filter>
     <Filter Include="Source Files\formats\html">
       <UniqueIdentifier>{ce13e574-6124-4bc6-bca6-240a08c6d482}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\html\layout">
+      <UniqueIdentifier>{dfa2fd6c-bf30-4d13-822f-f500af8ed117}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\formats\html\layout\grid">
+      <UniqueIdentifier>{57503678-900d-474e-bc73-ba6ac0226794}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\formats\markdown">
       <UniqueIdentifier>{a9d832f5-0f7a-5022-a2f1-c40282ed6581}</UniqueIdentifier>
@@ -114,11 +126,20 @@
     <ClCompile Include="src\formats\html\litehtml_css_math.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
-    <ClCompile Include="src\formats\html\litehtml_grid_tracks.cpp">
+    <ClCompile Include="src\formats\html\litehtml_css_transform.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
-    <ClCompile Include="src\formats\html\litehtml_render_grid.cpp">
-      <Filter>Source Files\formats\html</Filter>
+    <ClCompile Include="src\formats\html\layout\html_geometry.cpp">
+      <Filter>Source Files\formats\html\layout</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\layout\grid\litehtml_grid_placement.cpp">
+      <Filter>Source Files\formats\html\layout\grid</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\layout\grid\litehtml_grid_tracks.cpp">
+      <Filter>Source Files\formats\html\layout\grid</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\layout\grid\litehtml_render_grid.cpp">
+      <Filter>Source Files\formats\html\layout\grid</Filter>
     </ClCompile>
     <ClCompile Include="src\formats\html\litehtml_css_variables.cpp">
       <Filter>Source Files\formats\html</Filter>
@@ -284,11 +305,20 @@
     <ClInclude Include="src\formats\html\litehtml_css_math.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
-    <ClInclude Include="src\formats\html\litehtml_grid_tracks.h">
+    <ClInclude Include="src\formats\html\litehtml_css_transform.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
-    <ClInclude Include="src\formats\html\litehtml_render_grid.h">
-      <Filter>Header Files\formats\html</Filter>
+    <ClInclude Include="src\formats\html\layout\html_geometry.h">
+      <Filter>Header Files\formats\html\layout</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\layout\grid\litehtml_grid_placement.h">
+      <Filter>Header Files\formats\html\layout\grid</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\layout\grid\litehtml_grid_tracks.h">
+      <Filter>Header Files\formats\html\layout\grid</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\layout\grid\litehtml_render_grid.h">
+      <Filter>Header Files\formats\html\layout\grid</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_css_variables.h">
       <Filter>Header Files\formats\html</Filter>

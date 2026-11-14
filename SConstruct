@@ -37,7 +37,7 @@ if env["platform"] == "windows" and env["arch"] == "x86_64" and env.get("is_msvc
 
 tex_render = File("src/formats/latex/tex_render.cpp")
 mermaid_render = File("src/formats/mermaid/mermaid_render.cpp")
-html_sources = Glob("src/formats/html/*.cpp")
+html_sources = Glob("src/formats/html/*.cpp") + Glob("src/formats/html/layout/*.cpp") + Glob("src/formats/html/layout/grid/*.cpp")
 pdfium_sources = (Glob("src/formats/pdf/reader/*.cpp") + Glob("src/formats/pdf/writer/*.cpp")
                   + Glob("src/formats/pdf/pdfium/*.cpp"))
 format_sources = Glob("src/formats/*.cpp") + Glob("src/formats/*/*.cpp")
@@ -112,8 +112,11 @@ def stage_litehtml_extensions(target, source, env):
         replace_once(anchor, addition + anchor)
 
     if path.name == "style.h":
-        insert_before('#include "web_color.h"', '#include "formats/html/litehtml_grid_tracks.h"\n')
-        insert_before("\t\tcss_token_vector\n", "\t\tgrid_track_list,\n")
+        insert_before("\t\tcss_token_vector\n", "\t\tgrid_line,\n")
+        insert_before('#include "web_color.h"', '#include "formats/html/litehtml_css_transform.h"\n')
+        insert_before("\t\tcss_token_vector\n", "\t\tcss_transform_list,\n\t\tcss_transform_origin,\n")
+        insert_before('#include "web_color.h"', '#include "formats/html/layout/grid/litehtml_grid_tracks.h"\n')
+        insert_before("\t\tcss_token_vector\n", "\t\tgrid_track_template,\n")
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_css.h"\n')
         insert_before("\t\tcss_token_vector\n", "\t\tstd::vector<box_shadow>,\n")
@@ -169,6 +172,10 @@ def stage_litehtml_extensions(target, source, env):
 		virtual void draw_box_shadows(const html_tag&, const position&, const borders&, bool) {}
 		virtual void draw_styled_text(uint_ptr hdc, const char* text, uint_ptr font, web_color color,
 			const position& pos, const element&) { draw_text(hdc, text, font, color, pos); }
+		virtual bool begin_render_item(const render_item&, const position*&) { return true; }
+		virtual void end_render_item() {}
+		virtual void set_render_item_clip(const position& pos, const border_radiuses& radii, const render_item&)
+			{ set_clip(pos, radii); }
 		virtual css_source get_css_source(const string&, bool) const { return {}; }
 		virtual void report_css_diagnostic(const css_diagnostic&, const html_tag* = nullptr) {}
 
@@ -260,6 +267,7 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
 """)
         replace_once("string css_length::to_string() const\n{", "string css_length::to_string() const\n{\n\tif (m_expression) return m_expression->to_string();")
     elif path.name == "document.cpp":
+        replace_once("m_root->draw(hdc, x, y, clip, m_root_render);", "m_root_render->paint(hdc, x, y, clip);")
         insert_before('#include "document.h"', '#include "formats/html/litehtml_css_math.h"\n')
         anchor = "void document::cvt_units( css_length& val, const font_metrics& metrics, pixel_t size ) const\n{\n"
         replace_once(anchor, anchor + """\
@@ -274,7 +282,7 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
 	}
 """)
     elif path.name == "element.cpp":
-        insert_before('#include "render_flex.h"', '#include "formats/html/litehtml_render_grid.h"\n')
+        insert_before('#include "render_flex.h"', '#include "formats/html/layout/grid/litehtml_render_grid.h"\n')
         insert_before("\tif(ret)\n", """\
 	if (css().get_display() == display_grid)
 		ret = std::make_shared<render_item_grid>(shared_from_this());
@@ -286,6 +294,106 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
 		return true;
 """)
     elif path.name == "render_item.cpp":
+        insert_before("bool litehtml::render_item::fetch_positioned()", """\
+void litehtml::render_item::paint(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip)
+{
+	auto* container = src_el()->get_document()->container();
+	if (container->begin_render_item(*this, clip))
+		src_el()->draw(hdc, x, y, clip, shared_from_this());
+	container->end_render_item();
+}
+
+std::shared_ptr<litehtml::render_item> litehtml::render_item::fixed_containing_block() const
+{
+	if (css().get_position() != element_position_fixed) return {};
+	for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent())
+		if (ancestor->css().has_transform()) return ancestor;
+	return {};
+}
+
+bool litehtml::render_item::is_viewport_fixed() const
+{
+	return css().get_position() == element_position_fixed && !fixed_containing_block();
+}
+
+void litehtml::render_item::extend_scroll_size(const size& extent)
+{
+	if (m_scroll_view)
+		m_scroll_view->set(m_pos, {std::max(extent.width, m_scroll_view->get_max_h_scroll() + m_pos.width),
+			std::max(extent.height, m_scroll_view->get_max_v_scroll() + m_pos.height)});
+}
+
+""")
+        text = re.sub(r"(\w+)->src_el\(\)->draw\(hdc, ([^\n]+), \1\);", r"\1->paint(hdc, \2);", text)
+        replace_once("doc->container()->set_clip(clip_box, bdr_radius);", "doc->container()->set_render_item_clip(clip_box, bdr_radius, *this);")
+        replace_once("if (src_el()->css().get_overflow() > overflow_visible)\n    {\n        doc->container()->del_clip();",
+                     "if (src_el()->css().get_overflow() > overflow_visible && css().get_display() != display_inline)\n"
+                     "    {\n        doc->container()->del_clip();")
+        replace_once("if (el_pos != element_position_static)", "if (el->establishes_paint_context())")
+        replace_once("if (src_el()->css().get_position() != element_position_static || is_root())",
+                     "if (establishes_paint_context() || is_root())")
+        text = text.replace("el->src_el()->is_positioned()", "el->establishes_paint_context()")
+        text = text.replace("idx->src_el()->css().get_z_index()", "idx->paint_z_index()")
+        text = text.replace("i->src_el()->css().get_z_index()", "i->paint_z_index()")
+        text = text.replace("el->src_el()->css().get_z_index()", "el->paint_z_index()")
+        text = text.replace("Left->src_el()->css().get_z_index() < Right->src_el()->css().get_z_index()", "Left->paint_z_index() < Right->paint_z_index()")
+        # Paint in-flow Grid items like inline blocks. Walk the same phases
+        # in reverse for hit testing, including for items with float set.
+        start = text.index("void litehtml::render_item::draw_children(")
+        end = text.index("std::shared_ptr<litehtml::element> litehtml::render_item::get_element_by_point(", start)
+        grid_paint = text[start:end]
+        grid_paint = grid_paint.replace("!el->src_el()->is_inline() &&", "!el->src_el()->is_inline() && !el->is_grid_item() &&")
+        grid_paint = grid_paint.replace("if (el->src_el()->is_inline() &&", "if ((el->src_el()->is_inline() || el->is_grid_item()) &&")
+        grid_paint = grid_paint.replace("if(el->src_el()->is_inline() &&", "if((el->src_el()->is_inline() || el->is_grid_item()) &&")
+        grid_paint = grid_paint.replace("(el->src_el()->is_inline() || el->is_grid_item()) && el->src_el()->css().get_float() == float_none",
+                                        "(el->is_grid_item() || (el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none))")
+        grid_paint = grid_paint.replace("el->src_el()->css().get_float() != float_none && !el->establishes_paint_context()",
+                                        "!el->is_grid_item() && el->src_el()->css().get_float() != float_none && !el->establishes_paint_context()")
+        grid_paint = grid_paint.replace("if (el->src_el()->css().get_display() == display_inline_block ||",
+                                        "if (el->is_grid_item() || el->src_el()->css().get_display() == display_inline_block ||")
+        grid_paint = grid_paint.replace("if(el->src_el()->css().get_display() == display_inline_block ||",
+                                        "if(el->is_grid_item() || el->src_el()->css().get_display() == display_inline_block ||")
+        grid_paint = grid_paint.replace("if (el->src_el()->css().get_float() == float_none &&\n",
+                                        "if (!el->is_grid_item() && el->src_el()->css().get_float() == float_none &&\n")
+        grid_paint = grid_paint.replace("if(\tel->src_el()->css().get_float() == float_none &&\n",
+                                        "if(!el->is_grid_item() && el->src_el()->css().get_float() == float_none &&\n")
+        text = text[:start] + grid_paint + text[end:]
+        text = text.replace("el->src_el()->css().get_position() == element_position_fixed)", "el->is_viewport_fixed())")
+        text = text.replace("el->src_el()->css().get_position() != element_position_fixed)", "!el->is_viewport_fixed())")
+        text = text.replace("src_el()->css().get_position() == element_position_fixed)", "is_viewport_fixed())")
+        text = text.replace("src_el()->css().get_position() != element_position_fixed)", "!is_viewport_fixed())")
+        replace_once("if(src_el()->css().get_position() != element_position_absolute && !is_viewport_fixed())",
+                     "if(src_el()->css().get_position() != element_position_absolute && css().get_position() != element_position_fixed)")
+        text = text.replace("cur_el->css().get_position() == element_position_fixed)", "cur_el->is_viewport_fixed())")
+        replace_once("if(css().get_position() == element_position_fixed)", "if(is_viewport_fixed())")
+        replace_once("            if(el_position == element_position_fixed || (is_root() && !src_el()->is_positioned()))", """\
+            const auto fixed_block = el->fixed_containing_block();
+			auto& block = fixed_block ? *fixed_block : *this;
+            if(el->is_viewport_fixed() || (block.is_root() && !block.establishes_positioned_containing_block()))
+""".rstrip())
+        replace_once("containing_block_size.height\t= m_pos.height + m_padding.height();\n\t\t\t\tcontaining_block_size.width\t\t= m_pos.width + m_padding.width();",
+                     "containing_block_size.height = block.m_pos.height + block.m_padding.height();\n\t\t\t\tcontaining_block_size.width = block.m_pos.width + block.m_padding.width();")
+        replace_once("auto [el_static_offset_x, el_static_offset_y] = element_static_offset(el);",
+                     "auto [el_static_offset_x, el_static_offset_y] = block.element_static_offset(el);")
+        replace_once("if(el_position != element_position_fixed)", "if(!el->is_viewport_fixed())")
+        replace_once("if(el_position == element_position_fixed)\n            {\n\t\t\t\tposition fixed_pos", "if(el->is_viewport_fixed())\n            {\n\t\t\t\tposition fixed_pos")
+        replace_once("auto this_el = el->css().get_position() != element_position_fixed ?", "auto this_el = !el->is_viewport_fixed() ?")
+        replace_once("if(el->css().get_position() == element_position_fixed || (is_root() && !src_el()->is_positioned()))",
+                     "if(el->is_viewport_fixed() || (is_root() && !establishes_positioned_containing_block()))")
+        # A static Grid stacking context can contain the paint layer of an
+        # absolute descendant while its containing block is farther up the tree.
+        replace_once("auto& block = fixed_block ? *fixed_block : *this;", """\
+			auto* block_ptr = fixed_block ? fixed_block.get() : this;
+			if (el_position == element_position_absolute)
+			{
+				while (!block_ptr->is_root() && !block_ptr->establishes_positioned_containing_block())
+				{
+					auto ancestor = block_ptr->parent();
+					if (!ancestor) break;
+					block_ptr = ancestor.get();
+				}
+			}
+			auto& block = *block_ptr;""".lstrip())
         # Carry the distinction between a known zero basis and an auto height through sizing.
         replace_once("const css_length& len, pixel_t percent_base, containing_block_context::typed_pixel& out_value",
                      "const css_length& len, containing_block_context::typed_pixel percent_base, containing_block_context::typed_pixel& out_value")
@@ -332,7 +440,7 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
                      "\t\t0 : containing_block_size.width.value);")
         insert_before("\t\t\t\tfor(const auto& el : m_children)\n\t\t\t\t{\n\t\t\t\t\tel->calc_document_size(child_size", "\t\t\t\tchild_size = layout_overflow();\n")
         insert_before("\t\t\t\t\tfor(const auto& el : m_children)\n\t\t\t\t\t{\n\t\t\t\t\t\tel->calc_document_size(sz", """\
-					if (css().get_display() == display_grid && css().get_position() != element_position_fixed)
+						if (css().get_display() == display_grid && !is_viewport_fixed())
 					{
 						const auto overflow_size = layout_overflow();
 						sz.width = std::max(sz.width, x + m_pos.x + overflow_size.width);
@@ -340,6 +448,18 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
 					}
 """)
     elif path.name == "render_item.h":
+        insert_before("\t\tbool is_flex_item() const", """\
+		void paint(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip);
+		bool establishes_positioned_containing_block() const { return src_el()->is_positioned() || css().has_transform(); }
+		bool establishes_grid_stacking_context() const { return is_grid_item() && css().has_z_index(); }
+		bool establishes_paint_context() const { return establishes_positioned_containing_block() || establishes_grid_stacking_context(); }
+		int paint_z_index() const { return src_el()->is_positioned() || establishes_grid_stacking_context() ? css().get_z_index() : 0; }
+		std::shared_ptr<render_item> fixed_containing_block() const;
+		bool is_viewport_fixed() const;
+		void extend_scroll_size(const size& extent);
+		size used_layout_overflow() const { return layout_overflow(); }
+
+""")
         replace_once("const css_length& len, pixel_t percent_base, containing_block_context::typed_pixel& out_value",
                      "const css_length& len, containing_block_context::typed_pixel percent_base, containing_block_context::typed_pixel& out_value")
         insert_before("\t\tvirtual rendered_width", "\t\tvirtual size layout_overflow() const { return {}; }\n")
@@ -367,9 +487,28 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
 	}
 """)
     elif path.name == "string_id.h":
+        insert_before("\t_flex_flow_,", "\t_grid_row_,\n\t_grid_row_start_,\n\t_grid_row_end_,\n"
+                      "\t_grid_column_,\n\t_grid_column_start_,\n\t_grid_column_end_,\n")
+        insert_before("\t_flex_flow_,", "\t_transform_,\n\t_transform_origin_,\n")
         insert_before("\t_flex_flow_,", "\t_gap_,\n\t_row_gap_,\n\t_column_gap_,\n")
         insert_before("\t_flex_flow_,", "\t_grid_template_columns_,\n\t_grid_template_rows_,\n")
     elif path.name == "style.cpp":
+        insert_before("\tcase _order_:", """\
+	case _transform_:
+	{
+		css_transform_list transforms;
+		if (ident == "initial" || ident == "unset" || parse_css_transform(value, transforms))
+			add_parsed_property(name, property_value(std::move(transforms), important));
+		break;
+	}
+	case _transform_origin_:
+	{
+		css_transform_origin origin;
+		if (ident == "initial" || ident == "unset" || parse_css_transform_origin(value, origin))
+			add_parsed_property(name, property_value(origin, important));
+		break;
+	}
+""")
         insert_before('#include <set>', '#include <cmath>\n')
         insert_before('#include "document.h"', '#include "document_container.h"\n')
         for anchor in (
@@ -387,6 +526,8 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
         replace_once('m_basis.from_token(tok, f_length_percentage | f_positive, flex_basis_strings)',
                      'm_basis.from_token(tok, f_length_percentage | f_positive | f_math, flex_basis_strings)')
         insert_before("\t{ _font_,", """\
+	{ _grid_row_, {_grid_row_start_, _grid_row_end_}},
+	{ _grid_column_, {_grid_column_start_, _grid_column_end_}},
 	{ _gap_, {_row_gap_, _column_gap_}},
 	{ _background_position_, {_background_position_x_, _background_position_y_}},
 	{ _background_image_, {_background_image_, _background_image_baseurl_}},
@@ -422,10 +563,30 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
                      'if (tokens.size() == 1 && value_in_list(tokens[0].ident(), font_system_family_name_strings))\n\t{\n\t\tfont_family.push_back({ "system-ui", true });')
         replace_once("if (!parse_font_family(tokens, font_family))", "if (!parse_font_families(tokens, font_family))")
         insert_before("\tcase _order_:", """\
+	case _grid_row_:
+	case _grid_column_:
+	{
+		grid_axis_placement placement;
+		if (ident != "initial" && ident != "unset" && !parse_grid_axis_placement(value, placement)) break;
+		const auto& longhands = shorthands.at(name);
+		add_parsed_property(longhands[0], property_value(placement.start, important));
+		add_parsed_property(longhands[1], property_value(placement.end, important));
+		break;
+	}
+	case _grid_row_start_:
+	case _grid_row_end_:
+	case _grid_column_start_:
+	case _grid_column_end_:
+	{
+		grid_line line;
+		if (ident == "initial" || ident == "unset" || parse_grid_line(value, line))
+			add_parsed_property(name, property_value(line, important));
+		break;
+	}
 	case _grid_template_columns_:
 	case _grid_template_rows_:
 	{
-		grid_track_list tracks;
+		grid_track_template tracks;
 		if (ident == "initial" || ident == "unset" || parse_grid_tracks(value, tracks))
 			add_parsed_property(name, property_value(std::move(tracks), important));
 		break;
@@ -804,13 +965,78 @@ bool html_tag::get_custom_property(string_id name, css_token_vector& result) con
     elif path.name == "el_text.cpp":
         replace_once('->draw_text(hdc, m_use_transformed', '->draw_styled_text(hdc, m_use_transformed')
         replace_once('color, pos);', 'color, pos, *el_parent);')
-    elif path.name == "css_properties.h":
-        insert_before('#include "background.h"', '#include "formats/html/litehtml_grid_tracks.h"\n')
-        insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
-		const grid_track_list& get_grid_template_columns() const { return m_grid_template_columns; }
-		const grid_track_list& get_grid_template_rows() const { return m_grid_template_rows; }
+    elif path.name == "render_table.cpp":
+        insert_before('#include "document.h"', '#include "document_container.h"\n')
+        replace_once("caption->src_el()->draw(hdc, pos.x, pos.y, clip, caption);", "caption->paint(hdc, pos.x, pos.y, clip);")
+        replace_once("cell->el->src_el()->draw(hdc, pos.x, pos.y, clip, cell->el);", "cell->el->paint(hdc, pos.x, pos.y, clip);")
+        replace_once("m_grid->row(row).el_row->src_el()->draw_background(hdc, pos.x, pos.y, clip, m_grid->row(row).el_row);",
+                     """\
+const auto& item = m_grid->row(row).el_row;
+            auto* container = src_el()->get_document()->container();
+            const position* row_clip = clip;
+            if (container->begin_render_item(*item, row_clip))
+                item->src_el()->draw_background(hdc, pos.x, pos.y, row_clip, item);
+            container->end_render_item();""")
+        insert_before("    for (int row = 0; row < m_grid->rows_count(); row++)\n    {\n        if (flag == draw_block)", """\
+    auto* container = src_el()->get_document()->container();
 """)
-        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", "\t\tgrid_track_list m_grid_template_columns, m_grid_template_rows;\n")
+        replace_once("            auto* container = src_el()->get_document()->container();\n            const position* row_clip",
+                     "            const position* row_clip")
+        replace_once("    for (auto& caption : m_grid->captions())\n    {\n        if (flag == draw_block)",
+                     """\
+    const auto paint_table_part = [&](const std::shared_ptr<render_item>& item) {
+        if (item->establishes_paint_context())
+        {
+            if (flag == draw_positioned && item->paint_z_index() == zindex)
+            {
+                item->paint(hdc, pos.x, pos.y, clip);
+                item->draw_stacking_context(hdc, pos.x, pos.y, clip, true);
+            }
+            return;
+        }
+        if (flag == draw_block) item->paint(hdc, pos.x, pos.y, clip);
+        item->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);
+    };
+    for (auto& caption : m_grid->captions())
+    {
+        if (flag == draw_block)""".rstrip())
+        replace_once("""\
+        if (flag == draw_block)
+        {
+            caption->paint(hdc, pos.x, pos.y, clip);
+        }
+        caption->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);""", "        paint_table_part(caption);")
+        replace_once("""\
+                if (flag == draw_block)
+                {
+                    cell->el->paint(hdc, pos.x, pos.y, clip);
+                }
+                cell->el->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);""", "                paint_table_part(cell->el);")
+    elif path.name == "css_properties.h":
+        insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
+		grid_item_lines get_grid_lines() const {
+			return { {m_grid_row_start, m_grid_row_end}, {m_grid_column_start, m_grid_column_end} };
+		}
+		bool has_z_index() const { return !m_z_index.is_predefined(); }
+""")
+        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;",
+                      "\t\tgrid_line m_grid_row_start, m_grid_row_end, m_grid_column_start, m_grid_column_end;\n")
+        insert_before('#include "background.h"', '#include "formats/html/litehtml_css_transform.h"\n')
+        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", "\t\tcss_transform_list m_transforms;\n\t\tcss_transform_origin m_transform_origin;\n")
+        insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
+		const css_transform_list& get_transforms() const { return m_transforms; }
+		const css_transform_origin& get_transform_origin() const { return m_transform_origin; }
+		bool has_transform() const {
+			return !m_transforms.empty() && m_display != display_inline && m_display != display_inline_text &&
+				m_display != display_table_column && m_display != display_table_column_group;
+		}
+""")
+        insert_before('#include "background.h"', '#include "formats/html/layout/grid/litehtml_grid_tracks.h"\n')
+        insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
+		const grid_track_template& get_grid_template_columns() const { return m_grid_template_columns; }
+		const grid_track_template& get_grid_template_rows() const { return m_grid_template_rows; }
+""")
+        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", "\t\tgrid_track_template m_grid_template_columns, m_grid_template_rows;\n")
         insert_before('#include "background.h"', '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before('#include "background.h"', '#include "formats/html/litehtml_css.h"\n')
         replace_once("string\t\t\t\t\tm_font_family;", "css_font_families\t\tm_font_families;")
@@ -823,12 +1049,33 @@ bool html_tag::get_custom_property(string_id name, css_token_vector& result) con
         insert_before("\t\telement_position\t\tm_el_position;", "\t\tstd::vector<box_shadow> m_text_shadows;\n")
     elif path.name == "css_properties.cpp":
         insert_before("\tcompute_flex(el, doc);", """\
-	m_grid_template_columns = el->get_property(_grid_template_columns_, false, grid_track_list(), offset(m_grid_template_columns));
-	m_grid_template_rows = el->get_property(_grid_template_rows_, false, grid_track_list(), offset(m_grid_template_rows));
-	for (auto* tracks : {&m_grid_template_columns, &m_grid_template_rows})
-		for (auto& track : *tracks)
+	m_grid_row_start = el->get_property(_grid_row_start_, false, grid_line(), offset(m_grid_row_start));
+	m_grid_row_end = el->get_property(_grid_row_end_, false, grid_line(), offset(m_grid_row_end));
+	m_grid_column_start = el->get_property(_grid_column_start_, false, grid_line(), offset(m_grid_column_start));
+	m_grid_column_end = el->get_property(_grid_column_end_, false, grid_line(), offset(m_grid_column_end));
+	m_transforms = el->get_property(_transform_, false, css_transform_list(), offset(m_transforms));
+	m_transform_origin = el->get_property(_transform_origin_, false, css_transform_origin(), offset(m_transform_origin));
+	for (auto& transform : m_transforms)
+	{
+		doc->cvt_units(transform.x, m_font_metrics, 0);
+		doc->cvt_units(transform.y, m_font_metrics, 0);
+	}
+	doc->cvt_units(m_transform_origin.x, m_font_metrics, 0);
+	doc->cvt_units(m_transform_origin.y, m_font_metrics, 0);
+""")
+        insert_before("\tcompute_flex(el, doc);", """\
+	m_grid_template_columns = el->get_property(_grid_template_columns_, false, grid_track_template(), offset(m_grid_template_columns));
+	m_grid_template_rows = el->get_property(_grid_template_rows_, false, grid_track_template(), offset(m_grid_template_rows));
+	const auto compute_track_lengths = [&](grid_track_list& tracks) {
+		for (auto& track : tracks)
 			for (auto* breadth : {&track.minimum, &track.maximum})
 				if (breadth->kind == grid_breadth_kind::length) doc->cvt_units(breadth->length, m_font_metrics, 0);
+	};
+	for (auto* axis : {&m_grid_template_columns, &m_grid_template_rows})
+	{
+		compute_track_lengths(axis->tracks);
+		if (axis->repeat) compute_track_lengths(axis->repeat->pattern);
+	}
 
 	if (const auto p = el->parent(); p && p->css().get_display() == display_grid && el->in_normal_flow())
 	{
@@ -956,7 +1203,7 @@ bool html_tag::get_custom_property(string_id name, css_token_vector& result) con
 
 """)
     elif path.name == "render_image.cpp":
-        insert_before('#include "render_image.h"', '#include "formats/html/litehtml_render_grid.h"\n')
+        insert_before('#include "render_image.h"', '#include "formats/html/layout/grid/litehtml_render_grid.h"\n')
         replace_once("    calc_outlines(parent_width);\n\n", "")
         anchor = "    src_el()->get_content_size(sz, containing_block_size.width);\n"
         replace_once(anchor, anchor + """\
@@ -1120,7 +1367,7 @@ for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp"
         source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
         if source_path.as_posix() in ("src/style", "src/html_tag", "src/css_properties", "src/el_text",
                                       "src/css_parser", "src/css_length", "src/document", "src/element",
-                                      "src/render_block", "src/render_flex", "src/render_image", "src/render_item",
+                                      "src/render_block", "src/render_flex", "src/render_image", "src/render_item", "src/render_table",
                                       "src/flex_item", "src/flex_line"):
             source = html_env.Command(f"src/gen/html/{source_path.as_posix()}.cpp",
                                       source, stage_litehtml_extensions)[0]

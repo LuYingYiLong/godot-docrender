@@ -1,5 +1,7 @@
 #include "litehtml_render_grid.h"
 
+#include "litehtml_grid_placement.h"
+
 #include <litehtml/html_tag.h>
 
 namespace litehtml {
@@ -9,6 +11,11 @@ namespace litehtml {
 
 		bool is_definite(context::typed_pixel value) {
 			return is_one_of(value.type, context::cbc_value_type_absolute, context::cbc_value_type_percentage);
+		}
+
+		std::optional<pixel_t> definite_size(context::typed_pixel value) {
+			if (!is_definite(value)) return std::nullopt;
+			return std::max<pixel_t>(0, value.value);
 		}
 
 		bool has_scrollable_overflow(const render_item& item) {
@@ -37,21 +44,34 @@ namespace litehtml {
 			return cell;
 		}
 
-		std::vector<pixel_t> track_offsets(const std::vector<pixel_t>& tracks, pixel_t gap) {
+		struct grid_axis_geometry {
+			const std::vector<pixel_t>& tracks;
 			std::vector<pixel_t> offsets;
-			offsets.reserve(tracks.size());
-			pixel_t offset = 0;
-			for (const auto track : tracks)
-			{
-				offsets.push_back(offset);
-				offset += track + gap;
-			}
-			return offsets;
-		}
 
-		pixel_t track_end(const std::vector<pixel_t>& tracks, const std::vector<pixel_t>& offsets) {
-			return tracks.empty() ? 0 : offsets.back() + tracks.back();
-		}
+			grid_axis_geometry(const std::vector<pixel_t>& track_sizes, const grid_track_gutters& gutters, pixel_t gap) : tracks(track_sizes) {
+				offsets.reserve(tracks.size());
+				pixel_t offset = 0;
+				for (std::size_t i = 0; i < tracks.size(); ++i) {
+					offsets.push_back(offset);
+					offset += tracks[i] + (gutters.after(i) ? gap : 0);
+				}
+			}
+
+			pixel_t start(grid_track_range range) const {
+				return offsets[range.start];
+			}
+
+			pixel_t extent(grid_track_range range) const {
+				const auto last = range.end - 1;
+				// Keep single-track sizes exact even when positioned far from the origin.
+				if (last == range.start) return tracks[last];
+				return offsets[last] - start(range) + tracks[last];
+			}
+
+			pixel_t extent() const {
+				return tracks.empty() ? 0 : offsets.back() + tracks.back();
+			}
+		};
 
 	}
 
@@ -132,29 +152,42 @@ namespace litehtml {
 		const auto available_height = clamp_size(self.height - box_sizing_height(), self.min_height, self.max_height);
 		const auto& column_gap = css().get_column_gap();
 		const auto& row_gap = css().get_row_gap();
+		const auto width = definite_width ? std::optional<pixel_t>(available_width) : std::nullopt;
+		const auto height = definite_height ? std::optional<pixel_t>(available_height) : std::nullopt;
 
-		std::vector<std::shared_ptr<render_item>> items;
-		for (const auto& child : m_children)
-			if (child->src_el()->in_normal_flow()) items.push_back(child);
+		auto column_axis = expand_grid_tracks(css().get_grid_template_columns(), column_gap,
+			width, definite_size(self.min_width), definite_size(self.max_width));
+		auto row_axis = expand_grid_tracks(css().get_grid_template_rows(), row_gap,
+			height, definite_size(self.min_height), definite_size(self.max_height));
+		const auto& columns = column_axis.tracks;
+		const auto& rows = row_axis.tracks;
+		std::vector<render_item*> items;
+		std::vector<grid_item_lines> positions;
+		for (const auto& child : m_children) {
+			if (child->src_el()->in_normal_flow()) {
+				items.push_back(child.get());
+				positions.push_back(child->css().get_grid_lines());
+			}
+		}
+		const auto placement = place_grid_items(positions, rows.size(), columns.size());
+		const auto column_gutters = finish_grid_tracks(column_axis, placement.column_offset, placement.column_count,
+			placement.items, &grid_item_placement::columns);
+		const auto row_gutters = finish_grid_tracks(row_axis, placement.row_offset, placement.row_count,
+			placement.items, &grid_item_placement::rows);
 
-		auto columns = css().get_grid_template_columns();
-		auto rows = css().get_grid_template_rows();
-		if (columns.empty() && !items.empty()) columns.resize(1);
-		if (!items.empty())
-			rows.resize(std::max(rows.size(), 1 + (items.size() - 1) / columns.size()));
-
-		std::vector<grid_track_contribution> column_content(columns.size());
+		std::vector<grid_track_contribution> column_content;
+		column_content.reserve(items.size());
 		for (std::size_t index = 0; index < items.size(); ++index) {
-			auto& content = column_content[index % columns.size()];
-			if (!grid_track_needs_content(columns[index % columns.size()], definite_width)) continue;
-			const auto& item = *items[index];
+			const auto range = placement.items[index].columns;
+			if (!grid_range_needs_content(columns, range, definite_width)) continue;
+			auto& item = *items[index];
 			// Ask the existing renderers for intrinsic widths with room for unwrapped content.
 			context probe;
 			probe.width = 1 << 20;
 			probe.render_width = probe.width;
 			probe.size_mode = context::size_mode_content | context::size_mode_grid_measure_width;
 			probe.context_idx = self.context_idx;
-			auto widths = items[index]->render(0, 0, probe, nullptr);
+			const auto widths = item.render(0, 0, probe, nullptr);
 			const auto& width = item.css().get_width();
 			const bool explicit_width = !width.is_predefined() && width.units() != css_units_percentage;
 			const bool has_min_width = !item.css().get_min_width().is_predefined() &&
@@ -162,15 +195,15 @@ namespace litehtml {
 			const auto min_width = has_min_width ? item.css().get_min_width().calc_percent(0) : 0;
 			const auto outer_min_width = min_width + item.content_offset_width() - item.box_sizing_width();
 			const bool nowrap = is_one_of(item.css().get_white_space(), white_space_nowrap, white_space_pre);
+			const bool auto_minimum = grid_range_has_auto_minimum(columns, range, definite_width);
 			const auto minimum = explicit_width ? item.width() : std::max(outer_min_width,
-				has_scrollable_overflow(item) ? item.content_offset_width() :
+				has_scrollable_overflow(item) || !auto_minimum ? item.content_offset_width() :
 				nowrap || item.src_el()->is_replaced() ? item.width() : std::min(widths.min_width, item.width()));
-			content.minimum = std::max(content.minimum, minimum);
-			content.preferred = std::max(content.preferred, item.width());
+			column_content.push_back({ range, minimum, item.width() });
 		}
 
-		const auto initial_columns = size_grid_tracks(columns, column_content, column_gap.calc_percent(definite_width ? available_width : 0),
-			definite_width ? std::optional<pixel_t>(available_width) : std::nullopt);
+		const auto initial_columns = size_grid_tracks(columns, column_content, column_gutters,
+			column_gap.calc_percent(width.value_or(0)), width);
 		m_pos.width = definite_width ? available_width : clamp_size(
 			measure_width ? initial_columns.extent : std::clamp(available_width, initial_columns.minimum, initial_columns.extent),
 			self.min_width, self.max_width);
@@ -179,32 +212,32 @@ namespace litehtml {
 
 		const auto horizontal_gap = column_gap.calc_percent(m_pos.width);
 		const auto column_sizes = !definite_width ?
-			size_grid_tracks(columns, column_content, horizontal_gap, m_pos.width) : initial_columns;
+			size_grid_tracks(columns, column_content, column_gutters, horizontal_gap, m_pos.width) : initial_columns;
+		const grid_axis_geometry column_geometry(column_sizes.tracks, column_gutters, horizontal_gap);
 
-		std::vector<grid_track_contribution> row_content(rows.size());
+		std::vector<grid_track_contribution> row_content;
+		row_content.reserve(items.size());
 		for (std::size_t index = 0; index < items.size(); ++index) {
-			const auto row = index / columns.size();
-			const auto width = column_sizes.tracks[index % columns.size()];
-			if (!grid_track_needs_content(rows[row], definite_height) &&
-				(definite_height || !grid_track_needs_content(rows[row], true))) continue;
+			const auto& placed = placement.items[index];
+			if (!grid_range_needs_content(rows, placed.rows, definite_height) &&
+				(definite_height || !grid_range_needs_content(rows, placed.rows, true))) continue;
 			auto& item = *items[index];
-			auto cell = cell_context(item, self, width, std::nullopt);
+			auto cell = cell_context(item, self, column_geometry.extent(placed.columns), std::nullopt);
 			cell.size_mode |= context::size_mode_grid_measure_height;
 			item.render(0, 0, cell, nullptr);
-			auto& content = row_content[row];
 			const bool explicit_height = !item.css().get_height().is_predefined() &&
 				item.css().get_height().units() != css_units_percentage;
 			const auto& min_height = item.css().get_min_height();
 			const bool has_min_height = !min_height.is_predefined() && min_height.units() != css_units_percentage;
-			const auto minimum = !explicit_height && has_scrollable_overflow(item) ?
+			const bool auto_minimum = grid_range_has_auto_minimum(rows, placed.rows, definite_height);
+			const auto minimum = !explicit_height && (has_scrollable_overflow(item) || !auto_minimum) ?
 				item.content_offset_height() + (has_min_height ? std::max<pixel_t>(0, min_height.calc_percent(0) - item.box_sizing_height()) : 0) :
 				item.height();
-			content.minimum = std::max(content.minimum, minimum);
-			content.preferred = std::max(content.preferred, item.height());
+			row_content.push_back({ placed.rows, minimum, item.height() });
 		}
 
-		const auto initial_rows = size_grid_tracks(rows, row_content, row_gap.calc_percent(definite_height ? available_height : 0),
-			definite_height ? std::optional<pixel_t>(available_height) : std::nullopt);
+		const auto initial_rows = size_grid_tracks(rows, row_content, row_gutters,
+			row_gap.calc_percent(height.value_or(0)), height);
 		m_pos.height = definite_height ? available_height : clamp_size(initial_rows.extent, self.min_height, self.max_height);
 		const rendered_width widths{ m_pos.width + content_offset_width(),
 			(definite_width && is_definite(self.width) ? m_pos.width : initial_columns.minimum) + content_offset_width() };
@@ -213,17 +246,17 @@ namespace litehtml {
 		const auto vertical_gap = row_gap.calc_percent(m_pos.height);
 		const bool resolve_rows = !definite_height &&
 			(grid_tracks_use_percentage(rows) || m_pos.height != initial_rows.extent);
-		const auto row_sizes = resolve_rows ? size_grid_tracks(rows, row_content, vertical_gap, m_pos.height) : initial_rows;
-		const auto column_offsets = track_offsets(column_sizes.tracks, horizontal_gap);
-		const auto row_offsets = track_offsets(row_sizes.tracks, vertical_gap);
-		track_extent = { track_end(column_sizes.tracks, column_offsets), track_end(row_sizes.tracks, row_offsets) };
+		const auto row_sizes = resolve_rows ? size_grid_tracks(rows, row_content, row_gutters, vertical_gap, m_pos.height) : initial_rows;
+		const grid_axis_geometry row_geometry(row_sizes.tracks, row_gutters, vertical_gap);
+		track_extent = { column_geometry.extent(), row_geometry.extent() };
 
 		for (std::size_t index = 0; index < items.size(); ++index) {
-			const auto column = index % columns.size();
-			const auto row = index / columns.size();
-			const auto cell = cell_context(*items[index], self, column_sizes.tracks[column], row_sizes.tracks[row]);
+			const auto& placed = placement.items[index];
+			const position area{ column_geometry.start(placed.columns), row_geometry.start(placed.rows),
+				column_geometry.extent(placed.columns), row_geometry.extent(placed.rows) };
 			auto& item = *items[index];
-			item.render(column_offsets[column], row_offsets[row], cell, nullptr);
+			const auto cell = cell_context(item, self, area.width, area.height);
+			item.render(area.x, area.y, cell, nullptr);
 			item.pos().x += item.calc_auto_margins(cell.width);
 			const auto auto_top = item.css().get_margins().top.is_predefined();
 			const auto auto_bottom = item.css().get_margins().bottom.is_predefined();

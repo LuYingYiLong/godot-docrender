@@ -2346,8 +2346,8 @@ msgstr ""
 #. doc_classes/HTMLLayout.xml
 msgid ""
 "Returns the content size in pixels from the most recent successful layout of the current "
-"document. Returns [constant Vector2i.ZERO] before layout and for an empty document."
-msgstr "返回当前文档最近一次成功布局的内容尺寸，单位为像素。布局前或文档为空时返回 [constant Vector2i.ZERO]。"
+"document, including scrollable overflow from CSS transforms. Returns [constant Vector2i.ZERO] before layout and for an empty document."
+msgstr "返回当前文档最近一次成功布局的内容尺寸，单位为像素，包含 CSS 变换产生的可滚动溢出。布局前或文档为空时返回 [constant Vector2i.ZERO]。"
 
 #. doc_classes/HTMLLayout.xml
 msgid ""
@@ -2387,7 +2387,9 @@ msgid ""
 "[code]box-shadow[/code] supports offsets, blur, spread, and comma-separated layers. Use [code]inset[/code] "
 "for an inner shadow. Shadows follow [code]border-radius[/code] and leave layout and scroll ranges unaffected.\n"
 "[code]text-shadow[/code] supports horizontal and vertical offsets, optional blur and color, and comma-separated layers. "
-"The first layer is drawn closest to the text. Use [code]none[/code] to clear inherited text shadows."
+"The first layer is drawn closest to the text. Use [code]none[/code] to clear inherited text shadows.\n"
+"CSS [code]transform[/code] supports 2D translation, rotation, and scaling. "
+"[code]transform-origin[/code] sets their pivot in the element's border box. Drawing, element and link hit tests, and text selection follow the transformed boxes."
 msgstr ""
 "使用 [method parse] 加载 HTML 文档或片段，再用 [method layout] 设置视口尺寸。在目标 [CanvasItem] 的 [method "
 "CanvasItem._draw] 回调中调用 [method draw]。文档、视口尺寸或绘制位置发生变化后，调用 [method CanvasItem.queue_redraw]。\n"
@@ -2399,7 +2401,9 @@ msgstr ""
 "[code]box-shadow[/code] 支持偏移、模糊、扩张距离以及逗号分隔的多层阴影。使用 [code]inset[/code] 绘制内阴影。"
 "阴影沿 [code]border-radius[/code] 绘制，布局和滚动范围维持原样。\n"
 "[code]text-shadow[/code] 支持水平和垂直偏移、可选的模糊半径和颜色，以及逗号分隔的多层阴影。"
-"第一层最靠近文字。使用 [code]none[/code] 可清除继承的文字阴影。"
+"第一层最靠近文字。使用 [code]none[/code] 可清除继承的文字阴影。\n"
+"CSS [code]transform[/code] 支持二维平移、旋转和缩放。[code]transform-origin[/code] 设置元素边框盒内的变换原点。"
+"绘制、元素与链接命中以及文本选择都使用变换后的盒子。"
 
 #. doc_classes/HTMLElement.xml
 msgid "Returns the attribute value, or [param default_value] if the attribute is absent. Attribute names are ASCII case-insensitive. An explicitly empty attribute returns an empty string."
@@ -2414,8 +2418,8 @@ msgid "Returns the direct child elements in document order. Text nodes, comments
 msgstr "按文档顺序返回直接子元素，跳过文本节点、注释和 CSS 生成的伪元素。"
 
 #. doc_classes/HTMLElement.xml
-msgid "Returns the element's border-box fragments in document pixel coordinates, before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box."
-msgstr "以文档像素坐标返回元素各片段的边框盒，坐标与裁剪和控件滚动无关。行内元素可能有多个矩形。排版前或元素没有布局盒时返回空数组。"
+msgid "Returns the axis-aligned bounds of the element's border-box fragments in document pixel coordinates after CSS transforms and before clipping or label scrolling. An inline element may have multiple rectangles. The array is empty before layout or when the element has no layout box."
+msgstr "以文档像素坐标返回元素各边框盒片段经 CSS 变换后的轴对齐外接矩形，坐标取自裁剪和控件滚动之前。行内元素可能有多个矩形。排版前或元素没有布局盒时返回空数组。"
 
 #. doc_classes/HTMLElement.xml
 msgid "Returns the parent element, or [code]null[/code] if this element has no parent."
@@ -2575,10 +2579,9 @@ msgstr "按文档顺序返回排版后的文本。块边界和显式换行以换
 
 #. doc_classes/HTMLLayout.xml
 msgid ""
-"Returns highlight rectangles in document coordinates for the character range from [param from] "
-"up to [param to]. Offsets refer to [method get_plain_text] and are clamped to its length. "
-"Rectangles are clipped to the HTML layout's visible regions."
-msgstr "返回从 [param from] 到 [param to]（不含）的字符范围在文档坐标中的高亮矩形。偏移量基于 [method get_plain_text]，并限制在文本长度内。矩形按 HTML 排版的可见区域裁剪。"
+"Returns axis-aligned bounds in document coordinates for the visible highlights of the character range from [param from] "
+"up to [param to]. These bounds account for CSS transforms and overflow clipping. Offsets refer to [method get_plain_text] and are clamped to its length."
+msgstr "以文档坐标返回从 [param from] 到 [param to]（不含）的可见高亮区域的轴对齐外接矩形，包含 CSS 变换和溢出裁剪的影响。偏移量基于 [method get_plain_text]，并限制在文本长度内。"
 
 #. doc_classes/HTMLLayout.xml
 msgid ""
@@ -2598,6 +2601,7 @@ msgid ""
 "defaults. The theme's [code]bold_font[/code], [code]italic_font[/code], "
 "[code]bold_italic_font[/code], [code]code_text_font[/code], and [code]code_block_font[/code] are "
 "used for matching text styles when configured. CSS still controls the text style.\n"
+"CSS transforms can extend an HTML block's height. Content extending sideways is clipped to the block's column width.\n"
 "A linked stylesheet applies to the HTML block that includes it. Put the link and its styled elements in the same block. "
 "When exporting raw Markdown that links to stylesheets, include the local [code].css[/code] files in the export preset.\n"
 "Inline [code]<img>[/code] uses the same project image paths and formats as [HTMLLayout]. It "
@@ -2612,6 +2616,7 @@ msgstr ""
 "extra_font_size]）和 [code]link_color[/code]。配置 [code]bold_font[/code]、[code]italic_font[/code]、"
 "[code]bold_italic_font[/code]、[code]code_text_font[/code] 和 [code]code_block_font[/code] 后，对应的文字样式会使用这些字体。"
 "文字样式仍由 CSS 控制。\n"
+"CSS 变换可以增加 HTML 块的高度，横向内容会在块的列宽处裁剪。\n"
 "链接的样式表作用于包含它的 HTML 块。请将链接和应用样式的元素放在同一个块中。"
 "导出引用外部样式表的原始 Markdown 文件时，将本地 [code].css[/code] 文件加入导出预设。\n"
 "行内 [code]<img>[/code] 与 [HTMLLayout] 支持相同的项目图片路径和格式。支持 "
@@ -2674,10 +2679,10 @@ msgstr "HTML 源文档或片段。"
 
 #. doc_classes/HTMLLayout.xml
 msgid ""
-"Returns the bounds of the first laid-out element with the given case-sensitive HTML "
+"Returns the visual bounds of the first laid-out element with the given case-sensitive HTML "
 "[code]id[/code], in document coordinates. Pass the ID without [code]#[/code]. Returns an empty "
 "rectangle if the element has no layout or the ID is absent."
-msgstr "返回第一个具有指定 HTML [code]id[/code] 的已排版元素的边界，使用文档坐标。ID 区分大小写，传入时省略 [code]#[/code]。"
+msgstr "返回第一个具有指定 HTML [code]id[/code] 的已排版元素的视觉边界，使用文档坐标。ID 区分大小写，传入时省略 [code]#[/code]。"
 "元素尚未排版或 ID 不存在时返回空矩形。"
 
 #. doc_classes/HTMLLabel.xml
