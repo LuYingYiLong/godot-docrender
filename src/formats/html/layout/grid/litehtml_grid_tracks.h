@@ -56,6 +56,7 @@ struct grid_track_gutters {
 	std::size_t track_count;
 	std::vector<std::size_t> active_before;
 
+	std::size_t active_count() const { return active_before.empty() ? track_count : active_before.back(); }
 	std::size_t count_inside(grid_track_range range) const;
 	bool after(std::size_t track) const;
 };
@@ -89,6 +90,6 @@ bool grid_range_needs_content(const grid_track_list& tracks, grid_track_range ra
 bool grid_range_has_auto_minimum(const grid_track_list& tracks, grid_track_range range, bool definite);
 grid_track_sizes size_grid_tracks(const grid_track_list& tracks,
 	const std::vector<grid_track_contribution>& contributions, const grid_track_gutters& gutters, pixel_t gap,
-	std::optional<pixel_t> available);
+	std::optional<pixel_t> available, bool stretch);
 
 }

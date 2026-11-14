@@ -5,6 +5,82 @@
 #include <litehtml/style.h>
 
 namespace litehtml {
+	namespace {
+		using alignment = alignment_keyword;
+
+		constexpr std::pair<alignment, const char*> alignment_words[] = {
+			{ alignment::normal, "normal" }, { alignment::automatic, "auto" }, { alignment::stretch, "stretch" },
+			{ alignment::start, "start" }, { alignment::end, "end" }, { alignment::center, "center" },
+			{ alignment::self_start, "self-start" }, { alignment::self_end, "self-end" },
+			{ alignment::flex_start, "flex-start" }, { alignment::flex_end, "flex-end" },
+			{ alignment::left, "left" }, { alignment::right, "right" },
+			{ alignment::space_between, "space-between" }, { alignment::space_around, "space-around" },
+			{ alignment::space_evenly, "space-evenly" }, { alignment::first_baseline, "baseline" },
+			{ alignment::last_baseline, "baseline" },
+		};
+
+		const char* alignment_word(css_alignment p_alignment) {
+			for (const auto& [keyword, word] : alignment_words)
+				if (keyword == p_alignment.keyword) return word;
+			return "normal";
+		}
+	}
+
+	css_alignment initial_alignment(string_id p_property) {
+		return { is_one_of(p_property, _justify_self_, _align_self_) ? alignment::automatic : alignment::normal };
+	}
+
+	bool parse_alignment(string_id p_property, const css_token_vector& p_tokens, css_alignment& r_alignment) {
+		if (p_tokens.empty() || p_tokens.size() > 2) return false;
+		const bool content = is_one_of(p_property, _justify_content_, _align_content_);
+		const bool justify = is_one_of(p_property, _justify_items_, _justify_self_, _justify_content_);
+		const auto word = p_tokens.back().ident();
+		auto prefix = p_tokens.size() == 2 ? p_tokens.front().ident() : string();
+		const auto keyword_word = prefix == "baseline" && is_one_of(word, "first", "last") ? prefix : word;
+		if (keyword_word != word) prefix = word;
+		const auto found = std::find_if(std::begin(alignment_words), std::end(alignment_words),
+			[&](const auto& entry) { return keyword_word == entry.second; });
+		if (found == std::end(alignment_words)) return false;
+		auto keyword = found->first;
+		auto overflow = alignment_overflow::automatic;
+		if (keyword == alignment::automatic && !is_one_of(p_property, _justify_self_, _align_self_)) return false;
+		if (is_one_of(keyword, alignment::self_start, alignment::self_end) && content) return false;
+		if (is_one_of(keyword, alignment::left, alignment::right) && !justify) return false;
+		if (is_one_of(keyword, alignment::space_between, alignment::space_around, alignment::space_evenly) && !content) return false;
+		if (keyword == alignment::first_baseline && p_property == _justify_content_) return false;
+
+		if (p_tokens.size() == 2) {
+			if (keyword == alignment::first_baseline && is_one_of(prefix, "first", "last")) {
+				keyword = prefix == "last" ? alignment::last_baseline : alignment::first_baseline;
+			} else if (is_one_of(prefix, "safe", "unsafe") &&
+				((keyword >= alignment::start && keyword <= alignment::right) ||
+					(keyword == alignment::normal && is_one_of(p_property, _justify_self_, _align_self_)))) {
+				overflow = prefix == "safe" ? alignment_overflow::safe : alignment_overflow::unsafe;
+			} else {
+				return false;
+			}
+		}
+		r_alignment = { keyword, overflow };
+		return true;
+	}
+
+	flex_align_items to_flex_item_alignment(css_alignment p_alignment) {
+		int value = value_index(alignment_word(p_alignment), flex_align_items_strings);
+		if (p_alignment.keyword == alignment::last_baseline) value |= flex_align_items_last;
+		if (p_alignment.overflow == alignment_overflow::safe) value |= flex_align_items_safe;
+		if (p_alignment.overflow == alignment_overflow::unsafe) value |= flex_align_items_unsafe;
+		return static_cast<flex_align_items>(value);
+	}
+
+	flex_align_content to_flex_align_content(css_alignment p_alignment) {
+		const int value = value_index(alignment_word(p_alignment), flex_align_content_strings);
+		return value < 0 ? flex_align_content_stretch : static_cast<flex_align_content>(value);
+	}
+
+	flex_justify_content to_flex_justify_content(css_alignment p_alignment) {
+		return static_cast<flex_justify_content>(value_index(alignment_word(p_alignment), flex_justify_content_strings));
+	}
+
 	bool parse_font_families(const css_token_vector& p_tokens, css_font_families& r_families) {
 		const auto is_generic = [](const string& p_name) {
 			return is_one_of(p_name, "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "math",

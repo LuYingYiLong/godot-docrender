@@ -611,7 +611,7 @@ namespace litehtml {
 		const std::vector<grid_track_contribution>& contributions,
 		const grid_track_gutters& gutters,
 		pixel_t gap,
-		std::optional<pixel_t> available
+		std::optional<pixel_t> available, bool stretch
 	) {
 		grid_track_sizes result;
 		if (tracks.empty()) return result;
@@ -668,10 +668,12 @@ namespace litehtml {
 			double free_space = std::max(0.0, *available - minimum);
 			grow_to_limits(sizes, free_space);
 			grow_flexible_tracks(sizes, free_space);
-			const auto automatic = std::count_if(sizes.begin(), sizes.end(), [](const auto& track) { return track.automatic_maximum; });
-			if (automatic && free_space > 0)
-				for (auto& track : sizes)
-					if (track.automatic_maximum) track.base += free_space / static_cast<double>(automatic);
+			if (stretch && free_space > 0) {
+				const auto automatic = std::count_if(sizes.begin(), sizes.end(), [](const auto& track) { return track.automatic_maximum; });
+				if (automatic)
+					for (auto& track : sizes)
+						if (track.automatic_maximum) track.base += free_space / static_cast<double>(automatic);
+			}
 		}
 		else {
 			for (std::size_t i = 0; i < sizes.size(); ++i)

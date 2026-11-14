@@ -19,7 +19,7 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 | --- | --- |
 | Layout | Block and inline layout, lists, tables, Flexbox, block Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Sticky positioning is unsupported. |
 | 2D transforms | `transform` accepts `none` and lists of `translate()`, `translateX()`, `translateY()`, `rotate()`, `scale()`, `scaleX()`, and `scaleY()`. `transform-origin` supports one or two position components. See the 2D transforms section below. |
-| Grid | Track lists support named lines and `repeat()`, including `auto-fill` and `auto-fit`. `grid-template-areas` defines named areas. Grid items support placement by name, line number, or span. `grid-auto-flow` controls automatic placement, and `grid-auto-rows` and `grid-auto-columns` size implicit tracks. |
+| Grid | Track lists support named lines and `repeat()`, including `auto-fill` and `auto-fit`. Grid items support placement by name, line number, or span. Grid supports automatic placement, patterned implicit tracks, item alignment, and track distribution. |
 | Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
 | Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. `calc()`, `min()`, `max()`, and `clamp()` support the layout properties listed below. |
 | Colors | Named and hex colors, `rgb()` and `hsl()` variants, and `currentColor` where applicable. `oklch()` and `color-mix()` are unsupported. |
@@ -98,7 +98,13 @@ Explicit areas may overlap. Automatic placement skips occupied areas and process
 
 `grid-auto-rows` and `grid-auto-columns` accept a space-separated list of the supported track sizes and default to `auto`. For `grid-auto-columns: 60px 100px`, the first column after the sized tracks takes `60px`, and the closest implicit column before the explicit grid takes `100px`. The pattern repeats in each direction. The forward pattern also sizes any tracks added by `grid-template-areas` that have no size from `grid-template-columns` or `grid-template-rows`. [CSS Grid implicit track sizing](https://www.w3.org/TR/css-grid-2/#auto-tracks)
 
-`row-gap`, `column-gap`, and the `gap` shorthand add spacing between tracks, including between tracks in a spanning item's area. `normal` resolves to zero. Percentage tracks use `auto` and the percentage portion of a gap resolves against zero during intrinsic sizing. Final layout resolves percentages against the content box. The `grid` and `grid-template` shorthands, `subgrid`, `inline-grid`, and Grid alignment properties are outside the supported set. [CSS percentage gaps](https://www.w3.org/TR/css-gaps-1/#gap-percent)
+`row-gap`, `column-gap`, and the `gap` shorthand add spacing between tracks, including between tracks in a spanning item's area. `normal` resolves to zero. Percentage tracks use `auto` and the percentage portion of a gap resolves against zero during intrinsic sizing. Final layout resolves percentages against the content box. [CSS percentage gaps](https://www.w3.org/TR/css-gaps-1/#gap-percent)
+
+`justify-items` and `align-items` set the horizontal and vertical alignment within each grid area. Individual items can override these defaults with `justify-self` and `align-self`. Positions include `start`, `end`, and `center`, with `left` and `right` available on the horizontal axis. Add `safe` before a position to use start alignment when the item overflows its area. `stretch` fills the area along the chosen axis when the item has an automatic size and no automatic margins on that axis. Automatic margins absorb positive free space before alignment. [CSS Grid item alignment](https://www.w3.org/TR/css-grid-2/#grid-align)
+
+`justify-content` and `align-content` align or distribute the tracks within the content box. In addition to positional alignment and `stretch`, they support `space-between`, `space-around`, and `space-evenly`. Distribution adds to the declared gap, and spanning items include the added spacing inside their areas. Collapsed `auto-fit` tracks retain their line numbers and contribute no spacing. [CSS Grid content distribution](https://www.w3.org/TR/css-align-3/#distribution-grid)
+
+Grid baseline alignment, the `place-*` alignment shorthands, the `grid` and `grid-template` shorthands, `subgrid`, and `inline-grid` remain unsupported.
 
 ## Font families
 

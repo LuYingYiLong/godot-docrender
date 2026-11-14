@@ -113,6 +113,8 @@ def stage_litehtml_extensions(target, source, env):
 
     if path.name == "style.h":
         insert_before("\t\tcss_token_vector\n", "\t\tgrid_line,\n")
+        insert_before("\t\tcss_token_vector\n", "\t\tcss_alignment,\n")
+        replace_once("\t\tvoid parse_align_self(string_id name, const css_token_vector& tokens, bool important);\n", "")
         insert_before('#include "web_color.h"', '#include "formats/html/litehtml_css_transform.h"\n')
         insert_before("\t\tcss_token_vector\n", "\t\tcss_transform_list,\n\t\tcss_transform_origin,\n")
         insert_before('#include "web_color.h"', '#include "formats/html/layout/grid/litehtml_grid_tracks.h"\n')
@@ -193,7 +195,7 @@ def stage_litehtml_extensions(target, source, env):
         replace_once('flex;inline-flex"', 'flex;inline-flex;grid"')
         replace_once("\t\tdisplay_inline_flex,\n", "\t\tdisplay_inline_flex,\n\t\tdisplay_grid,\n")
         insert_before("\t\t\tsize_mode_content = 0x04,\n", """\
-			size_mode_grid_stretch_width = 0x08,
+			size_mode_grid_assigned_width = 0x08,
 			size_mode_grid_stretch_height = 0x10,
 			size_mode_grid_measure_height = 0x20,
 			size_mode_grid_measure_width = 0x40,
@@ -417,13 +419,15 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
         replace_once("out_value.type = litehtml::containing_block_context::cbc_value_type_percentage;",
                      "out_value.type = len.expression() ? containing_block_context::cbc_value_type_absolute : containing_block_context::cbc_value_type_percentage;")
         insert_before("\t// Calculate width if css property is not auto", """\
-	const bool stretch_width = cb_context.size_mode & containing_block_context::size_mode_grid_stretch_width;
+	const bool grid_width = cb_context.size_mode & containing_block_context::size_mode_grid_assigned_width;
 	const bool stretch_height = cb_context.size_mode & containing_block_context::size_mode_grid_stretch_height;
 """)
-        for axis in ("width", "height"):
+        for axis, flag, basis in (("width", "grid_width", "render_width"), ("height", "stretch_height", "height")):
             replace_once(f"if(cb_context.size_mode & containing_block_context::size_mode_exact_{axis})\n\t\t{{\n\t\t\tret.{axis}.value = cb_context.{axis};",
-                         f"if((cb_context.size_mode & containing_block_context::size_mode_exact_{axis}) || stretch_{axis})\n"
-                         f"\t\t{{\n\t\t\tret.{axis}.value = stretch_{axis} ? std::max<pixel_t>(0, cb_context.{axis} - render_offset_{axis}()) : cb_context.{axis};")
+                         f"if((cb_context.size_mode & containing_block_context::size_mode_exact_{axis}) || {flag})\n"
+                         f"\t\t{{\n\t\t\tret.{axis}.value = {flag} ? std::max<pixel_t>(0, cb_context.{basis} - render_offset_{axis}()) : cb_context.{axis};")
+            replace_once(f"if (ret.{axis}.type != containing_block_context::cbc_value_type_auto &&",
+                         f"if (!{flag} && ret.{axis}.type != containing_block_context::cbc_value_type_auto &&")
         insert_before("\t\tif (len.expression() && len.units() == css_units_percentage &&",
                       "\t\tconst bool grid_sizing = css().get_display() == display_grid || is_grid_item();\n")
         replace_once("if (len.expression() && len.units() == css_units_percentage &&",
@@ -493,7 +497,34 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
         insert_before("\t_flex_flow_,", "\t_gap_,\n\t_row_gap_,\n\t_column_gap_,\n")
         insert_before("\t_flex_flow_,", "\t_grid_template_columns_,\n\t_grid_template_rows_,\n\t_grid_template_areas_,\n\t_grid_area_,\n")
         insert_before("\t_flex_flow_,", "\t_grid_auto_flow_,\n\t_grid_auto_rows_,\n\t_grid_auto_columns_,\n")
+        insert_before("\t_flex_flow_,", "\t_justify_items_,\n\t_justify_self_,\n")
     elif path.name == "style.cpp":
+        for name, keywords in (("justify_content", "flex_justify_content"), ("align_content", "flex_align_content"),
+                               ("align_items", "flex_align_items"), ("align_self", "flex_align_items")):
+            replace_once(f"\t{{ _{name}_, {keywords}_strings }},\n", "")
+        start = text.index("// https://www.w3.org/TR/css-align/#align-self-property")
+        end = text.index("void style::add_parsed_property", start)
+        text = text[:start] + text[end:]
+        replace_once("\tcase _justify_content_:\n\tcase _align_content_:\n", "")
+        replace_once("""\
+	case _align_items_:
+	case _align_self_:
+		parse_align_self(name, value, important);
+		break;
+""", """\
+	case _justify_items_:
+	case _align_items_:
+	case _justify_self_:
+	case _align_self_:
+	case _justify_content_:
+	case _align_content_:
+	{
+		auto alignment = initial_alignment(name);
+		if (ident == "initial" || ident == "unset" || parse_alignment(name, value, alignment))
+			add_parsed_property(name, property_value(alignment, important));
+		break;
+	}
+""")
         insert_before("\tcase _order_:", """\
 	case _transform_:
 	{
@@ -1000,6 +1031,10 @@ bool html_tag::get_custom_property(string_id name, css_token_vector& result) con
         replace_once('color, pos);', 'color, pos, *el_parent);')
     elif path.name == "render_table.cpp":
         insert_before('#include "document.h"', '#include "document_container.h"\n')
+        replace_once("block_height = self_size.height - (m_padding.height() + m_borders.height());",
+                     "block_height = self_size.height -\n"
+                     "\t\t\t((containing_block_size.size_mode & containing_block_context::size_mode_grid_stretch_height) ?\n"
+                     "\t\t\t box_sizing_height() : m_padding.height() + m_borders.height());")
         replace_once("caption->src_el()->draw(hdc, pos.x, pos.y, clip, caption);", "caption->paint(hdc, pos.x, pos.y, clip);")
         replace_once("cell->el->src_el()->draw(hdc, pos.x, pos.y, clip, cell->el);", "cell->el->paint(hdc, pos.x, pos.y, clip);")
         replace_once("m_grid->row(row).el_row->src_el()->draw_background(hdc, pos.x, pos.y, clip, m_grid->row(row).el_row);",
@@ -1046,6 +1081,10 @@ const auto& item = m_grid->row(row).el_row;
                 }
                 cell->el->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);""", "                paint_table_part(cell->el);")
     elif path.name == "css_properties.h":
+        for name in ("justify_items", "align_items", "justify_self", "align_self", "justify_content", "align_content"):
+            insert_before("\t\tflex_wrap get_flex_wrap() const;",
+                          f"\t\tcss_alignment get_{name}() const {{ return m_{name}; }}\n")
+            insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", f"\t\tcss_alignment m_{name};\n")
         insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
 		grid_item_lines get_grid_lines() const {
 			return { {m_grid_row_start, m_grid_row_end}, {m_grid_column_start, m_grid_column_end} };
@@ -1087,6 +1126,13 @@ const auto& item = m_grid->row(row).el_row;
         insert_before("\t\tconst string& get_cursor()", "\t\tconst std::vector<box_shadow>& get_text_shadows() const { return m_text_shadows; }\n\n")
         insert_before("\t\telement_position\t\tm_el_position;", "\t\tstd::vector<box_shadow> m_text_shadows;\n")
     elif path.name == "css_properties.cpp":
+        for name, conversion in (("justify_content", "justify_content"), ("align_content", "align_content"),
+                                 ("align_items", "item_alignment"), ("align_self", "item_alignment")):
+            original = re.search(rf"m_flex_{name} = .*?;", text).group()
+            replace_once(original, f"m_flex_{name} = to_flex_{conversion}(m_{name});")
+        for name in ("justify_items", "align_items", "justify_self", "align_self", "justify_content", "align_content"):
+            insert_before("\tcompute_flex(el, doc);",
+                          f"\tm_{name} = el->get_property(_{name}_, false, initial_alignment(_{name}_), offset(m_{name}));\n")
         insert_before("\tcompute_flex(el, doc);", """\
 	m_grid_row_start = el->get_property(_grid_row_start_, false, grid_line(), offset(m_grid_row_start));
 	m_grid_row_end = el->get_property(_grid_row_end_, false, grid_line(), offset(m_grid_row_end));
