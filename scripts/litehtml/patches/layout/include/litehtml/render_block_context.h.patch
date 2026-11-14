@@ -1,0 +1,14 @@
+diff --git a/include/litehtml/render_block_context.h b/include/litehtml/render_block_context.h
+index 851cca4..d8271c3 100644
+--- a/include/litehtml/render_block_context.h
++++ b/include/litehtml/render_block_context.h
+@@ -24,6 +24,9 @@ namespace litehtml
+ 		{
+ 			return std::make_shared<render_item_block_context>(src_el());
+ 		}
++		std::optional<pixel_t> find_layout_baseline(bool last) const override;
++		pixel_t baseline_content_height() const override;
++		void align_content_to_end() override;
+ 		pixel_t get_first_baseline() override;
+ 		pixel_t get_last_baseline() override;
+ 	};

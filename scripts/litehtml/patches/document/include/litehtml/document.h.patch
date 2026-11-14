@@ -1,0 +1,12 @@
+diff --git a/include/litehtml/document.h b/include/litehtml/document.h
+index e01f5b4..e4c41f2 100644
+--- a/include/litehtml/document.h
++++ b/include/litehtml/document.h
+@@ -46,6 +46,7 @@ namespace litehtml
+ 
+ 	class document : public std::enable_shared_from_this<document>
+ 	{
++		friend struct docrender_editor;
+ 	public:
+ 		typedef std::shared_ptr<document>	ptr;
+ 		typedef std::weak_ptr<document>		weak_ptr;

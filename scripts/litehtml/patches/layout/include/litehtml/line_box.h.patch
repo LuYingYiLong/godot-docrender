@@ -1,0 +1,42 @@
+diff --git a/include/litehtml/line_box.h b/include/litehtml/line_box.h
+index e22c0b8..5b0bec3 100644
+--- a/include/litehtml/line_box.h
++++ b/include/litehtml/line_box.h
+@@ -1,6 +1,8 @@
+ #ifndef LH_LINE_BOX_H
+ #define LH_LINE_BOX_H
+ 
++#include <optional>
++#include <unordered_set>
+ #include <memory>
+ #include "css_properties.h"
+ #include "types.h"
+@@ -39,6 +41,7 @@ namespace litehtml
+ 		};
+ 	protected:
+ 		std::shared_ptr<render_item> m_element;
++		std::optional<pixel_t> m_rendered_natural_width;
+ 		pixel_t m_rendered_min_width = 0;
+ 		pixel_t m_items_top = 0;
+ 		pixel_t m_items_bottom = 0;
+@@ -60,6 +63,12 @@ namespace litehtml
+ 		virtual element_type get_type() const	{ return type_text_part; }
+ 		virtual pixel_t get_rendered_min_width() const	{ return m_rendered_min_width; }
+ 		virtual void set_rendered_min_width(pixel_t min_width) { m_rendered_min_width = min_width; }
++		pixel_t get_rendered_natural_width() const { return m_rendered_natural_width.value_or(get_rendered_min_width()); }
++		void set_rendered_widths(rendered_width widths)
++		{
++			m_rendered_natural_width = widths.natural_width;
++			set_rendered_min_width(widths.min_width);
++		}
+ 		virtual void y_shift(pixel_t shift);
+ 
+ 		void reset_items_height() { m_items_top = m_items_bottom = 0; }
+@@ -170,6 +179,7 @@ namespace litehtml
+ 		pixel_t baseline() const;
+ 		pixel_t top_margin() const;
+ 		pixel_t bottom_margin() const;
++		void shift_for_content_alignment(pixel_t shift, std::unordered_set<render_item*>& shifted);
+ 		void	y_shift(pixel_t shift);
+ 		
+ 		std::list< std::unique_ptr<line_box_item> >	finish(bool last_box, const containing_block_context &containing_block_size);

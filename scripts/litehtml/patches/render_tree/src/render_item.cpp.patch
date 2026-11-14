@@ -1,0 +1,542 @@
+diff --git a/src/render_item.cpp b/src/render_item.cpp
+index b2109e7..1d16bce 100644
+--- a/src/render_item.cpp
++++ b/src/render_item.cpp
+@@ -31,7 +31,13 @@ litehtml::rendered_width litehtml::render_item::render(pixel_t x, pixel_t y,
+ 													   const containing_block_context& containing_block_size,
+ 													   formatting_context* fmt_ctx, bool second_pass)
+ {
+-	calc_outlines(containing_block_size.width);
++	const bool intrinsic_outlines = (containing_block_size.size_mode & containing_block_context::size_mode_grid_measure_width) ||
++		(containing_block_size.grid_intrinsic_width && css().get_display() == display_inline_grid);
++	calc_outlines(intrinsic_outlines ? 0 : containing_block_size.width.value);
++	if (containing_block_size.grid_content_edge == containing_block_context::content_baseline_edge::start)
++		m_padding.top += containing_block_size.grid_baseline_padding;
++	else if (containing_block_size.grid_content_edge == containing_block_context::content_baseline_edge::end)
++		m_padding.bottom += containing_block_size.grid_baseline_padding;
+ 
+ 	m_pos.clear();
+ 	m_pos.move_to(x, y);
+@@ -43,7 +49,7 @@ litehtml::rendered_width litehtml::render_item::render(pixel_t x, pixel_t y,
+ 	m_pos.y += content_top;
+ 
+ 
+-	if(src_el()->is_block_formatting_context() || ! fmt_ctx)
++	if(src_el()->is_block_formatting_context() || is_grid_item() || ! fmt_ctx)
+ 	{
+ 		formatting_context fmt;
+ 		auto			   ret = _render(x, y, containing_block_size, &fmt, second_pass);
+@@ -77,7 +83,8 @@ void litehtml::render_item::calc_outlines( pixel_t parent_width )
+ 
+ litehtml::pixel_t litehtml::render_item::calc_auto_margins(pixel_t parent_width)
+ {
+-    if ((src_el()->css().get_display() == display_block || src_el()->css().get_display() == display_table) &&
++    if ((src_el()->css().get_display() == display_block || src_el()->css().get_display() == display_table ||
++            src_el()->css().get_display() == display_grid || is_grid_item()) &&
+             src_el()->css().get_position() != element_position_absolute &&
+             src_el()->css().get_float() == float_none)
+     {
+@@ -213,6 +220,34 @@ std::tuple<
+     return ret;
+ }
+ 
++void litehtml::render_item::paint(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip)
++{
++	auto* container = src_el()->get_document()->container();
++	if (container->begin_render_item(*this, clip))
++		src_el()->draw(hdc, x, y, clip, shared_from_this());
++	container->end_render_item();
++}
++
++std::shared_ptr<litehtml::render_item> litehtml::render_item::fixed_containing_block() const
++{
++	if (css().get_position() != element_position_fixed) return {};
++	for (auto ancestor = parent(); ancestor; ancestor = ancestor->parent())
++		if (ancestor->css().has_transform()) return ancestor;
++	return {};
++}
++
++bool litehtml::render_item::is_viewport_fixed() const
++{
++	return css().get_position() == element_position_fixed && !fixed_containing_block();
++}
++
++void litehtml::render_item::extend_scroll_size(const size& extent)
++{
++	if (m_scroll_view)
++		m_scroll_view->set(m_pos, {std::max(extent.width, m_scroll_view->get_max_h_scroll() + m_pos.width),
++			std::max(extent.height, m_scroll_view->get_max_v_scroll() + m_pos.height)});
++}
++
+ bool litehtml::render_item::fetch_positioned()
+ {
+     bool ret = false;
+@@ -224,7 +259,7 @@ bool litehtml::render_item::fetch_positioned()
+     for(auto& el : m_children)
+     {
+         el_pos = el->src_el()->css().get_position();
+-        if (el_pos != element_position_static)
++        if (el->establishes_paint_context())
+         {
+             add_positioned(el);
+         }
+@@ -272,14 +307,26 @@ void litehtml::render_item::render_positioned(render_type rt)
+         if(process)
+         {
+ 			containing_block_context containing_block_size;
+-            if(el_position == element_position_fixed || (is_root() && !src_el()->is_positioned()))
++            const auto fixed_block = el->fixed_containing_block();
++			auto* block_ptr = fixed_block ? fixed_block.get() : this;
++			if (el_position == element_position_absolute)
++			{
++				while (!block_ptr->is_root() && !block_ptr->establishes_positioned_containing_block())
++				{
++					auto ancestor = block_ptr->parent();
++					if (!ancestor) break;
++					block_ptr = ancestor.get();
++				}
++			}
++			auto& block = *block_ptr;
++            if(el->is_viewport_fixed() || (block.is_root() && !block.establishes_positioned_containing_block()))
+             {
+ 				containing_block_size.height	= view_port.height;
+ 				containing_block_size.width		= view_port.width;
+             } else
+             {
+-				containing_block_size.height	= m_pos.height + m_padding.height();
+-				containing_block_size.width		= m_pos.width + m_padding.width();
++				containing_block_size.height = block.m_pos.height + block.m_padding.height();
++				containing_block_size.width = block.m_pos.width + block.m_padding.width();
+             }
+ 
+             css_length	css_left	= el->src_el()->css().get_offsets().left;
+@@ -343,7 +390,7 @@ void litehtml::render_item::render_positioned(render_type rt)
+ 			pixel_t bottom = 0;
+ 			pixel_t top = 0;
+ 			pixel_t height = 0;
+-			auto [el_static_offset_x, el_static_offset_y] = element_static_offset(el);
++			auto [el_static_offset_x, el_static_offset_y] = block.element_static_offset(el);
+ 			pixel_t el_static_x = el->m_pos.x + el_static_offset_x;
+ 			pixel_t el_static_y = el->m_pos.y + el_static_offset_y;
+ 			// Calculate vertical position
+@@ -632,7 +679,7 @@ void litehtml::render_item::render_positioned(render_type rt)
+ 				need_render = true;
+ 			}
+ 
+-            if(el_position != element_position_fixed)
++            if(!el->is_viewport_fixed())
+             {
+ 				el->m_pos.x -= el_static_offset_x;
+ 				el->m_pos.y -= el_static_offset_y;
+@@ -645,7 +692,7 @@ void litehtml::render_item::render_positioned(render_type rt)
+                 el->m_pos = pos;
+             }
+ 
+-            if(el_position == element_position_fixed)
++            if(el->is_viewport_fixed())
+             {
+ 				position fixed_pos = el->pos();
+ 				el->get_redraw_box(fixed_pos);
+@@ -660,14 +707,14 @@ void litehtml::render_item::render_positioned(render_type rt)
+     {
+         std::stable_sort(m_positioned.begin(), m_positioned.end(), [](const std::shared_ptr<render_item>& Left, const std::shared_ptr<render_item>& Right)
+             {
+-                return (Left->src_el()->css().get_z_index() < Right->src_el()->css().get_z_index());
++                return (Left->paint_z_index() < Right->paint_z_index());
+             });
+     }
+ }
+ 
+ void litehtml::render_item::add_positioned(const std::shared_ptr<litehtml::render_item> &el)
+ {
+-    if (src_el()->css().get_position() != element_position_static || is_root())
++    if (establishes_paint_context() || is_root())
+     {
+         m_positioned.push_back(el);
+     } else
+@@ -698,7 +745,7 @@ void litehtml::render_item::get_redraw_box(litehtml::position& pos, pixel_t x /*
+         {
+             for(auto& el : m_children)
+             {
+-                if(el->src_el()->css().get_position() != element_position_fixed)
++                if(!el->is_viewport_fixed())
+                 {
+                     el->get_redraw_box(pos, x + m_pos.x, y + m_pos.y);
+                 }
+@@ -713,7 +760,7 @@ void litehtml::render_item::calc_document_size(litehtml::size& sz, pixel_t x /*=
+ 	{
+ 		if(is_visible())
+ 		{
+-			if(src_el()->css().get_position() != element_position_fixed)
++			if(!is_viewport_fixed())
+ 			{
+ 				sz.width  = std::max(sz.width, x + right());
+ 				sz.height = std::max(sz.height, y + bottom());
+@@ -722,6 +769,7 @@ void litehtml::render_item::calc_document_size(litehtml::size& sz, pixel_t x /*=
+ 			if(is_one_of(src_el()->css().get_overflow(), overflow_scroll, overflow_auto))
+ 			{
+ 				size child_size;
++				child_size = layout_overflow();
+ 				for(const auto& el : m_children)
+ 				{
+ 					el->calc_document_size(child_size, 0, 0);
+@@ -739,6 +787,12 @@ void litehtml::render_item::calc_document_size(litehtml::size& sz, pixel_t x /*=
+ 				// We can skip calculating the size of children
+ 				if(src_el()->css().get_overflow() == overflow_visible && src_el()->css().get_display() != display_table)
+ 				{
++						if (is_grid_display(css().get_display()) && !is_viewport_fixed())
++					{
++						const auto overflow_size = layout_overflow();
++						sz.width = std::max(sz.width, x + m_pos.x + overflow_size.width);
++						sz.height = std::max(sz.height, y + m_pos.y + overflow_size.height);
++					}
+ 					for(const auto& el : m_children)
+ 					{
+ 						el->calc_document_size(sz, x + m_pos.x, y + m_pos.y);
+@@ -774,7 +828,7 @@ void litehtml::render_item::draw_stacking_context( uint_ptr hdc, pixel_t x, pixe
+     {
+         for(const auto& idx : m_positioned)
+         {
+-            z_indexes[idx->src_el()->css().get_z_index()];
++            z_indexes[idx->paint_z_index()];
+         }
+ 
+         for(const auto& idx : z_indexes)
+@@ -834,7 +888,7 @@ void litehtml::render_item::draw_children(uint_ptr hdc, pixel_t x, pixel_t y, co
+             bdr_radius -= m_borders;
+             bdr_radius -= m_padding;
+ 
+-            doc->container()->set_clip(clip_box, bdr_radius);
++            doc->container()->set_render_item_clip(clip_box, bdr_radius, *this);
+         }
+     }
+ 
+@@ -846,41 +900,42 @@ void litehtml::render_item::draw_children(uint_ptr hdc, pixel_t x, pixel_t y, co
+             switch (flag)
+             {
+                 case draw_positioned:
+-                    if (el->src_el()->is_positioned() && el->src_el()->css().get_z_index() == zindex)
++                    if (el->establishes_paint_context() && el->paint_z_index() == zindex)
+                     {
+-                        if (el->src_el()->css().get_position() == element_position_fixed)
++                        if (el->is_viewport_fixed())
+ 						{
+ 							// Fixed elements position is always relative to the (0,0)
+-                            el->src_el()->draw(hdc, 0, 0, clip, el);
++                            el->paint(hdc, 0, 0, clip);
+                             el->draw_stacking_context(hdc, 0, 0, clip, true);
+                         }
+                         else
+                         {
+-                            el->src_el()->draw(hdc, pos.x, pos.y, clip, el);
++                            el->paint(hdc, pos.x, pos.y, clip);
+                             el->draw_stacking_context(hdc, pos.x, pos.y, clip, true);
+                         }
+                         process = false;
+                     }
+                     break;
+                 case draw_block:
+-                    if (!el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none && !el->src_el()->is_positioned())
++                    if (!el->src_el()->is_inline() && !el->is_grid_item() && el->src_el()->css().get_float() == float_none && !el->establishes_paint_context())
+                     {
+-                        el->src_el()->draw(hdc, pos.x, pos.y, clip, el);
++                        el->paint(hdc, pos.x, pos.y, clip);
+                     }
+                     break;
+                 case draw_floats:
+-                    if (el->src_el()->css().get_float() != float_none && !el->src_el()->is_positioned())
++                    if (!el->is_grid_item() && el->src_el()->css().get_float() != float_none && !el->establishes_paint_context())
+                     {
+-                        el->src_el()->draw(hdc, pos.x, pos.y, clip, el);
++                        el->paint(hdc, pos.x, pos.y, clip);
+                         el->draw_stacking_context(hdc, pos.x, pos.y, clip, false);
+                         process = false;
+                     }
+                     break;
+                 case draw_inlines:
+-                    if (el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none && !el->src_el()->is_positioned())
++                    if ((el->is_grid_item() || (el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none)) && !el->establishes_paint_context())
+                     {
+-                        el->src_el()->draw(hdc, pos.x, pos.y, clip, el);
+-                        if (el->src_el()->css().get_display() == display_inline_block || el->src_el()->css().get_display() == display_inline_flex)
++                        el->paint(hdc, pos.x, pos.y, clip);
++                        if (el->is_grid_item() || el->src_el()->css().get_display() == display_inline_grid ||
++                                el->src_el()->css().get_display() == display_inline_block || el->src_el()->css().get_display() == display_inline_flex)
+                         {
+                             el->draw_stacking_context(hdc, pos.x, pos.y, clip, false);
+                             process = false;
+@@ -895,16 +950,17 @@ void litehtml::render_item::draw_children(uint_ptr hdc, pixel_t x, pixel_t y, co
+             {
+                 if (flag == draw_positioned)
+                 {
+-                    if (!el->src_el()->is_positioned())
++                    if (!el->establishes_paint_context())
+                     {
+                         el->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);
+                     }
+                 }
+                 else
+                 {
+-                    if (el->src_el()->css().get_float() == float_none &&
+-                        el->src_el()->css().get_display() != display_inline_block &&
+-                        !el->src_el()->is_positioned())
++                    if (!el->is_grid_item() && el->src_el()->css().get_float() == float_none &&
++                        el->src_el()->css().get_display() != display_inline_grid &&
++                                el->src_el()->css().get_display() != display_inline_block &&
++                        !el->establishes_paint_context())
+                     {
+                         el->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);
+                     }
+@@ -913,7 +969,7 @@ void litehtml::render_item::draw_children(uint_ptr hdc, pixel_t x, pixel_t y, co
+         }
+     }
+ 
+-    if (src_el()->css().get_overflow() > overflow_visible)
++    if (src_el()->css().get_overflow() > overflow_visible && css().get_display() != display_inline)
+     {
+         doc->container()->del_clip();
+     }
+@@ -945,9 +1001,9 @@ std::shared_ptr<litehtml::element>  litehtml::render_item::get_child_by_point(pi
+             switch(flag)
+             {
+                 case draw_positioned:
+-                    if(el->src_el()->is_positioned() && el->src_el()->css().get_z_index() == zindex)
++                    if(el->establishes_paint_context() && el->paint_z_index() == zindex)
+                     {
+-                        if(el->src_el()->css().get_position() == element_position_fixed)
++                        if(el->is_viewport_fixed())
+                         {
+                             ret = el->get_element_by_point(client_x, client_y, client_x, client_y, check);
+                             if(!ret && el->is_point_inside(client_x, client_y))
+@@ -972,7 +1028,7 @@ std::shared_ptr<litehtml::element>  litehtml::render_item::get_child_by_point(pi
+                     }
+                     break;
+                 case draw_block:
+-                    if(!el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none && !el->src_el()->is_positioned())
++                    if(!el->src_el()->is_inline() && !el->is_grid_item() && el->src_el()->css().get_float() == float_none && !el->establishes_paint_context())
+                     {
+                         ret = el->get_child_by_point(el_pos.x, el_pos.y, client_x, client_y, flag, zindex, check);
+ 
+@@ -987,7 +1043,7 @@ std::shared_ptr<litehtml::element>  litehtml::render_item::get_child_by_point(pi
+                     }
+                     break;
+                 case draw_floats:
+-                    if(el->src_el()->css().get_float() != float_none && !el->src_el()->is_positioned())
++                    if(!el->is_grid_item() && el->src_el()->css().get_float() != float_none && !el->establishes_paint_context())
+                     {
+                         ret = el->get_element_by_point(el_pos.x, el_pos.y, client_x, client_y, check);
+ 
+@@ -999,9 +1055,10 @@ std::shared_ptr<litehtml::element>  litehtml::render_item::get_child_by_point(pi
+                     }
+                     break;
+                 case draw_inlines:
+-                    if(el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none && !el->src_el()->is_positioned())
++                    if((el->is_grid_item() || (el->src_el()->is_inline() && el->src_el()->css().get_float() == float_none)) && !el->establishes_paint_context())
+                     {
+-                        if(el->src_el()->css().get_display() == display_inline_block ||
++                        if(el->is_grid_item() || el->src_el()->css().get_display() == display_inline_grid ||
++                                el->src_el()->css().get_display() == display_inline_block ||
+                                 el->src_el()->css().get_display() == display_inline_table ||
+                                 el->src_el()->css().get_display() == display_inline_flex)
+                         {
+@@ -1021,7 +1078,7 @@ std::shared_ptr<litehtml::element>  litehtml::render_item::get_child_by_point(pi
+                     break;
+             }
+ 
+-            if(process && !el->src_el()->is_positioned())
++            if(process && !el->establishes_paint_context())
+             {
+                 if(flag == draw_positioned)
+                 {
+@@ -1045,8 +1102,9 @@ std::shared_ptr<litehtml::element>  litehtml::render_item::get_child_by_point(pi
+                     }
+                 } else
+                 {
+-                    if(	el->src_el()->css().get_float() == float_none &&
+-                           el->src_el()->css().get_display() != display_inline_block && el->src_el()->css().get_display() != display_inline_flex)
++                    if(!el->is_grid_item() && el->src_el()->css().get_float() == float_none &&
++                           el->src_el()->css().get_display() != display_inline_grid &&
++                                el->src_el()->css().get_display() != display_inline_block && el->src_el()->css().get_display() != display_inline_flex)
+                     {
+                         element::ptr child = el->get_child_by_point(el_pos.x, el_pos.y, client_x, client_y, flag, zindex, check);
+ 						if(child)
+@@ -1085,7 +1143,7 @@ std::shared_ptr<litehtml::element> litehtml::render_item::get_element_by_point(p
+ 
+     for(const auto& i : m_positioned)
+     {
+-        z_indexes[i->src_el()->css().get_z_index()];
++        z_indexes[i->paint_z_index()];
+     }
+ 
+     for(auto iter = z_indexes.rbegin(); iter != z_indexes.rend(); ++iter)
+@@ -1125,7 +1183,7 @@ std::shared_ptr<litehtml::element> litehtml::render_item::get_element_by_point(p
+         }
+     }
+ 
+-    if(src_el()->css().get_position() == element_position_fixed)
++    if(is_viewport_fixed())
+     {
+         if(is_point_inside(client_x, client_y))
+         {
+@@ -1189,7 +1247,7 @@ void litehtml::render_item::get_rendering_boxes( position::vector& redraw_boxes)
+         redraw_boxes.push_back(pos);
+     }
+ 
+-    if(src_el()->css().get_position() != element_position_fixed)
++    if(!is_viewport_fixed())
+     {
+ 		auto cur_el = parent();
+ 		pixel_t	 add_x	= 0;
+@@ -1197,7 +1255,7 @@ void litehtml::render_item::get_rendering_boxes( position::vector& redraw_boxes)
+ 
+         while(cur_el)
+ 		{
+-			if(cur_el->css().get_position() == element_position_fixed)
++			if(cur_el->is_viewport_fixed())
+ 			{
+ 				position view_port;
+ 				src_el()->get_document()->container()->get_viewport(view_port);
+@@ -1257,7 +1315,7 @@ void litehtml::render_item::dump(litehtml::dumper& cout)
+ litehtml::position litehtml::render_item::get_placement() const
+ {
+ 	litehtml::position pos = m_pos;
+-	if(css().get_position() == element_position_fixed)
++	if(is_viewport_fixed())
+ 	{
+ 		position view_port;
+ 		src_el()->get_document()->container()->get_viewport(view_port);
+@@ -1272,7 +1330,7 @@ litehtml::position litehtml::render_item::get_placement() const
+ 		pos.x += p.x;
+ 		pos.y += p.y;
+ 
+-		if(cur_el->css().get_position() == element_position_fixed)
++		if(cur_el->is_viewport_fixed())
+ 		{
+ 			position view_port;
+ 			src_el()->get_document()->container()->get_viewport(view_port);
+@@ -1298,14 +1356,18 @@ std::shared_ptr<litehtml::render_item> litehtml::render_item::init()
+     return shared_from_this();
+ }
+ 
+-void litehtml::render_item::calc_cb_length(const css_length& len, pixel_t percent_base, containing_block_context::typed_pixel& out_value) const
++void litehtml::render_item::calc_cb_length(const css_length& len, containing_block_context::typed_pixel percent_base, containing_block_context::typed_pixel& out_value) const
+ {
+ 	if (!len.is_predefined())
+ 	{
++		const bool grid_sizing = is_grid_display(css().get_display()) || is_grid_item();
++		if ((len.expression() || grid_sizing) && len.units() == css_units_percentage &&
++			is_one_of(percent_base.type, containing_block_context::cbc_value_type_auto, containing_block_context::cbc_value_type_none))
++			return;
+ 		if(len.units() == litehtml::css_units_percentage)
+ 		{
+ 			out_value.value = len.calc_percent(percent_base);
+-			out_value.type = litehtml::containing_block_context::cbc_value_type_percentage;
++			out_value.type = (len.expression() || grid_sizing) ? containing_block_context::cbc_value_type_absolute : containing_block_context::cbc_value_type_percentage;
+ 		} else
+ 		{
+ 			out_value.value = src_el()->get_document()->to_pixels(len, css().get_font_metrics(), 0);
+@@ -1319,19 +1381,25 @@ litehtml::containing_block_context litehtml::render_item::calculate_containing_b
+ 	containing_block_context ret;
+ 	ret.context_idx = cb_context.context_idx + 1;
+ 	ret.width.value = ret.max_width.value = cb_context.width.value - content_offset_width();
+-	if(src_el()->css().get_position() != element_position_absolute && src_el()->css().get_position() != element_position_fixed)
++	if(src_el()->css().get_position() != element_position_absolute && css().get_position() != element_position_fixed)
+ 	{
+ 		ret.height.value = cb_context.height.value - content_offset_height();
+ 	}
+ 
++	auto width_basis = cb_context.width;
++	if (!(cb_context.size_mode & containing_block_context::size_mode_content))
++		width_basis.type = containing_block_context::cbc_value_type_absolute;
++
++	const bool grid_width = cb_context.size_mode & containing_block_context::size_mode_grid_assigned_width;
++	const bool stretch_height = cb_context.size_mode & containing_block_context::size_mode_grid_stretch_height;
+ 	// Calculate width if css property is not auto
+ 	// We have to use aut value for display_table_cell also.
+ 	if (src_el()->css().get_display() != display_table_cell)
+ 	{
+ 		auto par = parent();
+-		if(cb_context.size_mode & containing_block_context::size_mode_exact_width)
++		if((cb_context.size_mode & containing_block_context::size_mode_exact_width) || grid_width)
+ 		{
+-			ret.width.value = cb_context.width;
++			ret.width.value = grid_width ? std::max<pixel_t>(0, cb_context.render_width - render_offset_width()) : cb_context.width;
+ 			ret.width.type = containing_block_context::cbc_value_type_absolute;
+ 		} else
+ 		{
+@@ -1350,12 +1418,12 @@ litehtml::containing_block_context litehtml::render_item::calculate_containing_b
+ 			}
+ 			if(width)
+ 			{
+-				calc_cb_length(*width, cb_context.width, ret.width);
++				calc_cb_length(*width, width_basis, ret.width);
+ 			}
+ 		}
+-		if(cb_context.size_mode & containing_block_context::size_mode_exact_height)
++		if((cb_context.size_mode & containing_block_context::size_mode_exact_height) || stretch_height)
+ 		{
+-			ret.height.value = cb_context.height;
++			ret.height.value = stretch_height ? std::max<pixel_t>(0, cb_context.height - render_offset_height()) : cb_context.height;
+ 			ret.height.type = containing_block_context::cbc_value_type_absolute;
+ 		} else
+ 		{
+@@ -1377,23 +1445,37 @@ litehtml::containing_block_context litehtml::render_item::calculate_containing_b
+ 				calc_cb_length(*height, cb_context.height, ret.height);
+ 			}
+ 		}
+-		if (ret.width.type != containing_block_context::cbc_value_type_auto && (src_el()->css().get_display() == display_table || src_el()->is_root()))
++		if (!grid_width && ret.width.type != containing_block_context::cbc_value_type_auto && (src_el()->css().get_display() == display_table || src_el()->is_root()))
+ 		{
+ 			ret.width.value -= content_offset_width();
+ 		}
+-		if (ret.height.type != containing_block_context::cbc_value_type_auto && (src_el()->css().get_display() == display_table || src_el()->is_root()))
++		if (!stretch_height && ret.height.type != containing_block_context::cbc_value_type_auto && (src_el()->css().get_display() == display_table || src_el()->is_root()))
+ 		{
+ 			ret.height.value -= content_offset_height();
+ 		}
+ 	}
+ 	ret.render_width = ret.width;
+ 
+-	calc_cb_length(src_el()->css().get_min_width(), cb_context.width, ret.min_width);
+-	calc_cb_length(src_el()->css().get_max_width(), cb_context.width, ret.max_width);
++	calc_cb_length(src_el()->css().get_min_width(), width_basis, ret.min_width);
++	calc_cb_length(src_el()->css().get_max_width(), width_basis, ret.max_width);
+ 
+ 	calc_cb_length(src_el()->css().get_min_height(), cb_context.height, ret.min_height);
+ 	calc_cb_length(src_el()->css().get_max_height(), cb_context.height, ret.max_height);
+ 
++	// An intrinsic probe gives descendants room for unwrapped content.
++	// Its width becomes a percentage basis only inside a definitively sized box.
++	ret.grid_intrinsic_width = ret.width.type != containing_block_context::cbc_value_type_absolute &&
++		(cb_context.grid_intrinsic_width || (cb_context.size_mode & containing_block_context::size_mode_grid_measure_width));
++	ret.grid_content_edge = cb_context.grid_content_edge;
++	if (cb_context.grid_baseline_padding > 0 && css().get_box_sizing() == box_sizing_content_box)
++	{
++		if (!stretch_height && ret.height.type != containing_block_context::cbc_value_type_auto)
++			ret.height.value = std::max<pixel_t>(0, ret.height.value - cb_context.grid_baseline_padding);
++		if (ret.min_height.type != containing_block_context::cbc_value_type_none)
++			ret.min_height.value = std::max<pixel_t>(0, ret.min_height.value - cb_context.grid_baseline_padding);
++		if (ret.max_height.type != containing_block_context::cbc_value_type_none)
++			ret.max_height.value = std::max<pixel_t>(0, ret.max_height.value - cb_context.grid_baseline_padding);
++	}
+ 	// Fix box sizing
+ 	if(ret.width.type != containing_block_context::cbc_value_type_auto)
+ 	{
+@@ -1446,7 +1528,7 @@ std::tuple<litehtml::pixel_t, litehtml::pixel_t> litehtml::render_item::element_
+ 	pixel_t offset_x = 0;
+ 	pixel_t offset_y = 0;
+ 	auto cur_el = el->parent();
+-	auto this_el = el->css().get_position() != element_position_fixed ? shared_from_this() : src_el()->get_document()->root_render();
++	auto this_el = !el->is_viewport_fixed() ? shared_from_this() : src_el()->get_document()->root_render();
+ 	while(cur_el && cur_el != this_el)
+ 	{
+ 		offset_x += cur_el->m_pos.x;
+@@ -1454,7 +1536,7 @@ std::tuple<litehtml::pixel_t, litehtml::pixel_t> litehtml::render_item::element_
+ 		cur_el = cur_el->parent();
+ 	}
+ 
+-	if(el->css().get_position() == element_position_fixed || (is_root() && !src_el()->is_positioned()))
++	if(el->is_viewport_fixed() || (is_root() && !establishes_positioned_containing_block()))
+ 	{
+ 		offset_x += this_el->m_pos.x;
+ 		offset_y += this_el->m_pos.y;

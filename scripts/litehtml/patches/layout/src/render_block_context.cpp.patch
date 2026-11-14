@@ -1,0 +1,49 @@
+diff --git a/src/render_block_context.cpp b/src/render_block_context.cpp
+index 10d7247..1557e41 100644
+--- a/src/render_block_context.cpp
++++ b/src/render_block_context.cpp
+@@ -130,6 +130,8 @@ litehtml::rendered_width litehtml::render_item_block_context::_render_content(pi
+ 		}
+ 	}
+ 
++	layout_content_height = child_top;
++
+ 	if(self_size.height.type != containing_block_context::cbc_value_type_auto && self_size.height > 0)
+ 	{
+ 		m_pos.height = self_size.height;
+@@ -153,6 +155,35 @@ litehtml::rendered_width litehtml::render_item_block_context::_render_content(pi
+ 	return ret_width;
+ }
+ 
++litehtml::pixel_t litehtml::render_item_block_context::baseline_content_height() const
++{
++	return layout_content_height;
++}
++
++void litehtml::render_item_block_context::align_content_to_end()
++{
++	const auto extra = m_pos.height - layout_content_height;
++	if (extra <= 0) return;
++	for (const auto& child : m_children)
++		if (child->src_el()->in_normal_flow()) child->y_shift(extra);
++}
++
++std::optional<litehtml::pixel_t> litehtml::render_item_block_context::find_layout_baseline(bool last) const
++{
++	const auto baseline_of = [&](auto begin, auto end) -> std::optional<pixel_t> {
++		for (auto it = begin; it != end; ++it)
++		{
++			const auto& child = *it;
++			if (!child->src_el()->in_normal_flow() || child->css().get_float() != float_none) continue;
++			if (const auto baseline = child->layout_baseline(last))
++				return content_offset_top() + child->top() + *baseline;
++		}
++		return std::nullopt;
++	};
++	if (last) return baseline_of(m_children.rbegin(), m_children.rend());
++	return baseline_of(m_children.begin(), m_children.end());
++}
++
+ litehtml::pixel_t litehtml::render_item_block_context::get_first_baseline()
+ {
+ 	if(m_children.empty())

@@ -1,0 +1,998 @@
+diff --git a/src/style.cpp b/src/style.cpp
+index f93745f..649eda1 100644
+--- a/src/style.cpp
++++ b/src/style.cpp
+@@ -2,8 +2,10 @@
+ #include "style.h"
+ #include "css_parser.h"
+ #include "internal.h"
++#include <cmath>
+ #include <set>
+ #include "html_tag.h"
++#include "document_container.h"
+ #include "document.h"
+ 
+ 
+@@ -20,7 +22,6 @@ template<class T, class... Args>
+ int parse_1234_values(const css_token_vector& tokens, T result[4], bool (*func)(const css_token&, T&, Args...), Args... args);
+ int parse_1234_lengths(const css_token_vector& tokens, css_length len[4], int options, string keywords = "");
+ bool parse_border_width(const css_token& tok, css_length& width);
+-bool parse_font_family(const css_token_vector& tokens, string& font_family);
+ bool parse_font_weight(const css_token& tok, css_length& weight);
+ 
+ std::map<string_id, string> style::m_valid_values =
+@@ -60,10 +61,6 @@ std::map<string_id, string> style::m_valid_values =
+ 
+ 	{ _flex_direction_, flex_direction_strings },
+ 	{ _flex_wrap_, flex_wrap_strings },
+-	{ _justify_content_, flex_justify_content_strings },
+-	{ _align_content_, flex_align_content_strings },
+-	{ _align_items_, flex_align_items_strings },
+-	{ _align_self_, flex_align_items_strings },
+ 
+ 	{ _caption_side_, caption_side_strings },
+ 
+@@ -73,6 +70,26 @@ std::map<string_id, string> style::m_valid_values =
+ 
+ std::map<string_id, vector<string_id>> shorthands =
+ {
++	{ _place_items_, {_align_items_, _justify_items_}},
++	{ _place_self_, {_align_self_, _justify_self_}},
++	{ _place_content_, {_align_content_, _justify_content_}},
++	{ _grid_row_, {_grid_row_start_, _grid_row_end_}},
++	{ _grid_column_, {_grid_column_start_, _grid_column_end_}},
++	{ _grid_area_, {_grid_row_start_, _grid_column_start_, _grid_row_end_, _grid_column_end_}},
++	{ _grid_template_, {_grid_template_rows_, _grid_template_columns_, _grid_template_areas_}},
++	{ _grid_, {_grid_template_rows_, _grid_template_columns_, _grid_template_areas_,
++		_grid_auto_rows_, _grid_auto_columns_, _grid_auto_flow_}},
++	{ _gap_, {_row_gap_, _column_gap_}},
++	{ _background_position_, {_background_position_x_, _background_position_y_}},
++	{ _background_image_, {_background_image_, _background_image_baseurl_}},
++	{ _list_style_image_, {_list_style_image_, _list_style_image_baseurl_}},
++	{ _border_spacing_, {__litehtml_border_spacing_x_, __litehtml_border_spacing_y_}},
++	{ _border_radius_, {_border_top_left_radius_x_, _border_top_left_radius_y_, _border_top_right_radius_x_, _border_top_right_radius_y_,
++		_border_bottom_left_radius_x_, _border_bottom_left_radius_y_, _border_bottom_right_radius_x_, _border_bottom_right_radius_y_}},
++	{ _border_top_left_radius_, {_border_top_left_radius_x_, _border_top_left_radius_y_}},
++	{ _border_top_right_radius_, {_border_top_right_radius_x_, _border_top_right_radius_y_}},
++	{ _border_bottom_left_radius_, {_border_bottom_left_radius_x_, _border_bottom_left_radius_y_}},
++	{ _border_bottom_right_radius_, {_border_bottom_right_radius_x_, _border_bottom_right_radius_y_}},
+ 	{ _font_, {_font_style_, _font_variant_, _font_weight_, _font_size_, _line_height_, _font_family_}},
+ 
+ 	{ _background_, {
+@@ -113,13 +130,13 @@ std::map<string_id, vector<string_id>> shorthands =
+ 	{ _text_emphasis_, {_text_emphasis_style_, _text_emphasis_color_}},
+ };
+ 
+-void style::add(const string& txt, const string& baseurl, document_container* container)
++void style::add(const string& txt, const string& baseurl, document_container* container, const html_tag* element)
+ {
+ 	auto tokens = normalize(txt, f_componentize);
+-	add(tokens, baseurl, container);
++	add(tokens, baseurl, container, element);
+ }
+ 
+-void style::add(const css_token_vector& tokens, const string& baseurl, document_container* container)
++void style::add(const css_token_vector& tokens, const string& baseurl, document_container* container, const html_tag* element)
+ {
+ 	raw_declaration::vector decls;
+ 	raw_rule::vector rules;
+@@ -129,6 +146,7 @@ void style::add(const css_token_vector& tokens, const string& baseurl, document_
+ 	if (decls.empty())
+ 		return;
+ 
++	const auto source = container ? container->get_css_source(baseurl, element != nullptr) : css_source{};
+ 	// Parse each declaration
+ 	for (auto& decl : decls)
+ 	{
+@@ -136,20 +154,272 @@ void style::add(const css_token_vector& tokens, const string& baseurl, document_
+ 		// Note: decl.value is already componentized, see consume_qualified_rule and consume_style_block_contents.
+ 		// Note: decl.value may be empty.
+ 		string name = decl.name.substr(0, 2) == "--" ? decl.name : lowcase(decl.name);
+-		add_property(_id(name), decl.value, baseurl, decl.important, container);
++
++		if (source.kind == css_source_kind::none)
++			add_property(_id(name), decl.value, baseurl, decl.important, container);
++		else
++			add_checked_property(_id(name), decl.value, baseurl, decl.important, container, source, element);
+ 	}
+ }
+ 
+-bool has_var(const css_token_vector& tokens)
++
++static bool is_known_css_property(string_id name)
+ {
+-	for (auto& tok : tokens)
++	if (name == _id("box-shadow") || name == _id("text-shadow")) return true;
++	switch (name)
+ 	{
+-		if (tok.type == CV_FUNCTION && lowcase(tok.name) == "var")
+-			return true;
+-		if (tok.is_component_value() && has_var(tok.value))
++		case _gap_:
++		case _row_gap_:
++		case _column_gap_:
++		case _display_:
++		case _visibility_:
++		case _position_:
++		case _float_:
++		case _clear_:
++		case _appearance_:
++		case _box_sizing_:
++		case _overflow_:
++		case _text_align_:
++		case _vertical_align_:
++		case _text_transform_:
++		case _white_space_:
++		case _font_style_:
++		case _font_variant_:
++		case _text_decoration_style_:
++		case _list_style_type_:
++		case _list_style_position_:
++		case _border_top_style_:
++		case _border_bottom_style_:
++		case _border_left_style_:
++		case _border_right_style_:
++		case _border_collapse_:
++		case _flex_direction_:
++		case _flex_wrap_:
++		case _caption_side_:
++		case _z_index_:
++		case _text_indent_:
++		case _padding_left_:
++		case _padding_right_:
++		case _padding_top_:
++		case _padding_bottom_:
++		case _left_:
++		case _right_:
++		case _top_:
++		case _bottom_:
++		case _margin_left_:
++		case _margin_right_:
++		case _margin_top_:
++		case _margin_bottom_:
++		case _width_:
++		case _height_:
++		case _min_width_:
++		case _min_height_:
++		case _max_width_:
++		case _max_height_:
++		case _line_height_:
++		case _font_size_:
++		case _margin_:
++		case _padding_:
++		case _color_:
++		case _background_color_:
++		case _border_top_color_:
++		case _border_bottom_color_:
++		case _border_left_color_:
++		case _border_right_color_:
++		case _background_:
++		case _background_image_:
++		case _background_position_:
++		case _background_size_:
++		case _background_repeat_:
++		case _background_attachment_:
++		case _background_origin_:
++		case _background_clip_:
++		case _border_:
++		case _border_left_:
++		case _border_right_:
++		case _border_top_:
++		case _border_bottom_:
++		case _border_width_:
++		case _border_style_:
++		case _border_color_:
++		case _border_top_width_:
++		case _border_bottom_width_:
++		case _border_left_width_:
++		case _border_right_width_:
++		case _border_bottom_left_radius_:
++		case _border_bottom_right_radius_:
++		case _border_top_right_radius_:
++		case _border_top_left_radius_:
++		case _border_radius_x_:
++		case _border_radius_y_:
++		case _border_radius_:
++		case _border_spacing_:
++		case _list_style_image_:
++		case _list_style_:
++		case _font_:
++		case _font_family_:
++		case _font_weight_:
++		case _text_decoration_:
++		case _text_decoration_thickness_:
++		case _text_decoration_color_:
++		case _text_decoration_line_:
++		case _text_emphasis_:
++		case _text_emphasis_style_:
++		case _text_emphasis_color_:
++		case _text_emphasis_position_:
++		case _flex_:
++		case _flex_grow_:
++		case _flex_shrink_:
++		case _flex_basis_:
++		case _flex_flow_:
++		case _justify_items_:
++		case _align_items_:
++		case _justify_self_:
++		case _align_self_:
++		case _justify_content_:
++		case _align_content_:
++		case _place_items_:
++		case _place_self_:
++		case _place_content_:
++		case _transform_:
++		case _transform_origin_:
++		case _grid_template_:
++		case _grid_:
++		case _grid_row_:
++		case _grid_column_:
++		case _grid_area_:
++		case _grid_row_start_:
++		case _grid_row_end_:
++		case _grid_column_start_:
++		case _grid_column_end_:
++		case _grid_template_columns_:
++		case _grid_template_rows_:
++		case _grid_template_areas_:
++		case _grid_auto_rows_:
++		case _grid_auto_columns_:
++		case _grid_auto_flow_:
++		case _order_:
++		case _counter_increment_:
++		case _counter_reset_:
++		case _content_:
++		case _cursor_:
++
+ 			return true;
++		default:
++			return _s(name).size() > 2 && _s(name).compare(0, 2, "--") == 0;
+ 	}
+-	return false;
++}
++
++
++void style::snapshot_default_font_family()
++{
++	const auto& property = get_property(_font_family_);
++	if (!property.is<invalid>()) default_font_family = std::make_shared<property_value>(property);
++}
++
++void style::report_diagnostic(document_container& container, css_diagnostic_kind kind, string_id name,
++	const string& value, const css_source& source, const html_tag* element,
++	std::vector<std::pair<string_id, int>> drawing_values)
++{
++	css_diagnostic diagnostic{ kind, _s(name), value, source, std::move(drawing_values) };
++	container.report_css_diagnostic(diagnostic, kind == css_diagnostic_kind::not_rendered ? nullptr : element);
++	if (!element || kind == css_diagnostic_kind::not_rendered) remember_diagnostic(diagnostic);
++}
++
++void style::remember_diagnostic(const css_diagnostic& diagnostic)
++{
++	if (!diagnostics) diagnostics = std::make_shared<std::vector<css_diagnostic>>();
++	const auto same_declaration = [&](const css_diagnostic& other) {
++		return diagnostic.kind == other.kind && diagnostic.property == other.property && diagnostic.value == other.value &&
++			diagnostic.source.kind == other.source.kind && diagnostic.source.path == other.source.path &&
++			diagnostic.drawing_values == other.drawing_values;
++	};
++	if (std::none_of(diagnostics->begin(), diagnostics->end(), same_declaration))
++		diagnostics->push_back(diagnostic);
++}
++
++void style::add_checked_property(string_id name, const css_token_vector& value, const string& baseurl,
++	bool important, document_container* container, const css_source& source, const html_tag* element)
++{
++	const auto spelling = [&] { return value.empty() ? string() : get_repr(value, 0, -1, true); };
++	const bool custom = _s(name).compare(0, 2, "--") == 0;
++	if (!is_known_css_property(name))
++	{
++		report_diagnostic(*container, css_diagnostic_kind::unknown_property, name, spelling(), source, element);
++		add_property(name, value, baseurl, important, container);
++		return;
++	}
++	const auto variables = inspect_css_variables(value);
++	if (variables == css_variable_syntax::invalid)
++	{
++		report_diagnostic(*container, css_diagnostic_kind::unsupported_value, name, spelling(), source, element);
++		return;
++	}
++	if (variables == css_variable_syntax::valid)
++	{
++		if (custom) add_property(name, value, baseurl, important, container);
++		else add_deferred_property(name, value, baseurl, important, source);
++		return;
++	}
++
++	css_declaration_result result;
++	{
++		struct reset_result {
++			css_declaration_result*& target;
++			~reset_result() { target = nullptr; }
++		} reset{ declaration_result };
++		declaration_result = &result;
++		add_property(name, value, baseurl, important, container);
++	}
++	if (!result.accepted)
++		report_diagnostic(*container, css_diagnostic_kind::unsupported_value, name, spelling(), source, element);
++	else if (!result.drawing_values.empty())
++		report_diagnostic(*container, css_diagnostic_kind::not_rendered, name, spelling(), source, element,
++			std::move(result.drawing_values));
++}
++
++void style::add_deferred_property(string_id name, const css_token_vector& value, const string& baseurl, bool important,
++	const css_source& source)
++{
++	property_value deferred(invalid{}, important);
++	deferred.deferred = std::make_shared<property_value::deferred_declaration>(property_value::deferred_declaration{ name, value, baseurl, source });
++	const auto longhands = shorthands.find(name);
++	if (longhands != shorthands.end())
++		for (const auto longhand : longhands->second) add_parsed_property(longhand, deferred);
++	else
++		add_parsed_property(name, deferred);
++}
++
++void style::add_gap_property(string_id name, const css_token_vector& value, bool important)
++{
++	const bool shorthand = name == _gap_;
++	if (value.empty() || value.size() > (shorthand ? 2 : 1)) return;
++
++	const string keyword = value.size() == 1 ? value.front().ident() : string();
++	property_value row;
++	property_value column;
++	if (keyword == "inherit")
++	{
++		row = column = property_value(inherit(), important);
++	}
++	else if (keyword == "initial" || keyword == "unset")
++	{
++		row = column = property_value(css_length(), important);
++	}
++	else
++	{
++		const auto parse_length = [](const css_token& token, css_length& gap) {
++			return gap.from_token(token, f_length_percentage | f_positive | f_math, "normal") &&
++				(gap.is_predefined() || std::isfinite(gap.val()));
++		};
++		css_length row_length;
++		css_length column_length;
++		if (!parse_length(value.front(), row_length) || !parse_length(value.back(), column_length)) return;
++		row = property_value(row_length, important);
++		column = property_value(column_length, important);
++	}
++	if (name != _column_gap_) add_parsed_property(_row_gap_, row);
++	if (name != _row_gap_) add_parsed_property(_column_gap_, column);
+ }
+ 
+ void style::inherit_property(string_id name, bool important)
+@@ -178,8 +448,20 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 	if (value.empty() && _s(name).substr(0, 2) != "--")
+ 		return;
+ 
+-	if (has_var(value))
+-		return add_parsed_property(name, property_value(value, important, true));
++	const auto variables = inspect_css_variables(value);
++	if (variables == css_variable_syntax::invalid) return;
++	if (_s(name).compare(0, 2, "--") == 0 && _s(name).size() > 2)
++	{
++		const auto keyword = value.size() == 1 ? value.front().ident() : string();
++		if (is_one_of(keyword, "inherit", "unset", "revert", "revert-layer")) return inherit_property(name, important);
++		if (keyword == "initial") return add_parsed_property(name, property_value(invalid{}, important));
++		if (value.empty() || is_declaration_value(value)) add_parsed_property(name, property_value(value, important));
++		return;
++	}
++	if (variables == css_variable_syntax::valid)
++		return add_deferred_property(name, value, baseurl, important);
++	if (is_one_of(name, _gap_, _row_gap_, _column_gap_))
++		return add_gap_property(name, value, important);
+ 
+ 	// valid only if value contains a single token
+ 	css_token val = value.size() == 1 ? value[0] : css_token();
+@@ -189,6 +471,23 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 	if (ident == "inherit")
+ 		return inherit_property(name, important);
+ 
++
++	if (name == _id("box-shadow"))
++	{
++		std::vector<box_shadow> shadows;
++		if (parse_box_shadows(value, container, shadows))
++			add_parsed_property(name, property_value(shadows, important));
++		return;
++	}
++	if (name == _id("text-shadow"))
++	{
++		if (ident == "unset") return inherit_property(name, important);
++		std::vector<box_shadow> shadows;
++		if (parse_text_shadows(value, container, shadows))
++			add_parsed_property(name, property_value(shadows, important));
++		return;
++	}
++
+ 	int idx[4];
+ 	web_color clr[4];
+ 	css_length len[4];
+@@ -227,8 +526,6 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 
+ 	case _flex_direction_:
+ 	case _flex_wrap_:
+-	case _justify_content_:
+-	case _align_content_:
+ 
+ 	case _caption_side_:
+ 
+@@ -251,7 +548,7 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 	case _padding_right_:
+ 	case _padding_top_:
+ 	case _padding_bottom_:
+-		return add_length_property(name, val, "", f_length_percentage|f_positive, important);
++		return add_length_property(name, val, "", f_length_percentage|f_positive|f_math, important);
+ 
+ 	// auto | <length-percentage>  https://developer.mozilla.org/en-US/docs/Web/CSS/left
+ 	case _left_:
+@@ -262,19 +559,19 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 	case _margin_right_:
+ 	case _margin_top_:
+ 	case _margin_bottom_:
+-		return add_length_property(name, val, "auto", f_length_percentage, important);
++		return add_length_property(name, val, "auto", f_length_percentage|f_math, important);
+ 
+ 	// auto | min-content | max-content | fit-content | <length-percentage [0,∞]>   https://developer.mozilla.org/en-US/docs/Web/CSS/width#formal_syntax
+ 	case _width_:
+ 	case _height_:
+ 	case _min_width_:
+ 	case _min_height_:
+-		return add_length_property(name, val, "auto", f_length_percentage|f_positive, important);
++		return add_length_property(name, val, "auto", f_length_percentage|f_positive|f_math, important);
+ 
+ 	// none | min-content | max-content | fit-content | <length-percentage [0,∞]>   https://developer.mozilla.org/en-US/docs/Web/CSS/max-width#formal_syntax
+ 	case _max_width_:
+ 	case _max_height_:
+-		return add_length_property(name, val, "none", f_length_percentage|f_positive, important);
++		return add_length_property(name, val, "none", f_length_percentage|f_positive|f_math, important);
+ 
+ 	//  normal | <number [0,∞]> | <length-percentage [0,∞]>   https://developer.mozilla.org/en-US/docs/Web/CSS/line-height#formal_syntax
+ 	case _line_height_:
+@@ -285,12 +582,12 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 		return add_length_property(name, val, font_size_strings, f_length_percentage|f_positive, important);
+ 
+ 	case _margin_:
+-		if (int n = parse_1234_lengths(value, len, f_length_percentage, "auto"))
++		if (int n = parse_1234_lengths(value, len, f_length_percentage | f_math, "auto"))
+ 			add_four_properties(_margin_top_, len, n, important);
+ 		break;
+ 
+ 	case _padding_:
+-		if (int n = parse_1234_lengths(value, len, f_length_percentage | f_positive))
++		if (int n = parse_1234_lengths(value, len, f_length_percentage | f_positive | f_math))
+ 			add_four_properties(_padding_top_, len, n, important);
+ 		break;
+ 
+@@ -426,9 +723,18 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 		break;
+ 
+ 	case _font_family_:
+-		if (parse_font_family(value, str))
+-			add_parsed_property(name, property_value(str, important));
++	{
++		css_font_families families;
++		if (ident == "unset") return inherit_property(name, important);
++		if (is_one_of(ident, "revert", "revert-layer"))
++		{
++			add_parsed_property(name, property_value(ident, important));
++			break;
++		}
++		if (ident == "initial" || parse_font_families(value, families))
++			add_parsed_property(name, property_value(families, important));
+ 		break;
++	}
+ 
+ 	case _font_weight_:
+ 		if (parse_font_weight(val, *len))
+@@ -481,18 +787,128 @@ void style::add_property(string_id name, const css_token_vector& value, const st
+ 		break;
+ 
+ 	case _flex_basis_:
+-		add_length_property(name, val, flex_basis_strings, f_length_percentage|f_positive, important);
++		add_length_property(name, val, flex_basis_strings, f_length_percentage|f_positive|f_math, important);
+ 		break;
+ 
+ 	case _flex_flow_:
+ 		parse_flex_flow(value, important);
+ 		break;
+ 
++	case _justify_items_:
+ 	case _align_items_:
++	case _justify_self_:
+ 	case _align_self_:
+-		parse_align_self(name, value, important);
++	case _justify_content_:
++	case _align_content_:
++	{
++		auto alignment = initial_alignment(name);
++		if (ident == "initial" || ident == "unset" || parse_alignment(name, value, alignment))
++			add_parsed_property(name, property_value(alignment, important));
+ 		break;
++	}
++	case _place_items_:
++	case _place_self_:
++	case _place_content_:
++	{
++		const auto& longhands = shorthands.at(name);
++		auto align = initial_alignment(longhands[0]);
++		auto justify = initial_alignment(longhands[1]);
++		if (ident != "initial" && ident != "unset" &&
++			!parse_place_alignment(longhands[0], longhands[1], value, align, justify)) break;
++		add_parsed_property(longhands[0], property_value(align, important));
++		add_parsed_property(longhands[1], property_value(justify, important));
++		break;
++	}
+ 
++	case _transform_:
++	{
++		css_transform_list transforms;
++		if (ident == "initial" || ident == "unset" || parse_css_transform(value, transforms))
++			add_parsed_property(name, property_value(std::move(transforms), important));
++		break;
++	}
++	case _transform_origin_:
++	{
++		css_transform_origin origin;
++		if (ident == "initial" || ident == "unset" || parse_css_transform_origin(value, origin))
++			add_parsed_property(name, property_value(origin, important));
++		break;
++	}
++	case _grid_template_:
++	case _grid_:
++	{
++		grid_definition definition;
++		if (ident != "initial" && ident != "unset" && !parse_grid_definition(value, name == _grid_, definition)) break;
++		add_parsed_property(_grid_template_rows_, property_value(std::move(definition.rows), important));
++		add_parsed_property(_grid_template_columns_, property_value(std::move(definition.columns), important));
++		add_parsed_property(_grid_template_areas_, property_value(std::move(definition.areas), important));
++		if (name == _grid_)
++		{
++			add_parsed_property(_grid_auto_rows_, property_value(std::move(definition.auto_rows), important));
++			add_parsed_property(_grid_auto_columns_, property_value(std::move(definition.auto_columns), important));
++			add_parsed_property(_grid_auto_flow_, property_value(definition.flow, important));
++		}
++		break;
++	}
++	case _grid_row_:
++	case _grid_column_:
++	{
++		grid_axis_placement placement;
++		if (ident != "initial" && ident != "unset" && !parse_grid_axis_placement(value, placement)) break;
++		const auto& longhands = shorthands.at(name);
++		add_parsed_property(longhands[0], property_value(placement.start, important));
++		add_parsed_property(longhands[1], property_value(placement.end, important));
++		break;
++	}
++	case _grid_area_:
++	{
++		std::array<grid_line, 4> lines;
++		if (ident != "initial" && ident != "unset" && !parse_grid_area(value, lines)) break;
++		const auto& longhands = shorthands.at(name);
++		for (std::size_t index = 0; index < lines.size(); ++index)
++			add_parsed_property(longhands[index], property_value(std::move(lines[index]), important));
++		break;
++	}
++	case _grid_row_start_:
++	case _grid_row_end_:
++	case _grid_column_start_:
++	case _grid_column_end_:
++	{
++		grid_line line;
++		if (ident == "initial" || ident == "unset" || parse_grid_line(value, line))
++			add_parsed_property(name, property_value(line, important));
++		break;
++	}
++	case _grid_template_columns_:
++	case _grid_template_rows_:
++	{
++		grid_track_template tracks;
++		if (ident == "initial" || ident == "unset" || parse_grid_tracks(value, tracks))
++			add_parsed_property(name, property_value(std::move(tracks), important));
++		break;
++	}
++	case _grid_template_areas_:
++	{
++		grid_area_template areas;
++		if (ident == "initial" || ident == "unset" || parse_grid_template_areas(value, areas))
++			add_parsed_property(name, property_value(std::move(areas), important));
++		break;
++	}
++	case _grid_auto_rows_:
++	case _grid_auto_columns_:
++	{
++		grid_track_list tracks;
++		if (ident == "initial" || ident == "unset" || parse_grid_auto_tracks(value, tracks))
++			add_parsed_property(name, property_value(std::move(tracks), important));
++		break;
++	}
++	case _grid_auto_flow_:
++	{
++		grid_auto_flow flow;
++		if (ident == "initial" || ident == "unset" || parse_grid_auto_flow(value, flow))
++			add_parsed_property(name, property_value(flow, important));
++		break;
++	}
+ 	case _order_: // <integer>
+ 		if (val.type == NUMBER && val.n.number_type == css_number_integer)
+ 			add_parsed_property(name, property_value((int)val.n.number, important));
+@@ -1185,41 +1601,6 @@ bool is_custom_ident(const css_token& tok)
+ 	return !is_one_of(lowcase(tok.name), "default", "initial", "inherit", "unset");
+ }
+ 
+-// https://drafts.csswg.org/css-fonts/#propdef-font-family
+-// font-family = [ <family-name> | <generic-family> ]#
+-// <family-name> = <string> | <custom-ident>+
+-// <generic-family> = generic( <custom-ident>+ ) | <string> | <custom-ident>+
+-bool parse_font_family(const css_token_vector& tokens, string& font_family)
+-{
+-	auto list = parse_comma_separated_list(tokens);
+-	if (list.empty()) return false;
+-
+-	string result;
+-	for (const auto& name : list)
+-	{
+-		if (name.size() == 1 && name[0].type == STRING)
+-		{
+-			//result.push_back(name[0].str);
+-			result += name[0].str + ',';
+-			continue;
+-		}
+-
+-		// Otherwise: name must be a list of <custom-ident>s
+-		// Note: generic( <custom-ident>+ ) is not supported
+-		string str;
+-		for (const auto& tok : name)
+-		{
+-			if (!is_custom_ident(tok)) return false;
+-			str += tok.name + ' ';
+-		}
+-		//result.push_back(trim(str));
+-		result += trim(str) + ',';
+-	}
+-	result.resize(result.size() - 1); // remove last ','
+-	font_family = result;
+-	return true;
+-}
+-
+ // https://developer.mozilla.org/en-US/docs/Web/CSS/font
+ // https://drafts.csswg.org/css-fonts/#font-prop
+ // font = <font-style-weight>? <font-size> [ / <line-height> ]? <font-family>
+@@ -1234,11 +1615,11 @@ void style::parse_font(css_token_vector tokens, bool important)
+ 	css_length weight      = css_length::predef_value(font_weight_normal);
+ 	css_length size        = css_length::predef_value(font_size_medium);
+ 	css_length line_height = css_length::predef_value(line_height_normal);
+-	string font_family; // this argument is mandatory, no need to set initial value
++	css_font_families font_family;
+ 
+-	if(tokens.size() == 1 && (tokens[0].type == STRING || tokens[0].type == IDENT) && value_in_list(tokens[0].str, font_system_family_name_strings))
++	if (tokens.size() == 1 && value_in_list(tokens[0].ident(), font_system_family_name_strings))
+ 	{
+-		font_family = tokens[0].str;
++		font_family.push_back({ "system-ui", true });
+ 	} else
+ 	{
+ 		int index = 0;
+@@ -1260,7 +1641,7 @@ void style::parse_font(css_token_vector tokens, bool important)
+ 		}
+ 
+ 		remove(tokens, 0, index);
+-		if (!parse_font_family(tokens, font_family))
++		if (!parse_font_families(tokens, font_family))
+ 			return;
+ 	}
+ 	add_parsed_property(_font_style_,   property_value(style,       important));
+@@ -1273,37 +1654,12 @@ void style::parse_font(css_token_vector tokens, bool important)
+ 
+ void style::parse_text_decoration(const css_token_vector& tokens, bool important, document_container* container)
+ {
+-	css_length len;
+-	css_token_vector line_tokens;
+-	for(const auto& token : tokens)
+-	{
+-		if(parse_text_decoration_color(token, important, container)) continue;
+-
+-		if(parse_length(token, len, f_length_percentage|f_positive, style_text_decoration_thickness_strings))
+-		{
+-			add_parsed_property(_text_decoration_thickness_, property_value(len, important));
+-		} else
+-		{
+-			if(token.type == IDENT)
+-			{
+-				int style = value_index(token.ident(), style_text_decoration_style_strings);
+-				if(style >= 0)
+-				{
+-					add_parsed_property(_text_decoration_style_, property_value(style, important));
+-				} else
+-				{
+-					line_tokens.push_back(token);
+-				}
+-			} else
+-			{
+-				line_tokens.push_back(token);
+-			}
+-		}
+-	}
+-	if(!line_tokens.empty())
+-	{
+-		parse_text_decoration_line(line_tokens, important);
+-	}
++	text_decoration decoration;
++	if (!parse_decoration(tokens, container, decoration)) return;
++	add_parsed_property(_text_decoration_line_, property_value(decoration.line, important));
++	add_parsed_property(_text_decoration_style_, property_value(static_cast<int>(decoration.style), important));
++	add_parsed_property(_text_decoration_thickness_, property_value(decoration.thickness, important));
++	add_parsed_property(_text_decoration_color_, property_value(decoration.color, important));
+ }
+ 
+ bool style::parse_text_decoration_color(const css_token& token, bool important, document_container* container)
+@@ -1324,19 +1680,9 @@ bool style::parse_text_decoration_color(const css_token& token, bool important,
+ 
+ void style::parse_text_decoration_line(const css_token_vector& tokens, bool important)
+ {
+-	int val = 0;
+-	for(const auto& token : tokens)
+-	{
+-		if(token.type == IDENT)
+-		{
+-			int idx = value_index(token.ident(), style_text_decoration_line_strings);
+-			if(idx >= 0)
+-			{
+-				val |= 1 << (idx - 1);
+-			}
+-		}
+-	}
+-	add_parsed_property(_text_decoration_line_, property_value(val, important));
++	int lines;
++	if (parse_decoration_line(tokens, lines))
++		add_parsed_property(_text_decoration_line_, property_value(lines, important));
+ }
+ 
+ void style::parse_text_emphasis(const css_token_vector& tokens, bool important, document_container *container) {
+@@ -1421,7 +1767,7 @@ void style::parse_flex(const css_token_vector& tokens, bool important)
+ 		{
+ 			if (!unitless_zero_allowed and tok.type == NUMBER and tok.n.number == 0)
+ 				return false;
+-			return m_basis.from_token(tok, f_length_percentage | f_positive, flex_basis_strings);
++			return m_basis.from_token(tok, f_length_percentage | f_positive | f_math, flex_basis_strings);
+ 		}
+ 	};
+ 	flex flex;
+@@ -1498,55 +1844,11 @@ void style::parse_flex_flow(const css_token_vector& tokens, bool important)
+ 	add_parsed_property(_flex_wrap_,      property_value(flex_wrap,      important));
+ }
+ 
+-// https://www.w3.org/TR/css-align/#align-self-property
+-// value = auto | normal | stretch |  [ [first | last]? && baseline ]  |  [safe | unsafe]? <self-position>
+-// <self-position> = center | start | end | self-start | self-end | flex-start | flex-end
+-// https://www.w3.org/TR/css-align/#align-items-property
+-// same as align-self, except auto is not allowed
+-void style::parse_align_self(string_id name, const css_token_vector& tokens, bool important)
+-{
+-	auto n = tokens.size();
+-	if (n > 2)
+-		return;
+-	if (tokens[0].type != IDENT || (n == 2 && tokens[1].type != IDENT))
+-		return;
+-
+-	string a = tokens[0].ident();
+-
+-	if (name == _align_items_ && a == "auto")
+-		return;
+-
+-	if (n == 1)
+-	{
+-		int idx = value_index(a, flex_align_items_strings);
+-		if (idx >= 0)
+-			add_parsed_property(name, property_value(idx, important));
+-		return;
+-	}
+-
+-	// Otherwise: n == 2
+-
+-	string b = tokens[1].ident();
+-
+-	if (a == "baseline") swap(a, b);
+-	if (b == "baseline" && is_one_of(a, "first", "last"))
+-	{
+-		int idx = flex_align_items_baseline | (a == "first" ? flex_align_items_first : flex_align_items_last);
+-		add_parsed_property(name, property_value(idx, important));
+-		return;
+-	}
+-
+-	// <overflow-position> <self-position>
+-	int idx = value_index(b, self_position_strings);
+-	if (idx >= 0 && is_one_of(a, "safe", "unsafe"))
+-	{
+-		idx |= (a == "safe" ? flex_align_items_safe : flex_align_items_unsafe);
+-		add_parsed_property(name, property_value(idx, important));
+-	}
+-}
+-
+ void style::add_parsed_property( string_id name, const property_value& propval )
+ {
++
++	if (declaration_result)
++		declaration_result->accept(name, propval);
+ 	auto prop = m_properties.find(name);
+ 	if (prop != m_properties.end())
+ 	{
+@@ -1575,6 +1877,11 @@ void style::remove_property( string_id name, bool important )
+ 
+ void style::combine(const style& src)
+ {
++	if (src.diagnostics)
++	{
++		for (const auto& diagnostic : *src.diagnostics)
++			remember_diagnostic(diagnostic);
++	}
+ 	for (const auto& property : src.m_properties)
+ 	{
+ 		add_parsed_property(property.first, property.second);
+@@ -1583,91 +1890,94 @@ void style::combine(const style& src)
+ 
+ const property_value& style::get_property(string_id name) const
+ {
+-	auto it = m_properties.find(name);
+-	if (it != m_properties.end())
++	const auto computed = computed_declarations.find(name);
++	const auto specified = m_properties.find(name);
++	const auto* value = computed != computed_declarations.end() ? &computed->second :
++		(specified != m_properties.end() ? &specified->second : nullptr);
++	if (value)
+ 	{
+-		return it->second;
++		// Author rules share one unlayered cascade. Roll back to default styles or inheritance.
++		if (name == _font_family_ && value->is<string>())
++		{
++			static const property_value inherited{ inherit(), false };
++			return default_font_family ? *default_font_family : inherited;
++		}
++		return *value;
+ 	}
+ 	static property_value dummy;
+ 	return dummy;
+ }
+ 
+-// var( <custom-property-name> , <declaration-value>? )
+-bool check_var_syntax(const css_token_vector& args)
++const css_token_vector* style::get_custom_property(string_id name, bool& local) const
+ {
+-	if (args.empty()) return false;
+-
+-	string name = args[0].ident();
+-	if (name.substr(0, 2) != "--" || name.size() <= 2)
+-		return false;
+-
+-	if (args.size() > 1 && args[1].ch != ',')
+-		return false;
+-	if (args.size() > 2 && !is_declaration_value(args, 2))
+-		return false;
+-
+-	return true;
++	const auto it = computed_variables.find(name);
++	local = it != computed_variables.end();
++	return local && it->second ? &*it->second : nullptr;
+ }
+ 
+-// https://drafts.csswg.org/css-variables/#using-variables
+-// var( <custom-property-name> , <declaration-value>? )
+-// returns true if one var() was substituted
+-// returns true if there was error or var() was not found
+-bool subst_var(css_token_vector& tokens, const html_tag* el, std::set<string_id>& used_vars)
++void style::subst_vars(const html_tag* el)
+ {
+-	for (int i = 0; i < (int)tokens.size(); i++)
++	computed_declarations.clear();
++	css_custom_properties custom_properties;
++	bool has_deferred = false;
++	for (const auto& [name, property] : m_properties)
++	{
++		has_deferred |= bool(property.deferred);
++		if (_s(name).compare(0, 2, "--") != 0) continue;
++		if (property.is<css_token_vector>())
++			custom_properties.emplace(name, &property.get<css_token_vector>());
++		else if (!property.is<inherit>())
++			custom_properties.emplace(name, nullptr);
++	}
++	if (custom_properties.empty() && !has_deferred)
++	{
++		computed_variables.clear();
++		return;
++	}
++	const auto parent = el->parent();
++	css_variable_resolver resolver(dynamic_cast<const html_tag*>(parent.get()), custom_properties);
++	auto* container = el->get_document()->container();
++	std::map<const property_value::deferred_declaration*, props_map> parsed_declarations;
++	for (const auto& [name, property] : m_properties)
+ 	{
+-		auto& tok = tokens[i];
+-		if (tok.type == CV_FUNCTION && lowcase(tok.name) == "var")
++		if (!property.deferred) continue;
++		const auto& declaration = *property.deferred;
++		auto [entry, inserted] = parsed_declarations.try_emplace(&declaration);
++		if (inserted)
+ 		{
+-			auto args = tok.value; // copy is intentional
+-			if (!check_var_syntax(args)) return false;
+-
+-			auto name = _id(args[0].name);
+-			if (name in used_vars) return false; // dependency cycle  https://drafts.csswg.org/css-variables/#cycles
+-			used_vars.insert(name);
+-
+-			css_token_vector value;
+-			if (el->get_custom_property(name, value))
++			style parsed;
++			css_declaration_result result;
++			parsed.declaration_result = &result;
++			if (const auto value = resolver.substitute(declaration.tokens))
+ 			{
+-				remove(tokens, i);
+-				insert(tokens, i, value);
++				const auto keyword = value->size() == 1 ? value->front().ident() : string();
++				if (keyword == "initial" || keyword == "unset")
++				{
++					result.accepted = true;
++					if (keyword == "initial")
++					{
++						const auto longhands = shorthands.find(declaration.name);
++						if (longhands != shorthands.end())
++							for (const auto longhand : longhands->second) parsed.m_properties[longhand] = property_value(initial_value{}, property.m_important);
++						else
++							parsed.m_properties[declaration.name] = property_value(initial_value{}, property.m_important);
++					}
++				}
++				else
++					parsed.add_property(declaration.name, *value, declaration.baseurl, property.m_important, container);
+ 			}
+-			else // custom property not defined
++			entry->second = std::move(parsed.m_properties);
++			if (declaration.source.kind != css_source_kind::none && (!result.accepted || !result.drawing_values.empty()))
+ 			{
+-				if (args.size() == 1) return false; // default value not provided
+-				remove(args, 0, 2);
+-				remove(tokens, i);
+-				insert(tokens, i, args);
++				const auto kind = result.accepted ? css_diagnostic_kind::not_rendered : css_diagnostic_kind::unsupported_value;
++				container->report_css_diagnostic({ kind, _s(declaration.name), get_repr(declaration.tokens, 0, -1, true),
++					declaration.source, std::move(result.drawing_values) }, el);
+ 			}
+-			return true;
+-		}
+-		if (tok.is_component_value() && subst_var(tok.value, el, used_vars))
+-			return true;
+-	}
+-	return false;
+-}
+-
+-void subst_vars_(string_id name, css_token_vector& tokens, const html_tag* el)
+-{
+-	std::set<string_id> used_vars = {name};
+-	while (subst_var(tokens, el, used_vars));
+-}
+-
+-void style::subst_vars(const html_tag* el)
+-{
+-	for (auto& prop : m_properties)
+-	{
+-		if (prop.second.m_has_var)
+-		{
+-			auto& value = prop.second.get<css_token_vector>();
+-			subst_vars_(prop.first, value, el);
+-			// re-adding the same property
+-			// if it is a custom property it will be re-added as a css_token_vector
+-			// if it is a standard css property it will be parsed and properly added as typed property
+-			add_property(prop.first, value, "", prop.second.m_important, el->get_document()->container());
+ 		}
++		if (const auto it = entry->second.find(name); it != entry->second.end())
++			computed_declarations.emplace(name, it->second);
+ 	}
++	computed_variables = resolver.take_computed();
+ }
+ 
+-} // namespace litehtml
+\ No newline at end of file
++} // namespace litehtml

@@ -1,0 +1,20 @@
+diff --git a/include/litehtml/element.h b/include/litehtml/element.h
+index da83e75..0068450 100644
+--- a/include/litehtml/element.h
++++ b/include/litehtml/element.h
+@@ -17,6 +17,7 @@ namespace litehtml
+ 
+ 	class element : public std::enable_shared_from_this<element>
+ 	{
++		friend struct docrender_editor;
+ 		friend class line_box;
+ 		friend class html_tag;
+ 		friend class el_table;
+@@ -215,6 +216,7 @@ namespace litehtml
+ 	{
+ 		if (css().get_display() == display_block ||
+ 			css().get_display() == display_flex ||
++			css().get_display() == display_grid ||
+ 			css().get_display() == display_table ||
+ 			css().get_display() == display_list_item)
+ 		{

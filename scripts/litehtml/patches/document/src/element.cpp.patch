@@ -1,0 +1,52 @@
+diff --git a/src/element.cpp b/src/element.cpp
+index ba339ea..6fbd9a6 100644
+--- a/src/element.cpp
++++ b/src/element.cpp
+@@ -2,6 +2,7 @@
+ #include "element.h"
+ #include "document.h"
+ #include "render_item.h"
++#include "formats/html/layout/grid/litehtml_render_grid.h"
+ #include "render_flex.h"
+ #include "render_inline.h"
+ #include "render_table.h"
+@@ -53,7 +54,8 @@ bool element::is_inline() const
+ 		   css().get_display() == display_inline_table ||
+ 		   css().get_display() == display_inline_block ||
+ 		   css().get_display() == display_inline_text ||
+-		   css().get_display() == display_inline_flex)
++		   css().get_display() == display_inline_flex ||
++		   css().get_display() == display_inline_grid)
+ 	{
+ 		return true;
+ 	}
+@@ -64,7 +66,8 @@ bool element::is_inline_box() const
+ {
+ 	if(	css().get_display() == display_inline_table ||
+ 		   css().get_display() == display_inline_block ||
+-		   css().get_display() == display_inline_flex)
++		   css().get_display() == display_inline_flex ||
++		   css().get_display() == display_inline_grid)
+ 	{
+ 		return true;
+ 	}
+@@ -159,6 +162,8 @@ std::shared_ptr<render_item> element::create_render_item(const std::shared_ptr<r
+ 	{
+ 		ret = std::make_shared<render_item_flex>(shared_from_this());
+ 	}
++	if (is_grid_display(css().get_display()))
++		ret = std::make_shared<render_item_grid>(shared_from_this());
+ 	if(ret)
+ 	{
+ 		if (css().get_display() == display_table ||
+@@ -282,6 +287,10 @@ bool element::is_block_formatting_context() const
+ 			return true;
+ 		}
+ 	}
++	if (is_grid_display(m_css.get_display()))
++		return true;
++	if (const auto p = parent(); p && is_grid_display(p->css().get_display()) && m_css.get_display() != display_inline_text)
++		return true;
+ 	if(	m_css.get_display() == display_inline_block ||
+ 		   m_css.get_display() == display_table_cell ||
+ 		   m_css.get_display() == display_inline_flex ||

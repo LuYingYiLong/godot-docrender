@@ -1,0 +1,18 @@
+diff --git a/src/flex_item.cpp b/src/flex_item.cpp
+index 0b24d17..c12ce66 100644
+--- a/src/flex_item.cpp
++++ b/src/flex_item.cpp
+@@ -357,6 +357,13 @@ void litehtml::flex_item_column_direction::direction_specific_init(const litehtm
+ 		}
+ 	}
+ 
++	if (!flex_basis_predefined && el->css().get_flex_basis().expression() && el->css().get_flex_basis().units() == css_units_percentage &&
++		self_size.height.type == containing_block_context::cbc_value_type_auto)
++	{
++		flex_basis_predefined = true;
++		predef = flex_basis_fit_content;
++	}
++
+ 	if (flex_basis_predefined)
+ 	{
+ 		if(predef == flex_basis_auto && el->css().get_height().is_predefined())

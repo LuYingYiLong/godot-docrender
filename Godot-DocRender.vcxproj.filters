@@ -114,6 +114,12 @@
     <ClCompile Include="src\formats\html\html_layout.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\html\html_paint_recorder.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\html_resources.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\html\html_markup.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
@@ -148,6 +154,9 @@
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
     <ClCompile Include="src\formats\html\litehtml_container.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\litehtml_fonts.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
     <ClCompile Include="src\formats\html\litehtml_document_adapter.cpp">
@@ -293,6 +302,9 @@
     <ClInclude Include="src\formats\html\html_element.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
+    <ClInclude Include="src\formats\html\html_font_config.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
     <ClInclude Include="src\formats\html\html_layout.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
@@ -300,6 +312,15 @@
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\html_paint_run.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_paint_recorder.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_resources.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_shaped_text.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_box_shadow.h">
@@ -336,6 +357,9 @@
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_container.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\litehtml_fonts.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_document_adapter.h">

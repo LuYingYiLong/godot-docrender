@@ -2,8 +2,8 @@
 #define DOCRENDER_HTML_LAYOUT_H
 
 #include "html_element.h"
+#include "html_font_config.h"
 
-#include <godot_cpp/classes/font.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/callable.hpp>
@@ -73,15 +73,6 @@ public:
 	bool is_css_diagnostics_enabled() const;										// 返回是否收集 CSS 声明诊断
 	godot::TypedArray<godot::Dictionary> get_css_diagnostics() const;				// 返回最近一轮样式计算的诊断快照
 
-	struct Fonts {
-		godot::Ref<godot::Font> text;
-		godot::Ref<godot::Font> bold;
-		godot::Ref<godot::Font> italic;
-		godot::Ref<godot::Font> bold_italic;
-		godot::Ref<godot::Font> code;
-		godot::Ref<godot::Font> code_block;
-	};
-
 	struct LinkHit {
 		godot::String uri;
 		uintptr_t id = 0;
@@ -100,7 +91,7 @@ public:
 		const godot::Dictionary& p_textures,
 		bool p_fit_images = false,
 		const godot::String& p_default_stylesheet = {},
-		const Fonts& p_fonts = {},
+		const docrender::HTMLFontConfig& p_fonts = {},
 		const godot::Dictionary& p_local_stylesheets = {}
 	);																				// 使用指定字体、样式表和资源依赖解析 HTML 并替换当前文档
 	godot::Error layout(const godot::Vector2i& p_viewport_size);					// 按给定视口尺寸排版并更新几何

@@ -1,0 +1,45 @@
+diff --git a/src/line_box.cpp b/src/line_box.cpp
+index 091a96c..4d95f56 100644
+--- a/src/line_box.cpp
++++ b/src/line_box.cpp
+@@ -381,7 +381,7 @@ std::list< std::unique_ptr<litehtml::line_box_item> > litehtml::line_box::finish
+     for (const auto& lbi : m_items)
+ 	{
+ 		// Apply text-align-justify
+-		m_rendered_width.natural_width += lbi->get_rendered_min_width();
++		m_rendered_width.natural_width += lbi->get_rendered_natural_width();
+ 		m_rendered_width.min_width		= std::max(m_rendered_width.min_width, lbi->get_rendered_min_width());
+ 		if (spacing_x != 0 && counter)
+ 		{
+@@ -473,7 +473,7 @@ std::list< std::unique_ptr<litehtml::line_box_item> > litehtml::line_box::finish
+ 		}
+ 		if(!ignore)
+ 		{
+-			lbi->pos().y = bl - lbi->get_el()->get_last_baseline() + content_offset;
++			lbi->pos().y = bl - lbi->get_el()->get_inline_baseline() + content_offset;
+ 		}
+ 
+ 		if(is_top_bottom_box)
+@@ -652,7 +652,7 @@ std::list< std::unique_ptr<litehtml::line_box_item> > litehtml::line_box::finish
+ 
+ 		if(current_context.start_lbi)
+ 		{
+-			lbi->pos().y = current_context.baseline - lbi->get_el()->get_last_baseline() +
++			lbi->pos().y = current_context.baseline - lbi->get_el()->get_inline_baseline() +
+ 						   lbi->get_el()->content_offset_top();
+ 		} else if(is_one_of(lbi->get_el()->css().get_vertical_align(), va_top, va_bottom) && lbi->get_type() == line_box_item::type_text_part)
+ 		{
+@@ -825,6 +825,13 @@ litehtml::pixel_t litehtml::line_box::bottom_margin() const
+     return 0;
+ }
+ 
++void litehtml::line_box::shift_for_content_alignment(pixel_t shift, std::unordered_set<render_item*>& shifted)
++{
++	m_top += shift;
++	for (const auto& item : m_items)
++		if (shifted.insert(item->get_el().get()).second) item->get_el()->y_shift(shift);
++}
++
+ void litehtml::line_box::y_shift( pixel_t shift )
+ {
+ 	m_top += shift;

@@ -1,0 +1,129 @@
+diff --git a/src/flex_line.cpp b/src/flex_line.cpp
+index 185ea92..e7128d5 100644
+--- a/src/flex_line.cpp
++++ b/src/flex_line.cpp
+@@ -8,12 +8,14 @@ void litehtml::flex_line::distribute_free_space(pixel_t container_main_size)
+ 	// If the sum is less than the flex container’s inner main size, use the flex grow factor for the
+ 	// rest of this algorithm; otherwise, use the flex shrink factor.
+ 
++	// Reserve gutters before distributing the remaining space among the items.
++	const pixel_t available_item_size = container_main_size - total_main_gap();
+ 	if (main_size < container_main_size)
+ 	{
+-		distribute_free_space_grow(container_main_size);
++		distribute_free_space_grow(available_item_size);
+ 	} else
+ 	{
+-		distribute_free_space_shrink(container_main_size);
++		distribute_free_space_shrink(available_item_size);
+ 	}
+ }
+ 
+@@ -167,6 +169,8 @@ void litehtml::flex_line::distribute_free_space_shrink(pixel_t container_main_si
+ 			}
+ 		}
+ 
++		if (sum_scaled_flex_shrink_factor <= 0) break;
++
+ 		if (sum_flex_shrink_factor < 1000)
+ 		{
+ 			pixel_t adjusted_free_space = initial_free_space * (pixel_t) sum_flex_shrink_factor / (pixel_t) 1000;
+@@ -268,62 +272,27 @@ bool litehtml::flex_line::fix_min_max_violations()
+ 
+ bool litehtml::flex_line::distribute_main_auto_margins(pixel_t free_main_size)
+ {
+-	if(free_main_size > 0 && (num_auto_margin_main_start || num_auto_margin_main_end))
+-	{
+-		pixel_t add =  free_main_size / (pixel_t) (items.size() * 2);
+-		for (auto &item: items)
+-		{
+-			if(!item->auto_margin_main_start.is_default())
+-			{
+-				item->auto_margin_main_start = add;
+-				item->main_size += add;
+-				main_size += add;
+-				free_main_size -= add;
+-			}
+-			if(!item->auto_margin_main_end.is_default())
+-			{
+-				item->auto_margin_main_end = add;
+-				item->main_size += add;
+-				main_size += add;
+-				free_main_size -= add;
+-			}
+-		}
++	const int margin_count = num_auto_margin_main_start + num_auto_margin_main_end;
++	if (free_main_size <= 0 || margin_count == 0) return false;
+ 
+-		pixel_t ditribute_step = 1;
+-		while (free_main_size > 0)
+-		{
+-			for (auto &item: items)
+-			{
+-				if(!item->auto_margin_main_start.is_default())
+-				{
+-					item->auto_margin_main_start = item->auto_margin_main_start + ditribute_step;
+-					free_main_size -= ditribute_step;
+-					if(free_main_size < ditribute_step) break;
+-				}
+-				if(!item->auto_margin_main_end.is_default())
+-				{
+-					item->auto_margin_main_end = item->auto_margin_main_end + ditribute_step;
+-					free_main_size -= ditribute_step;
+-					if(free_main_size < ditribute_step) break;
+-				}
+-			}
+-		}
+-		return true;
++	const pixel_t share = free_main_size / static_cast<pixel_t>(margin_count);
++	for (auto& item : items)
++	{
++		if (!item->auto_margin_main_start.is_default()) item->auto_margin_main_start = share;
++		if (!item->auto_margin_main_end.is_default()) item->auto_margin_main_end = share;
+ 	}
+-	return false;
++	main_size += free_main_size;
++	return true;
+ }
+ 
+-void litehtml::flex_line::init(pixel_t container_main_size, bool fit_container, bool is_row_direction,
++void litehtml::flex_line::init(pixel_t container_main_size, bool is_row_direction,
+ 							   const litehtml::containing_block_context &self_size,
+ 							   litehtml::formatting_context *fmt_ctx)
+ {
+-	if(!fit_container)
+-	{
+-		distribute_free_space(container_main_size);
+-	}
++	distribute_free_space(container_main_size);
+ 
+ 	cross_size = 0;
+-	main_size = 0;
++	main_size = total_main_gap();
+ 	first_baseline.set(0, baseline::baseline_type_none);
+ 	last_baseline.set(0, baseline::baseline_type_none);
+ 	
+@@ -449,8 +418,7 @@ litehtml::pixel_t litehtml::flex_line::calculate_items_position(pixel_t containe
+ {
+ 	/// Distribute main axis free space for auto-margins
+ 	pixel_t free_main_size = container_main_size - main_size;
+-	distribute_main_auto_margins(free_main_size);
+-	free_main_size = container_main_size - main_size;
++	if (distribute_main_auto_margins(free_main_size)) free_main_size = 0;
+ 
+ 	/// Fix justify-content property
+ 	switch (justify_content)
+@@ -529,9 +497,13 @@ litehtml::pixel_t litehtml::flex_line::calculate_items_position(pixel_t containe
+ 	/// Place all items in main and cross positions
+ 	pixel_t height =  0;
+ 
++
+ 	pixel_t distribute_step = 1;
++	bool first_item = true;
+ 	for(auto &item : items)
+ 	{
++		if (!first_item) main_pos += main_gap;
++		first_item = false;
+ 		main_pos += add_before_item;
+ 		if(add_before_item > 0 && item_remainder > 0)
+ 		{

@@ -1,0 +1,21 @@
+diff --git a/include/litehtml/html_tag.h b/include/litehtml/html_tag.h
+index 7f3938f..bf05bb6 100644
+--- a/include/litehtml/html_tag.h
++++ b/include/litehtml/html_tag.h
+@@ -14,6 +14,7 @@ namespace litehtml
+ 
+ 	class html_tag : public element
+ 	{
++		friend struct docrender_editor;
+ 		friend class elements_iterator;
+ 		friend class el_table;
+ 		friend class table_grid;
+@@ -138,7 +139,7 @@ namespace litehtml
+ 		{
+ 			return value.get<Type>();
+ 		}
+-		else if (inherited || value.is<inherit>())
++		else if ((inherited && !value.is<initial_value>()) || value.is<inherit>())
+ 		{
+ 			if (auto _parent = parent())
+ 			{

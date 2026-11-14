@@ -1,0 +1,14 @@
+diff --git a/include/litehtml/render_inline_context.h b/include/litehtml/render_inline_context.h
+index 6a4a5bc..1aa624e 100644
+--- a/include/litehtml/render_inline_context.h
++++ b/include/litehtml/render_inline_context.h
+@@ -53,6 +53,9 @@ namespace litehtml
+ 			return std::make_shared<render_item_inline_context>(src_el());
+ 		}
+ 
++		std::optional<pixel_t> find_layout_baseline(bool last) const override;
++		pixel_t baseline_content_height() const override;
++		void align_content_to_end() override;
+ 		pixel_t get_first_baseline() override;
+ 		pixel_t get_last_baseline() override;
+ 	};

@@ -1,0 +1,168 @@
+diff --git a/src/css_properties.cpp b/src/css_properties.cpp
+index 59ef0f7..ae3ca42 100644
+--- a/src/css_properties.cpp
++++ b/src/css_properties.cpp
+@@ -108,7 +108,26 @@ void litehtml::css_properties::compute(const html_tag* el, const document::ptr&
+ 	}
+ 	// 5. Otherwise, the remaining 'display' property values apply as specified.
+ 
++	if (m_display == display_inline_grid)
++	{
++		const auto parent = el->parent();
++		if (el->is_root() || m_float != float_none ||
++			is_one_of(m_el_position, element_position_absolute, element_position_fixed) ||
++			(parent && is_one_of(parent->css().get_display(), display_flex, display_inline_flex, display_grid, display_inline_grid)))
++			m_display = display_grid;
++	}
++
+ 	compute_font(el, doc);
++
++	static const std::vector<box_shadow> no_shadows;
++	static const auto text_shadow_property = _id("text-shadow");
++	m_text_shadows = el->get_property(text_shadow_property, true, no_shadows, offset(m_text_shadows));
++	for (auto& shadow : m_text_shadows)
++	{
++		doc->cvt_units(shadow.x, m_font_metrics, 0);
++		doc->cvt_units(shadow.y, m_font_metrics, 0);
++		doc->cvt_units(shadow.blur, m_font_metrics, 0);
++	}
+ 	pixel_t font_size = get_font_size();
+ 
+ 	const css_length _auto = css_length::predef_value(0);
+@@ -253,6 +272,67 @@ void litehtml::css_properties::compute(const html_tag* el, const document::ptr&
+ 	m_order = el->get_property<int>(_order_, false, 0, offset(m_order));
+ 
+ 	compute_background(el, doc);
++	m_justify_items = el->get_property(_justify_items_, false, initial_alignment(_justify_items_), offset(m_justify_items));
++	m_align_items = el->get_property(_align_items_, false, initial_alignment(_align_items_), offset(m_align_items));
++	m_justify_self = el->get_property(_justify_self_, false, initial_alignment(_justify_self_), offset(m_justify_self));
++	m_align_self = el->get_property(_align_self_, false, initial_alignment(_align_self_), offset(m_align_self));
++	m_justify_content = el->get_property(_justify_content_, false, initial_alignment(_justify_content_), offset(m_justify_content));
++	m_align_content = el->get_property(_align_content_, false, initial_alignment(_align_content_), offset(m_align_content));
++	m_grid_row_start = el->get_property(_grid_row_start_, false, grid_line(), offset(m_grid_row_start));
++	m_grid_row_end = el->get_property(_grid_row_end_, false, grid_line(), offset(m_grid_row_end));
++	m_grid_column_start = el->get_property(_grid_column_start_, false, grid_line(), offset(m_grid_column_start));
++	m_grid_column_end = el->get_property(_grid_column_end_, false, grid_line(), offset(m_grid_column_end));
++	m_transforms = el->get_property(_transform_, false, css_transform_list(), offset(m_transforms));
++	m_transform_origin = el->get_property(_transform_origin_, false, css_transform_origin(), offset(m_transform_origin));
++	for (auto& transform : m_transforms)
++	{
++		doc->cvt_units(transform.x, m_font_metrics, 0);
++		doc->cvt_units(transform.y, m_font_metrics, 0);
++	}
++	doc->cvt_units(m_transform_origin.x, m_font_metrics, 0);
++	doc->cvt_units(m_transform_origin.y, m_font_metrics, 0);
++	m_grid_template_columns = el->get_property(_grid_template_columns_, false, grid_track_template(), offset(m_grid_template_columns));
++	m_grid_template_rows = el->get_property(_grid_template_rows_, false, grid_track_template(), offset(m_grid_template_rows));
++	m_grid_template_areas = el->get_property(_grid_template_areas_, false, grid_area_template(), offset(m_grid_template_areas));
++	m_grid_auto_rows = el->get_property(_grid_auto_rows_, false, grid_track_list(), offset(m_grid_auto_rows));
++	m_grid_auto_columns = el->get_property(_grid_auto_columns_, false, grid_track_list(), offset(m_grid_auto_columns));
++	m_grid_auto_flow = el->get_property(_grid_auto_flow_, false, grid_auto_flow(), offset(m_grid_auto_flow));
++	const auto compute_track_lengths = [&](grid_track_list& tracks) {
++		for (auto& track : tracks)
++			for (auto* breadth : {&track.minimum, &track.maximum})
++				if (breadth->kind == grid_breadth_kind::length) doc->cvt_units(breadth->length, m_font_metrics, 0);
++	};
++	for (auto* axis : {&m_grid_template_columns, &m_grid_template_rows})
++	{
++		compute_track_lengths(axis->prefix.tracks);
++		compute_track_lengths(axis->suffix.tracks);
++		if (axis->repeat) compute_track_lengths(axis->repeat->pattern.tracks);
++	}
++	compute_track_lengths(m_grid_auto_rows);
++	compute_track_lengths(m_grid_auto_columns);
++
++	if (const auto p = el->parent(); p && is_grid_display(p->css().get_display()) && el->in_normal_flow())
++	{
++		m_float = float_none;
++		m_clear = clear_none;
++		switch (m_display)
++		{
++			case display_inline_table: m_display = display_table; break;
++			case display_inline_flex: m_display = display_flex; break;
++			case display_inline:
++			case display_inline_block:
++			case display_table_caption:
++			case display_table_cell:
++			case display_table_row:
++			case display_table_column:
++			case display_table_column_group:
++			case display_table_row_group:
++			case display_table_header_group:
++			case display_table_footer_group: m_display = display_block; break;
++			default: break;
++		}
++	}
++
+ 	compute_flex(el, doc);
+ }
+ 
+@@ -361,10 +441,10 @@ void litehtml::css_properties::compute_font(const html_tag* el, const document::
+ 	m_font_size = (float)font_size;
+ 
+ 	// initialize font
+-	m_font_family		=              el->get_property<string>(    _font_family_,		true, doc->container()->get_default_font_name(),	offset(m_font_family));
++	m_font_families = el->get_property(_font_family_, true, css_font_families(), offset(m_font_families));
+ 	m_font_weight		=              el->get_property<css_length>(_font_weight_,		true, css_length::predef_value(font_weight_normal), offset(m_font_weight));
+ 	m_font_style		= (font_style) el->get_property<int>(       _font_style_,		true, font_style_normal,							offset(m_font_style));
+-	bool propagate_decoration = !is_one_of(m_display, display_inline_block, display_inline_table, display_inline_flex) &&
++	bool propagate_decoration = !is_one_of(m_display, display_inline_block, display_inline_table, display_inline_flex, display_inline_grid) &&
+ 								m_float == float_none && !is_one_of(m_el_position, element_position_absolute, element_position_fixed);
+ 
+ 	m_text_decoration_line = el->get_property<int>(_text_decoration_line_, propagate_decoration, text_decoration_line_none, offset(m_text_decoration_line));
+@@ -434,7 +514,7 @@ void litehtml::css_properties::compute_font(const html_tag* el, const document::
+ 	}
+ 
+ 	font_description descr;
+-	descr.family 				= m_font_family;
++	descr.families				= m_font_families;
+ 	descr.size					= std::round(font_size);
+ 	descr.style					= m_font_style;
+ 	descr.weight				= (int) m_font_weight.val();
+@@ -446,6 +526,18 @@ void litehtml::css_properties::compute_font(const html_tag* el, const document::
+ 	descr.emphasis_color		= m_text_emphasis_color;
+ 	descr.emphasis_position		= m_text_emphasis_position;
+ 
++
++	// Resolve lengths on the element declaring them before propagating the decoration.
++	const auto unit = m_text_decoration_thickness.units();
++	if (!m_text_decoration_thickness.is_predefined() && unit != css_units_percentage && unit != css_units_px && unit != css_units_none)
++	{
++		font_metrics metrics{};
++		metrics.font_size = descr.size;
++		if (unit == css_units_ex || unit == css_units_ch)
++			doc->get_font(descr, &metrics);
++		doc->cvt_units(m_text_decoration_thickness, metrics, 0);
++		descr.decoration_thickness = m_text_decoration_thickness;
++	}
+ 	m_font = doc->get_font(descr, &m_font_metrics);
+ }
+ 
+@@ -500,16 +592,23 @@ void litehtml::css_properties::compute_background(const html_tag* el, const docu
+ 
+ void litehtml::css_properties::compute_flex(const html_tag* el, const document::ptr& doc)
+ {
++
++	// Keep computed values on all elements so explicit inheritance works through block ancestors.
++	m_row_gap = el->get_property(_row_gap_, false, css_length(), offset(m_row_gap));
++	m_column_gap = el->get_property(_column_gap_, false, css_length(), offset(m_column_gap));
++	doc->cvt_units(m_row_gap, m_font_metrics, 0);
++	doc->cvt_units(m_column_gap, m_font_metrics, 0);
++
+ 	if (m_display == display_flex || m_display == display_inline_flex)
+ 	{
+ 		m_flex_direction = (flex_direction) el->get_property<int>(_flex_direction_, false, flex_direction_row, offset(m_flex_direction));
+ 		m_flex_wrap = (flex_wrap) el->get_property<int>(_flex_wrap_, false, flex_wrap_nowrap, offset(m_flex_wrap));
+ 
+-		m_flex_justify_content = (flex_justify_content) el->get_property<int>(_justify_content_, false, flex_justify_content_flex_start, offset(m_flex_justify_content));
+-		m_flex_align_items = (flex_align_items) el->get_property<int>(_align_items_, false, flex_align_items_normal, offset(m_flex_align_items));
+-		m_flex_align_content = (flex_align_content) el->get_property<int>(_align_content_, false, flex_align_content_stretch, offset(m_flex_align_content));
++		m_flex_justify_content = to_flex_justify_content(m_justify_content);
++		m_flex_align_items = to_flex_item_alignment(m_align_items);
++		m_flex_align_content = to_flex_align_content(m_align_content);
+ 	}
+-	m_flex_align_self = (flex_align_items) el->get_property<int>(_align_self_, false, flex_align_items_auto, offset(m_flex_align_self));
++	m_flex_align_self = to_flex_item_alignment(m_align_self);
+ 	auto parent = el->parent();
+ 	if (parent && (parent->css().m_display == display_flex || parent->css().m_display == display_inline_flex))
+ 	{

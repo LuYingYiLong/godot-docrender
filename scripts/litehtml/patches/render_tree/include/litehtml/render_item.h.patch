@@ -1,0 +1,86 @@
+diff --git a/include/litehtml/render_item.h b/include/litehtml/render_item.h
+index 1b0ab30..4a7d3d7 100644
+--- a/include/litehtml/render_item.h
++++ b/include/litehtml/render_item.h
+@@ -1,6 +1,7 @@
+ #ifndef LH_RENDER_ITEM_H
+ #define LH_RENDER_ITEM_H
+ 
++#include <optional>
+ #include <memory>
+ #include <list>
+ #include <tuple>
+@@ -31,7 +32,9 @@ namespace litehtml
+     	std::shared_ptr<scroll_view>				m_scroll_view;
+ 
+ 		containing_block_context calculate_containing_block_context(const containing_block_context& cb_context);
+-		void calc_cb_length(const css_length& len, pixel_t percent_base, containing_block_context::typed_pixel& out_value) const;
++		void calc_cb_length(const css_length& len, containing_block_context::typed_pixel percent_base, containing_block_context::typed_pixel& out_value) const;
++		virtual std::optional<pixel_t> find_layout_baseline(bool) const { return std::nullopt; }
++		virtual size layout_overflow() const { return {}; }
+ 		virtual rendered_width	 _render(pixel_t /*x*/, pixel_t /*y*/,
+ 										 const containing_block_context& /*containing_block_size*/,
+ 										 formatting_context* /*fmt_ctx*/, bool /*second_pass = false*/)
+@@ -400,6 +403,8 @@ namespace litehtml
+                    m_padding.top == 0 &&
+                    m_element->in_normal_flow() &&
+                    m_element->css().get_float() == float_none &&
++                   !is_grid_display(css().get_display()) &&
++                   !is_grid_item() &&
+                    m_margins.top >= 0 &&
+ 				   !is_flex_item() &&
+                    !is_root() &&
+@@ -412,6 +417,8 @@ namespace litehtml
+                    m_padding.bottom == 0 &&
+                    m_element->in_normal_flow() &&
+                    m_element->css().get_float() == float_none &&
++                   !is_grid_display(css().get_display()) &&
++                   !is_grid_item() &&
+                    m_margins.bottom >= 0 &&
+                    !is_root() &&
+                    !is_one_of(css().get_overflow(), overflow_hidden, overflow_scroll, overflow_auto);
+@@ -422,6 +429,22 @@ namespace litehtml
+             return !(m_skip || src_el()->css().get_display() == display_none || src_el()->css().get_visibility() != visibility_visible);
+         }
+ 
++		void paint(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip);
++		bool establishes_positioned_containing_block() const { return src_el()->is_positioned() || css().has_transform(); }
++		bool establishes_grid_stacking_context() const { return is_grid_item() && css().has_z_index(); }
++		bool establishes_paint_context() const { return establishes_positioned_containing_block() || establishes_grid_stacking_context(); }
++		int paint_z_index() const { return src_el()->is_positioned() || establishes_grid_stacking_context() ? css().get_z_index() : 0; }
++		std::shared_ptr<render_item> fixed_containing_block() const;
++		bool is_viewport_fixed() const;
++		void extend_scroll_size(const size& extent);
++		size used_layout_overflow() const { return layout_overflow(); }
++
++		bool is_grid_item() const
++		{
++			auto p = parent();
++			return p && is_grid_display(p->css().get_display()) && src_el()->in_normal_flow();
++		}
++
+ 		bool is_flex_item() const
+ 		{
+ 			auto par = parent();
+@@ -440,6 +463,21 @@ namespace litehtml
+ 
+         virtual std::shared_ptr<render_item> init();
+         virtual void apply_vertical_align() {}
++		// Layout baselines use the top of the margin box as their origin.
++		std::optional<pixel_t> layout_baseline(bool last) const
++		{
++			auto baseline = find_layout_baseline(last);
++			if (baseline && is_one_of(css().get_overflow(), overflow_hidden, overflow_auto, overflow_scroll))
++				*baseline = std::clamp(*baseline, margin_top(), std::max(margin_top(), height() - margin_bottom()));
++			return baseline;
++		}
++		pixel_t baseline_or_border_bottom(bool last) const
++		{
++			return layout_baseline(last).value_or(height() - margin_bottom());
++		}
++		virtual pixel_t baseline_content_height() const { return m_pos.height; }
++		virtual pixel_t get_inline_baseline() { return get_last_baseline(); }
++
+ 		/**
+ 		 * Get first baseline position. Default position is element bottom without bottom margin.
+ 		 * @returns offset of the first baseline from element top

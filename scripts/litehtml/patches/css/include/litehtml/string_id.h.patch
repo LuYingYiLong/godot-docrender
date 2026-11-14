@@ -1,0 +1,36 @@
+diff --git a/include/litehtml/string_id.h b/include/litehtml/string_id.h
+index 6373ec9..52285b7 100644
+--- a/include/litehtml/string_id.h
++++ b/include/litehtml/string_id.h
+@@ -293,6 +293,31 @@ STRING_ID(
+ 	_text_transform_,
+ 
+ 	_flex_,
++	_grid_row_,
++	_grid_row_start_,
++	_grid_row_end_,
++	_grid_column_,
++	_grid_column_start_,
++	_grid_column_end_,
++	_transform_,
++	_transform_origin_,
++	_gap_,
++	_row_gap_,
++	_column_gap_,
++	_grid_template_columns_,
++	_grid_template_rows_,
++	_grid_template_areas_,
++	_grid_area_,
++	_grid_template_,
++	_grid_,
++	_grid_auto_flow_,
++	_grid_auto_rows_,
++	_grid_auto_columns_,
++	_justify_items_,
++	_justify_self_,
++	_place_items_,
++	_place_self_,
++	_place_content_,
+ 	_flex_flow_,
+ 	_flex_direction_,
+ 	_flex_wrap_,

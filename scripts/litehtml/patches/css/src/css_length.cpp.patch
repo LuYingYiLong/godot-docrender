@@ -1,0 +1,46 @@
+diff --git a/src/css_length.cpp b/src/css_length.cpp
+index 798eb0b..ac44033 100644
+--- a/src/css_length.cpp
++++ b/src/css_length.cpp
+@@ -1,11 +1,33 @@
+ #include "html.h"
++#include "formats/html/litehtml_css_math.h"
+ #include "css_length.h"
+ 
+ namespace litehtml
+ {
+ 
++void css_length::set_expression(std::shared_ptr<const css_math_expression> p_expression)
++{
++	set_value(0, p_expression->has_percentage ? css_units_percentage : css_units_px);
++	m_expression = std::move(p_expression);
++}
++
++pixel_t css_length::evaluate_expression(pixel_t basis) const
++{
++	return static_cast<pixel_t>(m_expression->evaluate(basis));
++}
++
+ bool css_length::from_token(const css_token& token, int options, const string& keywords)
+ {
++	if (token.type == CV_FUNCTION && (options & f_math))
++	{
++		if (auto expression = parse_css_math(token, options))
++		{
++			set_expression(std::move(expression));
++			return true;
++		}
++		return false;
++	}
++	m_expression.reset();
+ 	if ((options & f_positive) && is_one_of(token.type, NUMBER, DIMENSION, PERCENTAGE) && token.n.number < 0)
+ 		return false;
+ 
+@@ -61,6 +83,7 @@ bool css_length::from_token(const css_token& token, int options, const string& k
+ 
+ string css_length::to_string() const
+ {
++	if (m_expression) return m_expression->to_string();
+ 	if(m_is_predefined)
+ 	{
+ 		return "def(" + std::to_string(m_predef) + ")";

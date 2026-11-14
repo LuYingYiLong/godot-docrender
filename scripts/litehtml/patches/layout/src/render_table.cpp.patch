@@ -1,0 +1,118 @@
+diff --git a/src/render_table.cpp b/src/render_table.cpp
+index 97a8abf..eff471e 100644
+--- a/src/render_table.cpp
++++ b/src/render_table.cpp
+@@ -1,4 +1,5 @@
+ #include "render_table.h"
++#include "document_container.h"
+ #include "document.h"
+ #include "iterators.h"
+ 
+@@ -276,7 +277,10 @@ litehtml::rendered_width litehtml::render_item_table::_render(pixel_t x, pixel_t
+     pixel_t block_height = 0;
+ 	if(self_size.height.type != containing_block_context::cbc_value_type_auto && self_size.height > 0)
+ 	{
+-		block_height = self_size.height - (m_padding.height() + m_borders.height());
++		block_height = self_size.height -
++			((containing_block_size.size_mode & containing_block_context::size_mode_grid_stretch_height ||
++			  containing_block_size.grid_content_edge != containing_block_context::content_baseline_edge::none) ?
++			 box_sizing_height() : m_padding.height() + m_borders.height());
+ 	}
+ 
+     // calculate minimum height from m_css.get_min_height()
+@@ -290,6 +294,8 @@ litehtml::rendered_width litehtml::render_item_table::_render(pixel_t x, pixel_t
+         min_height = (pixel_t)src_el()->css().get_min_height().val();
+     }
+ 
++    if (containing_block_size.grid_content_edge != containing_block_context::content_baseline_edge::none)
++        min_height = std::max<pixel_t>(0, self_size.min_height);
+     pixel_t minimum_table_height = std::max(block_height, min_height);
+ 
+     m_grid->calc_rows_height(minimum_table_height - table_height_spacing, m_border_spacing_y);
+@@ -447,6 +453,34 @@ std::shared_ptr<litehtml::render_item> litehtml::render_item_table::init()
+     return shared_from_this();
+ }
+ 
++std::optional<litehtml::pixel_t> litehtml::render_item_table::find_layout_baseline(bool last) const
++{
++	if (!m_grid || m_grid->rows_count() == 0) return std::nullopt;
++	const int edge = last ? m_grid->rows_count() - 1 : 0;
++	std::optional<pixel_t> baseline;
++	std::optional<pixel_t> content_edge;
++	for (int row = 0; row <= edge; ++row)
++	{
++		for (int col = 0; col < m_grid->cols_count(); ++col)
++		{
++			const auto* cell = m_grid->cell(col, row);
++			if (!cell || !cell->el || (last && row + cell->rowspan - 1 < edge)) continue;
++			const auto& item = *cell->el;
++			const auto end = item.bottom() - item.content_offset_bottom();
++			content_edge = std::max(content_edge.value_or(end), end);
++			if (item.css().get_vertical_align() == va_baseline)
++			{
++				if (const auto offset = item.layout_baseline(false))
++				{
++					const auto value = item.top() + *offset;
++					baseline = std::max(baseline.value_or(value), value);
++				}
++			}
++		}
++	}
++	return content_offset_top() + baseline.value_or(content_edge.value_or(m_grid->row(edge).el_row->pos().y));
++}
++
+ void litehtml::render_item_table::draw_children(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip, draw_flag flag, int zindex)
+ {
+     if (!m_grid) return;
+@@ -454,30 +488,40 @@ void litehtml::render_item_table::draw_children(uint_ptr hdc, pixel_t x, pixel_t
+     position pos = m_pos;
+     pos.x += x;
+     pos.y += y;
+-    for (auto& caption : m_grid->captions())
+-    {
+-        if (flag == draw_block)
++    const auto paint_table_part = [&](const std::shared_ptr<render_item>& item) {
++        if (item->establishes_paint_context())
+         {
+-            caption->src_el()->draw(hdc, pos.x, pos.y, clip, caption);
++            if (flag == draw_positioned && item->paint_z_index() == zindex)
++            {
++                item->paint(hdc, pos.x, pos.y, clip);
++                item->draw_stacking_context(hdc, pos.x, pos.y, clip, true);
++            }
++            return;
+         }
+-        caption->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);
++        if (flag == draw_block) item->paint(hdc, pos.x, pos.y, clip);
++        item->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);
++    };
++    for (auto& caption : m_grid->captions())
++    {
++        paint_table_part(caption);
+     }
++    auto* container = src_el()->get_document()->container();
+     for (int row = 0; row < m_grid->rows_count(); row++)
+     {
+         if (flag == draw_block)
+         {
+-            m_grid->row(row).el_row->src_el()->draw_background(hdc, pos.x, pos.y, clip, m_grid->row(row).el_row);
++            const auto& item = m_grid->row(row).el_row;
++            const position* row_clip = clip;
++            if (container->begin_render_item(*item, row_clip))
++                item->src_el()->draw_background(hdc, pos.x, pos.y, row_clip, item);
++            container->end_render_item();
+         }
+         for (int col = 0; col < m_grid->cols_count(); col++)
+         {
+             table_cell* cell = m_grid->cell(col, row);
+             if (cell->el)
+             {
+-                if (flag == draw_block)
+-                {
+-                    cell->el->src_el()->draw(hdc, pos.x, pos.y, clip, cell->el);
+-                }
+-                cell->el->draw_children(hdc, pos.x, pos.y, clip, flag, zindex);
++                paint_table_part(cell->el);
+             }
+         }
+     }

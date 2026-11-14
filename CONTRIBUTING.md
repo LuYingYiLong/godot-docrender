@@ -13,6 +13,8 @@ python -m pip install scons
 
 The submodules provide godot-cpp, MicroTeX and its fonts, TinyXML-2, and litehtml v0.10 with bundled Gumbo. SCons compiles litehtml and Gumbo into the extension on each target. Run a build before opening the solution in Visual Studio so IntelliSense can find the generated godot-cpp bindings and staged litehtml headers. [Visual Studio solution](Godot-DocRender.sln)
 
+DocRender's litehtml changes live in `scripts/litehtml/patches/`, grouped by document integration, CSS, render tree, layout, and Flexbox. Each patch mirrors one path relative to the pinned litehtml source root. SCons uses `git apply` on a temporary copy for each patched file and writes the result to `src/gen/html/`. Edit the patch when changing litehtml behavior. SCons regenerates its output when the patch or upstream input changes.
+
 ## Install optional SDKs
 
 On Windows x64, install Merman for Mermaid rendering with MSVC and PDFium for PDF import, reading, and writing. The installers fetch the pinned archives and verify their checksums.

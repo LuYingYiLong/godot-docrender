@@ -294,7 +294,7 @@ Error HTMLLayout::parse(const String& p_html, const String& p_base_dir, const St
 }
 
 Error HTMLLayout::parse_source(const String& p_html, const String& p_base_dir, const String& p_stylesheet,
-	const Dictionary& p_textures, bool p_fit_images, const String& p_default_stylesheet, const Fonts& p_fonts,
+	const Dictionary& p_textures, bool p_fit_images, const String& p_default_stylesheet, const docrender::HTMLFontConfig& p_fonts,
 	const Dictionary& p_local_stylesheets) {
 	clear();
 	const std::optional<String> base_dir = docrender::normalize_html_resource_path(p_base_dir);
@@ -361,6 +361,7 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 		}
 		catch (const std::exception& p_error) {
 			state->anchors.clear();
+			state->container->clear_recording();
 			state->geometry.clear();
 			state->error = "Could not lay out HTML. " + String::utf8(p_error.what());
 			return ERR_INVALID_DATA;
@@ -374,6 +375,7 @@ Error HTMLLayout::layout(const Vector2i& p_viewport_size) {
 Error HTMLLayout::reflow(const Vector2i& p_viewport_size) {
 	using Update = State::Update;
 	state->anchors.clear();
+	state->container->clear_recording();
 	state->geometry.clear();
 	state->container->set_viewport(p_viewport_size);
 	const auto& document = state->document;
@@ -416,21 +418,21 @@ void HTMLLayout::draw(CanvasItem* p_canvas, const Vector2& p_position, const Rec
 }
 
 String HTMLLayout::get_plain_text() const {
-	return state->has_layout() ? state->container->get_plain_text() : String();
+	return state->has_layout() ? state->container->get_paint_recorder().get_plain_text() : String();
 }
 
 int64_t HTMLLayout::hit_test_text(const Vector2& p_position) const {
-	return state->has_layout() ? state->container->hit_test_text(p_position) : 0;
+	return state->has_layout() ? state->container->get_paint_recorder().hit_test_text(p_position) : 0;
 }
 
 TypedArray<Rect2> HTMLLayout::get_selection_rects(int64_t p_from, int64_t p_to) const {
 	if (!state->has_layout()) {
 		return {};
 	}
-	const int64_t length = state->container->get_plain_text().length();
+	const int64_t length = state->container->get_paint_recorder().get_plain_text().length();
 	const int64_t from = CLAMP(std::min(p_from, p_to), int64_t(0), length);
 	const int64_t to = CLAMP(std::max(p_from, p_to), int64_t(0), length);
-	return state->container->get_selection_rects(from, to);
+	return state->container->get_paint_recorder().get_selection_rects(from, to);
 }
 
 void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_position, const Rect2& p_clip,
@@ -439,8 +441,8 @@ void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_pos
 	if (!state->has_layout() || !p_canvas || !p_canvas->is_inside_tree()) {
 		return;
 	}
-	const auto& runs = state->container->get_paint_runs();
-	const auto& diagnostics = state->container->get_diagnostic_runs();
+	const auto& runs = state->container->get_paint_recorder().get_paint_runs();
+	const auto& diagnostics = state->container->get_paint_recorder().get_diagnostic_runs();
 	if (runs.empty() && diagnostics.empty()) {
 		return;
 	}
@@ -840,7 +842,7 @@ litehtml::element::ptr HTMLLayout::hit_test_element(const Vector2& p_position) c
 		return {};
 	}
 	if (state->geometry.has_transforms()) {
-		return state->container->hit_test_element(p_position);
+		return state->container->get_paint_recorder().hit_test_element(p_position);
 	}
 	const auto accepts_geometry = [&](const docrender::RenderGeometry* p_geometry) {
 		return p_geometry && p_geometry->item->is_visible() && p_geometry->contains_visible_point(p_position);
@@ -1059,6 +1061,9 @@ String HTMLLayout::get_css_diagnostic_tooltip(const Vector2& p_position) const {
 void HTMLLayout::clear() {
 	++parse_version;
 	state->canvas_renderer.unref();
+	if (state->container) {
+		state->container->clear_recording();
+	}
 	state->geometry.clear();
 	state->element_handles.clear();
 	for (const auto& entry : state->detached_trees) {

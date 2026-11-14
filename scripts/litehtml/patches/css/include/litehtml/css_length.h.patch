@@ -1,0 +1,75 @@
+diff --git a/include/litehtml/css_length.h b/include/litehtml/css_length.h
+index cacd14c..e2564f2 100644
+--- a/include/litehtml/css_length.h
++++ b/include/litehtml/css_length.h
+@@ -4,8 +4,12 @@
+ #include "types.h"
+ #include "css_tokenizer.h"
+ 
++#include <memory>
++
+ namespace litehtml
+ {
++	struct css_math_expression;
++
+ 	// from_token options (flags)
+ 	enum {
+ 		f_length     = 1, // <length> (includes unitless zero)
+@@ -13,6 +17,7 @@ namespace litehtml
+ 		f_length_percentage = f_length | f_percentage, // <length-percentage>
+ 		f_number     = 4, // <number>
+ 		f_integer    = 8, // <integer>
++		f_math       = 32, // CSS length math functions
+ 		f_positive   = 16 // ⩾0 (non-negative)
+ 	};
+ 
+@@ -20,6 +25,7 @@ namespace litehtml
+ 	// https://developer.mozilla.org/en-US/docs/Web/CSS/length
+ 	class css_length
+ 	{
++		std::shared_ptr<const css_math_expression> m_expression;
+ 		union
+ 		{
+ 			float	m_value;
+@@ -39,6 +45,9 @@ namespace litehtml
+ 		void		set_value(float val, css_units units);
+ 		float		val() const;
+ 		css_units	units() const;
++		const auto& expression() const { return m_expression; }
++		void set_expression(std::shared_ptr<const css_math_expression> p_expression);
++		pixel_t evaluate_expression(pixel_t basis) const;
+ 		pixel_t		calc_percent(pixel_t width) const;
+ 		bool		from_token(const css_token& token, int options, const string& predefined_keywords = "");
+ 		string		to_string() const;
+@@ -65,6 +74,7 @@ namespace litehtml
+ 
+ 	inline css_length&	css_length::operator=(float val)
+ 	{
++		m_expression.reset();
+ 		m_value = val;
+ 		m_units = css_units_px;
+ 		m_is_predefined = false;
+@@ -78,6 +88,7 @@ namespace litehtml
+ 
+ 	inline void css_length::predef(int val)		
+ 	{ 
++		m_expression.reset();
+ 		m_predef		= val; 
+ 		m_is_predefined = true;	
+ 	}
+@@ -93,6 +104,7 @@ namespace litehtml
+ 
+ 	inline void css_length::set_value(float val, css_units units)
+ 	{ 
++		m_expression.reset();
+ 		m_value			= val; 
+ 		m_is_predefined = false;	
+ 		m_units			= units;
+@@ -114,6 +126,7 @@ namespace litehtml
+ 
+ 	inline pixel_t css_length::calc_percent(pixel_t width) const
+ 	{
++		if (m_expression) return evaluate_expression(width);
+ 		if(!is_predefined())
+ 		{
+ 			if(units() == css_units_percentage)

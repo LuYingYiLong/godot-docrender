@@ -1,0 +1,32 @@
+diff --git a/include/litehtml/flex_line.h b/include/litehtml/flex_line.h
+index a5057ae..8b4eded 100644
+--- a/include/litehtml/flex_line.h
++++ b/include/litehtml/flex_line.h
+@@ -11,6 +11,7 @@ namespace litehtml
+ 	{
+ 		public:
+ 		std::list<std::shared_ptr<flex_item>> items;
++		pixel_t main_gap = 0;
+ 		pixel_t cross_start;	// for row direction: top. for column direction: left
+ 		pixel_t main_size;		// sum of all items main size, initially the sum of hypothetical main sizes
+ 		pixel_t cross_size;		// sum of all items cross size
+@@ -35,7 +36,7 @@ namespace litehtml
+ 				reverse_cross(_reverse_cross)
+ 		{}
+ 
+-		void init(pixel_t container_main_size, bool fit_container, bool is_row_direction,
++		void init(pixel_t container_main_size, bool is_row_direction,
+ 				  const litehtml::containing_block_context &self_size,
+ 				  litehtml::formatting_context *fmt_ctx);
+ 		bool distribute_main_auto_margins(pixel_t free_main_size);
+@@ -45,6 +46,10 @@ namespace litehtml
+ 									  const containing_block_context &self_size,
+ 									  formatting_context *fmt_ctx);
+ 	protected:
++		pixel_t total_main_gap() const
++		{
++			return items.empty() ? 0 : main_gap * static_cast<pixel_t>(items.size() - 1);
++		}
+ 		void distribute_free_space(pixel_t container_main_size);
+ 		void distribute_free_space_grow(pixel_t container_main_size);
+ 		void distribute_free_space_shrink(pixel_t container_main_size);

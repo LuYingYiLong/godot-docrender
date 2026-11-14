@@ -1,0 +1,120 @@
+diff --git a/src/html_tag.cpp b/src/html_tag.cpp
+index 2b494b7..440e6d0 100644
+--- a/src/html_tag.cpp
++++ b/src/html_tag.cpp
+@@ -325,16 +325,16 @@ void litehtml::html_tag::draw(uint_ptr hdc, pixel_t x, pixel_t y, const position
+ 
+ bool html_tag::get_custom_property(string_id name, css_token_vector& result) const
+ {
+-	const property_value& value = m_style.get_property(name);
+-
+-	if (value.is<css_token_vector>())
+-	{
+-		result = value.get<css_token_vector>();
+-		return true;
+-	}
+-	else if (auto _parent = dynamic_cast<html_tag*>(parent().get()))
++	for (auto tag = this; tag;)
+ 	{
+-		return _parent->get_custom_property(name, result);
++		bool local = false;
++		if (const auto* value = tag->m_style.get_custom_property(name, local))
++		{
++			result = *value;
++			return true;
++		}
++		if (local) return false;
++		tag = dynamic_cast<const html_tag*>(tag->parent().get());
+ 	}
+ 	return false;
+ }
+@@ -346,11 +346,29 @@ void litehtml::html_tag::compute_styles(bool recursive)
+ 
+ 	if (style)
+ 	{
+-		m_style.add(style, "", doc->container());
++		m_style.add(style, "", doc->container(), this);
+ 	}
+ 
+ 	m_style.subst_vars(this);
+ 
++	if (const auto* diagnostics = m_style.get_diagnostics())
++	{
++		for (const auto& diagnostic : *diagnostics)
++		{
++			const auto remains_unsupported = [&](const auto& item) {
++				const auto& value = m_style.get_property(item.first);
++				return item.first == _text_emphasis_style_
++					? value.is<string>() && lowcase(value.get<string>()) != "none"
++					: value.is<int>() && value.get<int>() == item.second;
++			};
++			if (diagnostic.drawing_values.empty() ||
++				std::any_of(diagnostic.drawing_values.begin(), diagnostic.drawing_values.end(), remains_unsupported))
++			{
++				doc->container()->report_css_diagnostic(diagnostic, this);
++			}
++		}
++	}
++
+ 	m_css.compute(this, doc);
+ 
+ 	if (recursive)
+@@ -860,6 +878,11 @@ bool litehtml::html_tag::is_break() const
+ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, const position *clip,
+ 										 const std::shared_ptr<render_item> &ri)
+ {
++
++	const auto paint_shadows = [&](position box, borders decoration, bool inset) {
++		box.round();
++		get_document()->container()->draw_box_shadows(*this, box, decoration, inset);
++	};
+ 	if(m_css.get_display() != display_inline && m_css.get_display() != display_table_row)
+ 	{
+ 		position pos = ri->pos();
+@@ -870,6 +893,10 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+ 		border_box += ri->get_paddings();
+ 		border_box += ri->get_borders();
+ 
++
++		borders shadow_box = m_css.get_borders();
++		shadow_box.radius = m_css.get_borders().radius.calc_percents(border_box.width, border_box.height);
++		paint_shadows(border_box, shadow_box, false);
+ 		if(border_box.does_intersect(clip) || is_root())
+ 		{
+ 			auto v_offset = ri->get_draw_vertical_offset();
+@@ -900,6 +927,7 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+ 				}
+ 			}
+ 
++			paint_shadows(border_box, shadow_box, true);
+ 			borders bdr = m_css.get_borders();
+ 			if(bdr.is_visible())
+ 			{
+@@ -960,6 +988,10 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+ 					bdr.right	= m_css.get_borders().right;
+ 				}
+ 
++
++				borders shadow_box = bdr;
++				shadow_box.radius = bdr.radius.calc_percents(box->width, box->height);
++				paint_shadows(*box, shadow_box, false);
+ 				if(bg)
+ 				{
+ 					int num_layers = bg->get_layers_number();
+@@ -978,6 +1010,7 @@ void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, con
+ 						bg->draw_layer(hdc, i, layer, get_document()->container());
+ 					}
+ 				}
++				paint_shadows(*box, shadow_box, true);
+ 				if(bdr.is_visible())
+ 				{
+ 					borders b = bdr;
+@@ -1153,7 +1186,7 @@ void litehtml::html_tag::draw_list_marker( uint_ptr hdc, const position& pos, co
+ 				text_pos.move_to(text_pos.right() - tw, text_pos.y);
+ 				text_pos.width = tw;
+ 				text_pos.round();
+-				get_document()->container()->draw_text(hdc, marker_text.c_str(), lm.font, lm.color, text_pos);
++				get_document()->container()->draw_styled_text(hdc, marker_text.c_str(), lm.font, lm.color, text_pos, *this);
+ 			}
+ 		}
+ 	}

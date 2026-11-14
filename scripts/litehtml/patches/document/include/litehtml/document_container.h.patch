@@ -1,0 +1,37 @@
+diff --git a/include/litehtml/document_container.h b/include/litehtml/document_container.h
+index 5d0b8c0..03ab9b7 100644
+--- a/include/litehtml/document_container.h
++++ b/include/litehtml/document_container.h
+@@ -7,11 +7,14 @@
+ #include "borders.h"
+ #include "element.h"
+ #include "font_description.h"
++#include "formats/html/litehtml_css.h"
+ #include <memory>
+ #include <functional>
+ 
+ namespace litehtml
+ {
++	class html_tag;
++
+ 	struct list_marker
+ 	{
+ 		string			image;
+@@ -50,6 +53,17 @@ namespace litehtml
+ 		virtual void				draw_conic_gradient(litehtml::uint_ptr hdc, const background_layer& layer, const background_layer::conic_gradient& gradient) = 0;
+ 		virtual void				draw_borders(litehtml::uint_ptr hdc, const litehtml::borders& borders, const litehtml::position& draw_pos, bool root) = 0;
+ 
++
++		virtual void draw_box_shadows(const html_tag&, const position&, const borders&, bool) {}
++		virtual void draw_styled_text(uint_ptr hdc, const char* text, uint_ptr font, web_color color,
++			const position& pos, const element&) { draw_text(hdc, text, font, color, pos); }
++		virtual bool begin_render_item(const render_item&, const position*&) { return true; }
++		virtual void end_render_item() {}
++		virtual void set_render_item_clip(const position& pos, const border_radiuses& radii, const render_item&)
++			{ set_clip(pos, radii); }
++		virtual css_source get_css_source(const string&, bool) const { return {}; }
++		virtual void report_css_diagnostic(const css_diagnostic&, const html_tag* = nullptr) {}
++
+ 		virtual	void				set_caption(const char* caption) = 0;
+ 		virtual	void				set_base_url(const char* base_url) = 0;
+ 		virtual void				link(const std::shared_ptr<litehtml::document>& doc, const litehtml::element::ptr& el) = 0;

@@ -1,0 +1,34 @@
+diff --git a/include/litehtml/font_description.h b/include/litehtml/font_description.h
+index 4447e20..a98c69c 100644
+--- a/include/litehtml/font_description.h
++++ b/include/litehtml/font_description.h
+@@ -2,6 +2,7 @@
+ #define LITEHTML_FONT_DESCRIPTION
+ 
+ #include <string>
++#include "formats/html/litehtml_css.h"
+ #include "types.h"
+ #include "css_length.h"
+ #include "web_color.h"
+@@ -10,7 +11,7 @@ namespace litehtml
+ {
+ 	struct font_description
+ 	{
+-		std::string				family;	// Font Family
++		css_font_families		families;	// Font Family
+ 		pixel_t					size = 0;	// Font size
+ 		font_style				style = font_style_normal;	// Font stype, see the enum font_style
+ 		int						weight;	// Font weight.
+@@ -25,7 +26,11 @@ namespace litehtml
+ 		std::string	hash() const
+ 		{
+ 			std::string out;
+-			out += family;
++			for (const auto& family : families)
++			{
++				out += family.generic ? 'G' : 'N';
++				out += std::to_string(family.name.size()) + ':' + family.name;
++			}
+ 			out += ":sz=" + std::to_string(size);
+ 			out += ":st=" + std::to_string(style);
+ 			out += ":w=" + std::to_string(weight);

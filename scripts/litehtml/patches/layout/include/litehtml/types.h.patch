@@ -1,0 +1,85 @@
+diff --git a/include/litehtml/types.h b/include/litehtml/types.h
+index d046eac..d11f492 100644
+--- a/include/litehtml/types.h
++++ b/include/litehtml/types.h
+@@ -348,6 +348,11 @@ namespace litehtml
+ 			size_mode_normal = 0x00,
+ 			size_mode_exact_width = 0x01,
+ 			size_mode_exact_height = 0x02,
++			size_mode_grid_assigned_width = 0x08,
++			size_mode_grid_stretch_height = 0x10,
++			size_mode_grid_measure_height = 0x20,
++			size_mode_grid_measure_width = 0x40,
++			size_mode_grid_measure_baseline = 0x80,
+ 			size_mode_content = 0x04,
+ 		};
+ 
+@@ -387,6 +392,11 @@ namespace litehtml
+ 		typed_pixel min_height;
+ 		typed_pixel max_height;
+ 
++		enum class content_baseline_edge { none, start, end };
++		content_baseline_edge grid_content_edge = content_baseline_edge::none;
++		pixel_t grid_baseline_padding = 0;
++		bool grid_intrinsic_width = false;
++
+ 		int context_idx;
+ 		uint32_t size_mode;
+ 
+@@ -407,6 +417,8 @@ namespace litehtml
+ 			containing_block_context ret = *this;
+ 			ret.render_width = w - (ret.width - ret.render_width);
+ 			ret.width = w;
++			ret.grid_content_edge = content_baseline_edge::none;
++			ret.grid_baseline_padding = 0;
+ 			ret.size_mode = _size_mode;
+ 			return ret;
+ 		}
+@@ -417,12 +429,14 @@ namespace litehtml
+ 			ret.render_width = w - (ret.width - ret.render_width);
+ 			ret.width = w;
+ 			ret.height = h;
++			ret.grid_content_edge = content_baseline_edge::none;
++			ret.grid_baseline_padding = 0;
+ 			ret.size_mode = _size_mode;
+ 			return ret;
+ 		}
+ 	};
+ 
+-#define  style_display_strings		"none;block;inline;inline-block;inline-table;list-item;table;table-caption;table-cell;table-column;table-column-group;table-footer-group;table-header-group;table-row;table-row-group;inline-text;flex;inline-flex"
++#define  style_display_strings		"none;block;inline;inline-block;inline-table;list-item;table;table-caption;table-cell;table-column;table-column-group;table-footer-group;table-header-group;table-row;table-row-group;inline-text;flex;inline-flex;grid;inline-grid"
+ 
+ 	enum style_display
+ 	{
+@@ -444,8 +458,15 @@ namespace litehtml
+ 		display_inline_text,
+ 		display_flex,
+ 		display_inline_flex,
++		display_grid,
++		display_inline_grid,
+ 	};
+ 
++	inline bool is_grid_display(style_display value)
++	{
++		return value == display_grid || value == display_inline_grid;
++	}
++
+ #define  font_size_strings		"xx-small;x-small;small;medium;large;x-large;xx-large;smaller;larger"
+ 
+ 	enum font_size
+@@ -468,12 +489,13 @@ namespace litehtml
+ 		line_height_normal
+ 	};
+ 
+-#define  font_style_strings		"normal;italic"
++#define  font_style_strings		"normal;italic;oblique"
+ 
+ 	enum font_style
+ 	{
+ 		font_style_normal,
+-		font_style_italic
++		font_style_italic,
++		font_style_oblique
+ 	};
+ 
+ #define  font_system_family_name_strings		"caption;icon;menu;message-box;small-caption;status-bar"

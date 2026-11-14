@@ -1,12 +1,10 @@
 #ifndef DOCRENDER_LITEHTML_CONTAINER_H
 #define DOCRENDER_LITEHTML_CONTAINER_H
 
-#include "html_layout.h"
-#include "html_paint_run.h"
+#include "html_paint_recorder.h"
+#include "html_resources.h"
+#include "litehtml_fonts.h"
 
-#include <godot_cpp/classes/text_line.hpp>
-#include <godot_cpp/classes/texture2d.hpp>
-#include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/rect2.hpp>
@@ -15,41 +13,16 @@
 
 #include <litehtml/document_container.h>
 
-#include <optional>
 #include <vector>
 
 namespace docrender {
 	class LiteHTMLContainer final : public litehtml::document_container {
-		struct Clip {
-			godot::Rect2 bounds;
-			RoundedRect shape;
-			godot::Transform2D matrix;
-			bool has_precise_clip;
-		};
-
-		struct TextRun {
-			godot::Ref<godot::TextLine> line;
-			godot::Rect2 rect;
-			godot::Rect2 visible_rect;
-			int64_t offset;
-			int64_t length;
-			godot::Transform2D matrix;
-			godot::Transform2D inverse;
-			std::vector<TransformedClip> clips;
-		};
-
-		using Fill = HTMLFill;
-		using Text = HTMLText;
-		using Image = HTMLImage;
-		using Circle = HTMLCircle;
-		using Command = HTMLPaintCommand;
-
 	public:
 		LiteHTMLContainer(
 			const godot::String& p_base_dir,
 			const godot::Dictionary& p_textures,
 			bool p_fit_images,
-			const HTMLLayout::Fonts& p_fonts,
+			const HTMLFontConfig& p_fonts,
 			const godot::Dictionary& p_local_stylesheets
 		);
 
@@ -59,9 +32,11 @@ namespace docrender {
 			const godot::Vector2i& p_content_size,
 			const HTMLGeometryIndex& p_geometry
 		);																			// 记录已排版文档的绘制命令并建立可选择文本的索引
-		const std::vector<HTMLPaintRun>& get_paint_runs() const;						// 返回最近一次记录生成的绘制批次
-		std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_point) const;
-		const godot::String& get_plain_text() const;								// 返回从排版结果提取的纯文本
+		void clear_recording() { paint.clear(); }
+		const HTMLPaintRecorder& get_paint_recorder() const { return paint; }
+		void record_css_diagnostic(const RenderGeometry& p_geometry, const godot::Rect2& p_box) {
+			paint.record_css_diagnostic(p_geometry, p_box);
+		}
 		const litehtml::string_map* get_source_attributes(
 			const litehtml::element& p_element
 		) const;																	// 查找元素的原始属性表
@@ -82,83 +57,28 @@ namespace docrender {
 		const godot::Dictionary& get_css_diagnostic(
 			int64_t p_index
 		) const;
-		void record_css_diagnostic(
-			const RenderGeometry& p_geometry,
-			const godot::Rect2& p_box
-		);
-		const std::vector<HTMLPaintRun>& get_diagnostic_runs() const {
-			return diagnostic_runs;
-		}
-		int64_t hit_test_text(const godot::Vector2& p_point) const;					// 查找最接近文档坐标的文本光标偏移
-		godot::TypedArray<godot::Rect2> get_selection_rects(
-			int64_t p_from,
-			int64_t p_to
-		) const;																	// 返回指定文本范围的可见选区矩形
 	private:
-		struct FontData {
-			godot::Ref<godot::Font> font;
-			int32_t size;
-			float ascent;
-			litehtml::font_description description;
-			godot::HashMap<godot::String, godot::Ref<godot::TextLine>> lines;
-
-			godot::Ref<godot::TextLine> shape(const char* p_text);					// 返回指定 UTF-8 文本的排版结果，优先复用缓存
-		};
-
 		struct SourceAttributes {
 			std::weak_ptr<litehtml::element> element;
 			litehtml::string_map values;
 		};
 
-		godot::String base_dir;
-		godot::Dictionary textures;
-		godot::Dictionary local_stylesheets;
-		int stylesheet_reads = 0;
+		HTMLResources resources;
 		bool css_diagnostics_enabled = false;
 		litehtml::css_source_kind css_source_kind = litehtml::css_source_kind::none;
 		std::vector<godot::Dictionary> css_diagnostics;
 		godot::HashMap<godot::String, int64_t> css_diagnostic_keys;
 		godot::HashMap<const litehtml::element*, std::vector<int64_t>> element_diagnostics;
 		bool fit_images;
-		HTMLLayout::Fonts fonts;
+		LiteHTMLFonts fonts;
 		godot::Vector2i viewport_size;
-		godot::Ref<godot::Font> default_font;
-		godot::HashMap<godot::String, godot::Ref<godot::Font>> font_stacks;
-		godot::HashMap<godot::String, godot::Ref<godot::Font>> installed_fonts;
-		std::optional<godot::HashMap<godot::String, godot::String>> installed_font_names;
-		godot::HashMap<godot::String, godot::Ref<godot::Texture2D>> images;
 		godot::HashMap<const litehtml::element*, SourceAttributes> source_attributes;
-		std::vector<HTMLPaintRun> paint_runs;
-		std::vector<HTMLPaintRun> diagnostic_runs;
-		std::vector<Clip> clips;
-		godot::Ref<godot::ShaderMaterial> clip_material;
-		godot::Transform2D clip_material_matrix;
-		const HTMLGeometryIndex* recording_geometry = nullptr;
-		const RenderGeometry* active_geometry = nullptr;
-		std::vector<const RenderGeometry*> painted_elements;
-		godot::String plain_text;
-		std::vector<TextRun> text_runs;
-		godot::HashMap<godot::Vector2, std::vector<Text*>> painted_text;
-		godot::HashMap<const litehtml::render_item*, std::vector<Text*>> painted_text_by_renderer;
+		HTMLPaintRecorder paint;
 
-		void index_text(const litehtml::element::ptr& p_element, godot::String& r_separator);
-
-		godot::String get_url_dir(const char* p_css_base) const;
-		godot::Ref<godot::Texture2D> load_texture(const char* p_src, const char* p_css_base);
-		godot::Ref<godot::ShaderMaterial> create_material(const RoundedRect* p_shape = nullptr);
-		void add_command(Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
-		void add_command_to(std::vector<HTMLPaintRun>& r_runs, Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
-		void fill_rect(const godot::Rect2& p_rect, const godot::Color& p_color);
-		void draw_decoration(const godot::Rect2& p_rect, litehtml::text_decoration_style p_style, const godot::Color& p_color);
 		litehtml::css_source get_css_source(const litehtml::string& p_base, bool p_inline) const override;
 		void report_css_diagnostic(const litehtml::css_diagnostic& p_diagnostic, const litehtml::html_tag* p_element) override;
-		void draw_gradient(const litehtml::background_layer& p_layer, const litehtml::background_layer::gradient_base& p_gradient,
-			int p_type, const godot::Vector2& p_start, const godot::Vector2& p_parameters);
-
 		litehtml::uint_ptr create_font(const litehtml::font_description& p_description, const litehtml::document*,
 			litehtml::font_metrics* r_metrics) override;
-		godot::Ref<godot::Font> resolve_font_stack(const litehtml::font_description& p_description);
-		godot::Ref<godot::Font> find_installed_font(const godot::String& p_family, int p_weight, bool p_italic);
 		void delete_font(litehtml::uint_ptr p_font) override;
 		litehtml::pixel_t text_width(const char* p_text, litehtml::uint_ptr p_font) override;
 		void draw_text(litehtml::uint_ptr, const char* p_text, litehtml::uint_ptr p_font,
@@ -187,7 +107,6 @@ namespace docrender {
 			const litehtml::render_item& p_item) override;
 		bool begin_render_item(const litehtml::render_item& p_item, const litehtml::position*& r_clip) override;
 		void end_render_item() override;
-		void push_clip(const RoundedRect& p_shape, const godot::Transform2D& p_matrix);
 		void del_clip() override;
 		void get_viewport(litehtml::position& r_viewport) const override;
 		void get_media_features(litehtml::media_features& r_media) const override;

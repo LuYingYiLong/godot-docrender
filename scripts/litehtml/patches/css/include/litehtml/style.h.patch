@@ -1,0 +1,121 @@
+diff --git a/include/litehtml/style.h b/include/litehtml/style.h
+index e68a05b..c83c2ee 100644
+--- a/include/litehtml/style.h
++++ b/include/litehtml/style.h
+@@ -6,6 +6,11 @@
+ #include "css_position.h"
+ #include "css_tokenizer.h"
+ #include "gradient.h"
++#include "formats/html/litehtml_css_transform.h"
++#include "formats/html/layout/grid/litehtml_grid_tracks.h"
++#include "formats/html/litehtml_box_shadow.h"
++#include "formats/html/litehtml_css.h"
++#include "formats/html/litehtml_css_variables.h"
+ #include "web_color.h"
+ 
+ namespace litehtml
+@@ -13,8 +18,11 @@ namespace litehtml
+ 	struct invalid {}; // indicates "not found" condition in style::get_property
+ 	struct inherit {}; // "inherit" was specified as the value of this property
+ 
++	struct initial_value {};
++
+ 	struct property_value : variant<
+ 		invalid,
++		initial_value,
+ 		inherit,
+ 		int,
+ 		int_vector,
+@@ -26,15 +34,33 @@ namespace litehtml
+ 		string,
+ 		string_vector,
+ 		size_vector,
++		grid_line,
++		css_alignment,
++		css_transform_list,
++		css_transform_origin,
++		grid_track_template,
++		grid_area_template,
++		grid_track_list,
++		grid_auto_flow,
++		std::vector<box_shadow>,
++		css_font_families,
+ 		css_token_vector
+ 	>
+ 	{
+ 		bool m_important = false;
+-		bool m_has_var   = false; // css_token_vector, parsing is delayed because of var()
++
++		struct deferred_declaration
++		{
++			string_id name;
++			css_token_vector tokens;
++			string baseurl;
++			css_source source;
++		};
++		std::shared_ptr<const deferred_declaration> deferred;
+ 
+ 		property_value() {}
+-		template<class T> property_value(const T& val, bool important, bool has_var = false)
+-			: base(val), m_important(important), m_has_var(has_var) {}
++		template<class T> property_value(const T& val, bool important)
++			: base(val), m_important(important) {}
+ 	};
+ 
+ 	class html_tag;
+@@ -48,10 +74,15 @@ namespace litehtml
+ 		typedef std::vector<style::ptr>		vector;
+ 	private:
+ 		props_map							m_properties;
++		css_computed_variables computed_variables;
++		props_map computed_declarations;
++		css_declaration_result* declaration_result = nullptr;
++		std::shared_ptr<std::vector<css_diagnostic>> diagnostics;
++		std::shared_ptr<const property_value> default_font_family;
+ 		static std::map<string_id, string>	m_valid_values;
+ 	public:
+-		void add(const css_token_vector& tokens, const string& baseurl = "", document_container* container = nullptr);
+-		void add(const string& txt,              const string& baseurl = "", document_container* container = nullptr);
++		void add(const css_token_vector& tokens, const string& baseurl = "", document_container* container = nullptr, const html_tag* element = nullptr);
++		void add(const string& txt,              const string& baseurl = "", document_container* container = nullptr, const html_tag* element = nullptr);
+ 
+ 		void add_property(string_id name, const css_token_vector& tokens, const string& baseurl = "", bool important = false, document_container* container = nullptr);
+ 		void add_property(string_id name, const string& val,              const string& baseurl = "", bool important = false, document_container* container = nullptr);
+@@ -61,12 +92,29 @@ namespace litehtml
+ 		void combine(const style& src);
+ 		void clear()
+ 		{
++			diagnostics.reset();
++			default_font_family.reset();
++			computed_variables.clear();
++			computed_declarations.clear();
+ 			m_properties.clear();
+ 		}
+ 
++		const css_token_vector* get_custom_property(string_id name, bool& local) const;
++		const std::vector<css_diagnostic>* get_diagnostics() const { return diagnostics.get(); }
++		void snapshot_default_font_family();
+ 		void subst_vars(const html_tag* el);
+ 
+ 	private:
++
++		void add_checked_property(string_id name, const css_token_vector& value, const string& baseurl,
++			bool important, document_container* container, const css_source& source, const html_tag* element);
++		void report_diagnostic(document_container& container, css_diagnostic_kind kind, string_id name,
++			const string& value, const css_source& source, const html_tag* element,
++			std::vector<std::pair<string_id, int>> drawing_values = {});
++		void remember_diagnostic(const css_diagnostic& diagnostic);
++		void add_deferred_property(string_id name, const css_token_vector& value, const string& baseurl, bool important,
++			const css_source& source = {});
++		void add_gap_property(string_id name, const css_token_vector& value, bool important);
+ 		void inherit_property(string_id name, bool important);
+ 
+ 		void parse_background(const css_token_vector& tokens, const string& baseurl, bool important, document_container* container);
+@@ -97,7 +145,6 @@ namespace litehtml
+ 
+ 		void parse_flex_flow(const css_token_vector& tokens, bool important);
+ 		void parse_flex(const css_token_vector& tokens, bool important);
+-		void parse_align_self(string_id name, const css_token_vector& tokens, bool important);
+ 
+ 		void add_parsed_property(string_id name, const property_value& propval);
+ 		void add_length_property(string_id name, css_token val, string keywords, int options, bool important);

@@ -1950,7 +1950,7 @@ void MarkdownLabelCanvas::rebuild_layout() {
 	};
 	const Ref<Font> html_code_font = html_theme_font("code_text_font", font.code);
 	const Ref<Font> html_code_block_font = html_theme_font("code_block_font", font.code_block);
-	const HTMLLayout::Fonts html_fonts{ font.text,
+	const docrender::HTMLFontConfig html_fonts{ font.text,
 		html_theme_font("bold_font", font.bold), html_theme_font("italic_font", font.italic),
 		html_theme_font("bold_italic_font", font.bold_italic), html_code_font,
 		html_code_block_font.is_valid() ? html_code_block_font : html_code_font };

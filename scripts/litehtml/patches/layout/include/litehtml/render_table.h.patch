@@ -1,0 +1,12 @@
+diff --git a/include/litehtml/render_table.h b/include/litehtml/render_table.h
+index bf2c6f2..a157f8c 100644
+--- a/include/litehtml/render_table.h
++++ b/include/litehtml/render_table.h
+@@ -8,6 +8,7 @@ namespace litehtml
+ 	class render_item_table : public render_item
+ 	{
+ 	protected:
++		std::optional<pixel_t> find_layout_baseline(bool last) const override;
+ 		// data for table rendering
+ 		std::unique_ptr<table_grid>	m_grid;
+ 		pixel_t						m_border_spacing_x;
