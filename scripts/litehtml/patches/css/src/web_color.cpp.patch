@@ -1,19 +1,212 @@
 diff --git a/src/web_color.cpp b/src/web_color.cpp
 --- a/src/web_color.cpp
 +++ b/src/web_color.cpp
-@@ -1,5 +1,6 @@
+@@ -1,5 +1,7 @@
  #include "html.h"
  #include "web_color.h"
 +#include "formats/html/css/css_color.h"
++#include <cmath>
  #include "css_parser.h"
  #include "os_types.h"
  #include "document_container.h"
-@@ -379,7 +380,7 @@
- // https://drafts.csswg.org/css-color-5/#typedef-color-function
- bool parse_func_color(const css_token& tok, web_color& color)
+@@ -219,7 +221,7 @@
+ 
+ // [ <number> | <percentage> | none ]{3}  [ / [<alpha-value> | none] ]?
+ bool parse_modern_syntax(const css_token_vector& tokens, bool is_hsl,
+-	css_length& x, css_length& y, css_length& z, css_length& a)
++	css_length& x, css_length& y, css_length& z, css_length& a, unsigned& missing)
  {
+ 	auto n = tokens.size();
+ 	if (!(n == 3 || n == 5)) return false;
+@@ -243,21 +245,25 @@
+ 		// <alpha-value> = <number> | <percentage>
+ 		if (!a.from_token(tokens[4], f_number | f_percentage, "none")) return false;
+ 	}
+-	// convert nones to zeros
+-	// https://drafts.csswg.org/css-color-4/#missing
+-	// For all other purposes, a missing component behaves as a zero value...
+-	for (auto t : {&x,&y,&z,&a}) if (t->is_predefined()) t->set_value(0, css_units_none);
++	unsigned bit = 1;
++	for (auto* component : {&x, &y, &z, &a})
++	{
++		if (component->is_predefined())
++		{
++			missing |= bit;
++			component->set_value(0, css_units_none);
++		}
++		bit <<= 1;
++	}
+ 	return true;
+ }
+ 
+ // https://drafts.csswg.org/css-color-4/#rgb-functions
+ // Values outside these ranges are not invalid, but are clamped to the ranges defined here at parsed-value time.
+-byte calc_percent_and_clamp(const css_length& val, float max = 255)
+-{
+-	float x = val.val();
+-	if (val.units() == css_units_percentage) x = (x / 100) * max;
+-	x = clamp(x, 0, max);
+-	return (byte)round(max == 1 ? x * 255 : x);
++double normalized_component(const css_length& val, double max = 255.0)
++{
++	const double value = val.units() == css_units_percentage ? val.val() / 100.0 : val.val() / max;
++	return std::clamp(value, 0.0, 1.0);
+ }
+ 
+ // https://drafts.csswg.org/css-color-4/#rgb-functions
+@@ -272,6 +278,7 @@
+ 		return false;
+ 
+ 	css_length r, g, b, a(1, css_units_none);
++	unsigned missing = 0;
+ 	// legacy syntax: <percentage>#{3} , <alpha-value>? | <number>#{3} , <alpha-value>?
+ 	if (n != 1)
+ 	{
+@@ -286,37 +293,14 @@
+ 		if (n == 4 && !a.from_token(list[3][0], f_number | f_percentage)) return false;
+ 	}
+ 	// modern syntax:  [ <number> | <percentage> | none ]{3}  [ / [<alpha-value> | none] ]?
+-	else if (!parse_modern_syntax(tok.value, false, r, g, b, a)) return false;
+-
+-	color = web_color(
+-		calc_percent_and_clamp(r),
+-		calc_percent_and_clamp(g),
+-		calc_percent_and_clamp(b),
+-		calc_percent_and_clamp(a, 1));
++	else if (!parse_modern_syntax(tok.value, false, r, g, b, a, missing)) return false;
++
++	if (!std::isfinite(r.val()) || !std::isfinite(g.val()) || !std::isfinite(b.val()) || !std::isfinite(a.val()))
++		return false;
++	color = make_css_color(css_color_space::srgb, {
++		normalized_component(r), normalized_component(g), normalized_component(b), normalized_component(a, 1.0)
++	}, missing);
+ 	return true;
+-}
+-
+-// https://drafts.csswg.org/css-color-4/#hsl-to-rgb
+-void hsl_to_rgb(float hue, float sat, float light, float& r, float& g, float& b)
+-{
+-	hue = (float) fmod(hue, 360.f);
+-
+-	if (hue < 0)
+-		hue += 360;
+-
+-	sat /= 100;
+-	light /= 100;
+-
+-	auto f = [=](float n)
+-	{
+-		float k = (float) fmod(n + hue / 30, 12.f);
+-		float a = sat * min(light, 1 - light);
+-		return light - a * max(-1.f, min({k - 3, 9 - k, 1.f}));
+-	};
+-
+-	r = f(0);
+-	g = f(8);
+-	b = f(4);
+ }
+ 
+ // https://drafts.csswg.org/css-color-4/#the-hsl-notation
+@@ -331,6 +315,7 @@
+ 		return false;
+ 
+ 	css_length h, s, l, a(1, css_units_none);
++	unsigned missing = 0;
+ 	// legacy syntax: <hue>, <percentage>, <percentage>, <alpha-value>?
+ 	if (n != 1)
+ 	{
+@@ -348,38 +333,23 @@
+ 		if (n == 4 && !a.from_token(list[3][0], f_number | f_percentage)) return false;
+ 	}
+ 	// modern syntax:  [<hue> | none] [<percentage> | <number> | none]{2} [ / [<alpha-value> | none] ]?
+-	else if (!parse_modern_syntax(tok.value, true, h, s, l, a)) return false;
+-
+-	float hue = h.val();
+-	// no percent calculation needed for sat and lit because 0% ~ 0, 100% ~ 100
+-	float sat = s.val();
+-	float lit = l.val();
+-	// For historical reasons, if the saturation is less than 0% it is clamped to 0% at parsed-value time, before being converted to an sRGB color.
+-	if (sat < 0) sat = 0;
+-
+-	// Note: Chrome and Firefox treat invalid hsl values differently.
+-	//
+-	// Note: at this point, sat is not clamped at 100, and lit is not clamped at all. The standard
+-	// mentions only clamping sat at 0. As a result, returning rgb values may not be inside [0,1].
+-	float r, g, b;
+-	hsl_to_rgb(hue, sat, lit, r, g, b);
+-
+-	r = clamp(r, 0, 1);
+-	g = clamp(g, 0, 1);
+-	b = clamp(b, 0, 1);
+-
+-	color = web_color(
+-		(byte)round(r * 255),
+-		(byte)round(g * 255),
+-		(byte)round(b * 255),
+-		calc_percent_and_clamp(a, 1));
++	else if (!parse_modern_syntax(tok.value, true, h, s, l, a, missing)) return false;
++
++	if (!std::isfinite(h.val()) || !std::isfinite(s.val()) || !std::isfinite(l.val()) || !std::isfinite(a.val()))
++		return false;
++	double hue = std::fmod(double(h.val()), 360.0);
++	if (hue < 0.0) hue += 360.0;
++	color = make_css_color(css_color_space::hsl, {
++		hue, std::max(s.val() / 100.0, 0.0), l.val() / 100.0, normalized_component(a, 1.0)
++	}, missing);
+ 	return true;
+ }
+ 
+ // https://drafts.csswg.org/css-color-5/#typedef-color-function
+-bool parse_func_color(const css_token& tok, web_color& color)
+-{
 -	return parse_rgb_func(tok, color) || parse_hsl_func(tok, color);
-+	return parse_rgb_func(tok, color) || parse_hsl_func(tok, color) || parse_oklch(tok, color);
++bool parse_func_color(const css_token& tok, web_color& color, document_container* container, unsigned depth)
++{
++	return parse_rgb_func(tok, color) || parse_hsl_func(tok, color) || parse_oklch(tok, color) ||
++		parse_color_mix(tok, color, container, depth);
  }
  
  string resolve_name(const string& name, document_container* container)
+@@ -396,7 +366,7 @@
+ 	return "";
+ }
+ 
+-bool parse_name_color(const css_token& tok, web_color& color, document_container* container)
++bool parse_name_color(const css_token& tok, web_color& color, document_container* container, unsigned depth)
+ {
+ 	if (tok.type != IDENT) return false;
+ 	if (tok.ident() == "currentcolor")
+@@ -407,16 +377,21 @@
+ 	string str = resolve_name(tok.name, container);
+ 	auto tokens = normalize(str, f_componentize | f_remove_whitespace);
+ 	if (tokens.size() != 1) return false;
+-	return parse_color(tokens[0], color, container);
++	return parse_color_at_depth(tokens[0], color, container, depth);
+ }
+ 
+ // https://drafts.csswg.org/css-color-5/#typedef-color
+ bool parse_color(const css_token& tok, web_color& color, document_container* container)
+ {
++	return parse_color_at_depth(tok, color, container, 0);
++}
++
++bool parse_color_at_depth(const css_token& tok, web_color& color, document_container* container, unsigned depth)
++{
+ 	return
+ 		parse_hash_color(tok, color) ||
+-		parse_func_color(tok, color) ||
+-		parse_name_color(tok, color, container);
++		parse_func_color(tok, color, container, depth) ||
++		parse_name_color(tok, color, container, depth);
+ }
+ 
+ web_color web_color::darken(double fraction) const
+@@ -433,6 +408,8 @@
+ 
+ string web_color::to_string() const
+ {
++	if (is_current_color) return "currentcolor";
++	if (css_data) return to_srgb().to_string();
+ 	char str[9];
+ 	if(alpha)
+ 	{

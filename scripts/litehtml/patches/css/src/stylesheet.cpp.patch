@@ -1,0 +1,66 @@
+diff --git a/src/stylesheet.cpp b/src/stylesheet.cpp
+--- a/src/stylesheet.cpp
++++ b/src/stylesheet.cpp
+@@ -3,6 +3,7 @@
+ #include "css_parser.h"
+ #include "document.h"
+ #include "document_container.h"
++#include "formats/html/css/css_supports.h"
+ 
+ namespace litehtml
+ {
+@@ -31,6 +32,16 @@
+ 		}
+ 
+ 		// Otherwise: at-rule
++		if (equal_i(rule->name, "supports"))
++		{
++			if (rule->block.type != CURLY_BLOCK) continue;
++			const auto condition = evaluate_css_supports(rule->prelude, doc->mode());
++			if (!condition) continue;
++			import_allowed = false;
++			if (*condition)
++				parse_css_stylesheet(rule->block.value, baseurl, doc, media, false);
++			continue;
++		}
+ 		switch (_id(lowcase(rule->name)))
+ 		{
+ 		case _charset_: // ignored  https://www.w3.org/TR/css-syntax-3/#charset-rule
+@@ -68,8 +79,8 @@
+ }
+ 
+ // https://drafts.csswg.org/css-cascade-5/#at-import
+-// `layer` and `supports` are not supported
+-// @import [ <url> | <string> ] <media-query-list>?
++// Cascade layer placement is not supported.
++// @import [ <url> | <string> ] supports( ... )? <media-query-list>?
+ void css::parse_import_rule(raw_rule::ptr rule, string baseurl, document::ptr doc, media_query_list_list::ptr media)
+ {
+ 	auto tokens = rule->prelude;
+@@ -88,13 +99,25 @@
+ 		css_parse_error("invalid @import rule");
+ 		return;
+ 	}
++	++index;
++	skip_whitespace(tokens, index);
++	const auto& condition = at(tokens, index);
++	if (condition.ident() == "layer" || (condition.type == CV_FUNCTION && equal_i(condition.name, "layer")))
++		return;
++	if (condition.type == CV_FUNCTION && equal_i(condition.name, "supports"))
++	{
++		if (!evaluate_css_supports(condition.value, doc->mode(), true).value_or(false))
++			return;
++		++index;
++	}
++
+ 	document_container* container = doc->container();
+ 	string css_text;
+ 	string css_baseurl = baseurl;
+ 	container->import_css(css_text, url, css_baseurl);
+ 
+ 	auto new_media = media;
+-	tokens = slice(tokens, index + 1);
++	tokens = slice(tokens, index);
+ 	auto mq_list = parse_media_query_list(tokens, doc);
+ 	if (!mq_list.empty())
+ 	{

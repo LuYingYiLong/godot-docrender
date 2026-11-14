@@ -1,7 +1,32 @@
 diff --git a/src/html_tag.cpp b/src/html_tag.cpp
 --- a/src/html_tag.cpp
 +++ b/src/html_tag.cpp
-@@ -206,41 +206,16 @@
+@@ -1,6 +1,7 @@
+ #include <algorithm>
+ 
+ #include "html.h"
++#include "formats/html/css/css_relational_selector.h"
+ #include "html_tag.h"
+ #include "document.h"
+ #include "html_microsyntaxes.h"
+@@ -16,6 +17,16 @@
+ namespace litehtml
+ {
+ 
++static bool is_generated_content(const element& el)
++{
++	return is_one_of(el.tag(), __tag_before_, __tag_after_);
++}
++
++static bool is_selector_tree_element(const element& el)
++{
++	return el.tag() != empty_id && !is_generated_content(el);
++}
++
+ litehtml::html_tag::html_tag(const std::shared_ptr<document>& doc) : element(doc)
+ {
+ 	m_tag = empty_id;
+@@ -206,41 +217,16 @@
  			if(sel->is_media_valid())
  			{
  				auto apply_before_after = [&]()
@@ -53,7 +78,16 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  
  				if(apply & select_match_pseudo_class)
  				{
-@@ -325,16 +300,16 @@
+@@ -270,7 +256,7 @@
+ 
+ 	for(auto& el : m_children)
+ 	{
+-		if(el->css().get_display() != display_inline_text)
++		if(is_selector_tree_element(*el))
+ 		{
+ 			el->apply_stylesheet(stylesheet);
+ 		}
+@@ -325,16 +311,16 @@
  
  bool html_tag::get_custom_property(string_id name, css_token_vector& result) const
  {
@@ -80,7 +114,7 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  	}
  	return false;
  }
-@@ -346,10 +321,19 @@
+@@ -346,10 +332,19 @@
  
  	if (style)
  	{
@@ -101,11 +135,64 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  
  	m_css.compute(this, doc);
  
-@@ -860,6 +844,11 @@
+@@ -498,17 +493,9 @@
+ 		case select_pseudo_element:
+ 			if(attr.name == _after_)
+ 			{
+-				if(selector.m_attrs.size() == 1 && selector.m_tag == star_id && m_tag != __tag_after_)
+-				{
+-					return select_no_match;
+-				}
+ 				res |= select_match_with_after;
+ 			} else if(attr.name == _before_)
+ 			{
+-				if(selector.m_attrs.size() == 1 && selector.m_tag == star_id && m_tag != __tag_before_)
+-				{
+-					return select_no_match;
+-				}
+ 				res |= select_match_with_before;
+ 			} else
+ 			{
+@@ -540,6 +527,20 @@
+ int html_tag::select_pseudoclass(const css_attribute_selector& sel)
+ {
+ 	element::ptr el_parent = parent();
++
++	if (sel.name == _id("has"))
++		return matches_relative_selector(*this, sel.selector_list) ? select_match : select_no_match;
++	if (sel.name == _id("where"))
++		return select(sel.selector_list, true);
++	if (sel.name == _id("empty"))
++	{
++		for (const auto& child : m_children)
++		{
++			if (is_selector_tree_element(*child) || (child->is_text() && !child->is_space()))
++				return select_no_match;
++		}
++		return select_match;
++	}
+ 
+ 	switch (sel.name)
+ 	{
+@@ -860,6 +861,25 @@
  void litehtml::html_tag::draw_background(uint_ptr hdc, pixel_t x, pixel_t y, const position *clip,
  										 const std::shared_ptr<render_item> &ri)
  {
 +
++	const auto paint_borders = [&](borders decoration, const position& box, bool root) {
++		const bool collapsed = m_css.get_border_collapse() == border_collapse_collapse &&
++			is_one_of(m_css.get_display(), display_table, display_inline_table, display_table_cell, display_table_row,
++				display_table_row_group, display_table_header_group, display_table_footer_group);
++		for (auto* side : { &decoration.left, &decoration.right, &decoration.top, &decoration.bottom })
++		{
++			side->color = side->color.to_srgb(m_css.get_color());
++			if (collapsed && side->style == border_style_inset)
++				side->style = border_style_ridge;
++			else if (collapsed && side->style == border_style_outset)
++				side->style = border_style_groove;
++		}
++		get_document()->container()->draw_borders(hdc, decoration, box, root);
++	};
 +	const auto paint_shadows = [&](position box, borders decoration, bool inset) {
 +		box.round();
 +		get_document()->container()->draw_box_shadows(*this, box, decoration, inset);
@@ -113,7 +200,7 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  	if(m_css.get_display() != display_inline && m_css.get_display() != display_table_row)
  	{
  		position pos = ri->pos();
-@@ -870,6 +859,10 @@
+@@ -870,6 +890,10 @@
  		border_box += ri->get_paddings();
  		border_box += ri->get_borders();
  
@@ -124,7 +211,7 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  		if(border_box.does_intersect(clip) || is_root())
  		{
  			auto v_offset = ri->get_draw_vertical_offset();
-@@ -900,6 +893,7 @@
+@@ -900,12 +924,13 @@
  				}
  			}
  
@@ -132,7 +219,14 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  			borders bdr = m_css.get_borders();
  			if(bdr.is_visible())
  			{
-@@ -960,6 +954,10 @@
+ 				border_box.round();
+ 				bdr.radius = m_css.get_borders().radius.calc_percents(border_box.width, border_box.height);
+-				get_document()->container()->draw_borders(hdc, bdr, border_box, is_root());
++				paint_borders(bdr, border_box, is_root());
+ 			}
+ 		}
+ 	} else
+@@ -960,6 +985,10 @@
  					bdr.right	= m_css.get_borders().right;
  				}
  
@@ -143,7 +237,7 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  				if(bg)
  				{
  					int num_layers = bg->get_layers_number();
-@@ -978,6 +976,7 @@
+@@ -978,12 +1007,13 @@
  						bg->draw_layer(hdc, i, layer, get_document()->container());
  					}
  				}
@@ -151,7 +245,14 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  				if(bdr.is_visible())
  				{
  					borders b = bdr;
-@@ -1153,7 +1152,7 @@
+ 					b.radius = bdr.radius.calc_percents(box->width, box->height);
+ 					box->round();
+-					get_document()->container()->draw_borders(hdc, b, *box, false);
++					paint_borders(b, *box, false);
+ 				}
+ 			}
+ 		}
+@@ -1153,7 +1183,7 @@
  				text_pos.move_to(text_pos.right() - tw, text_pos.y);
  				text_pos.width = tw;
  				text_pos.round();
@@ -160,7 +261,52 @@ diff --git a/src/html_tag.cpp b/src/html_tag.cpp
  			}
  		}
  	}
-@@ -1400,30 +1399,34 @@
+@@ -1213,7 +1243,7 @@
+ 	int idx = 1;
+ 	for(const auto& child : m_children)
+ 	{
+-		if(child->css().get_display() != display_inline_text)
++		if(is_selector_tree_element(*child))
+ 		{
+ 			if( (!of_type && selector_list.empty()) ||
+ 				(of_type && child->tag() == el->tag()) || child->select(selector_list) )
+@@ -1246,7 +1276,7 @@
+ 	int idx = 1;
+ 	for(auto child = m_children.rbegin(); child != m_children.rend(); child++)
+ 	{
+-		if((*child)->css().get_display() != display_inline_text)
++		if(is_selector_tree_element(**child))
+ 		{
+ 			if( (!of_type && selector_list.empty()) ||
+ 				(of_type && (*child)->tag() == el->tag()) || (*child)->select(selector_list) )
+@@ -1279,7 +1309,7 @@
+ 	element::ptr ret;
+ 	for(auto& e : m_children)
+ 	{
+-		if(e->css().get_display() != display_inline_text)
++		if(is_selector_tree_element(*e))
+ 		{
+ 			if(e == el)
+ 			{
+@@ -1316,7 +1346,7 @@
+ 	element::ptr ret = nullptr;
+ 	for(auto& e : m_children)
+ 	{
+-		if(e->css().get_display() != display_inline_text)
++		if(is_selector_tree_element(*e))
+ 		{
+ 			if(e == el)
+ 			{
+@@ -1349,7 +1379,7 @@
+ 	int child_count = 0;
+ 	for(const auto& child : m_children)
+ 	{
+-		if(child->css().get_display() != display_inline_text)
++		if(is_selector_tree_element(*child))
+ 		{
+ 			if( !of_type || (of_type && el->tag() == child->tag()) )
+ 			{
+@@ -1400,30 +1430,34 @@
  
  void litehtml::html_tag::handle_counter_properties()
  {

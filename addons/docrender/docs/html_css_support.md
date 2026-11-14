@@ -7,26 +7,45 @@ DocRender parses CSS declarations with its own C++ modules. litehtml v0.10 (`9bc
 | Feature | Support |
 | --- | --- |
 | Basic selectors | Type, class, ID, attribute, selector lists, descendant, child, and sibling combinators |
-| Pseudo-classes | `:root`, `:is()`, `:not()`, `:nth-child()` and related structural selectors. `HTMLLabel` supplies `:hover`. Its `<button type="button">` elements also support `:active`, `:focus`, `:focus-visible`, `:enabled`, and `:disabled`. `:has()` and `:where()` are unsupported. |
+| Pseudo-classes | `:root`, `:empty`, `:is()`, `:where()`, `:not()`, `:has()`, `:nth-child()` and related structural selectors. `HTMLLabel` supplies `:hover`. Its `<button type="button">` elements also support `:active`, `:focus`, `:focus-visible`, `:enabled`, and `:disabled`. |
 | Pseudo-elements | `::before` and `::after` with generated content. `::first-line` and `::first-letter` are unsupported. |
 | Cascade | Specificity, source order, `!important`, custom properties, and `var()`. Supported declarations share the CSS-wide keywords `inherit`, `initial`, `unset`, `revert`, and `revert-layer`. |
 | Style sources | Inline `style`, `<style>`, the extra `stylesheet` string, and local project stylesheets loaded through `<link>` or `@import`. |
-| At-rules | `@media` supports viewport conditions such as width, height, and orientation. `@import` supports a local path and optional media condition. `@supports`, `@layer`, `@font-face`, and `@keyframes` are unsupported. |
+| At-rules | `@media` supports viewport conditions such as width, height, and orientation. `@supports` tests declarations and selectors. `@import` supports a local path, an optional `supports(…)` condition and an optional media condition. `@layer`, `@font-face`, and `@keyframes` are unsupported. |
 
 ## Properties and values
 
 | Area | Support |
 | --- | --- |
-| Layout | Block and inline layout, lists, tables, Flexbox, block and inline Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Sticky positioning is unsupported. |
-| 2D transforms | `transform` accepts `none` and lists of `translate()`, `translateX()`, `translateY()`, `rotate()`, `scale()`, `scaleX()`, and `scaleY()`. `transform-origin` supports one or two position components. See the 2D transforms section below. |
+| Layout | Block and inline layout, lists, tables, Flexbox, block and inline Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. The `inset` shorthand sets `top`, `right`, `bottom`, and `left`. Sticky positioning is unsupported. |
+| 2D transforms | `transform` accepts `none` and lists of `matrix()`, `translate()`, `translateX()`, `translateY()`, `rotate()`, `scale()`, `scaleX()`, `scaleY()`, `skew()`, `skewX()`, and `skewY()`. `transform-origin` supports one or two position components. See the 2D transforms section below. |
 | Grid | Track lists support named lines and `repeat()`, including `auto-fill` and `auto-fit`. Grid items support placement by name, line number, or span. Grid supports automatic placement, patterned implicit tracks, item alignment, and track distribution. |
 | Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
 | Lengths | `px`, `em`, `rem`, `ex`, `ch`, `vw`, `vh`, `vmin`, `vmax`, `in`, `cm`, `mm`, `pt`, and `pc`. `calc()`, `min()`, `max()`, and `clamp()` support the layout properties listed below. |
-| Colors | Named and hex colors, `rgb()` and `hsl()` variants, absolute `oklch()`, and `currentColor` where applicable. |
+| Colors | Named and hex colors, `rgb()` and `hsl()` variants, absolute `oklch()`, two-color `color-mix()`, and `currentColor` where applicable. |
 | Backgrounds | Solid colors, local images, and linear, radial, and conic gradients. |
-| Borders and shadows | `solid`, `dashed`, `dotted`, `double`, per-side widths and colors, and `border-radius`. DocRender adds `box-shadow`, including `inset` and multiple layers. `groove`, `ridge`, `inset`, and `outset` border styles parse but have no drawing implementation. |
+| Borders and shadows | `solid`, `dashed`, `dotted`, `double`, `groove`, `ridge`, `inset`, and `outset`, with per-side widths and colors and `border-radius`. `box-shadow` supports `inset` and multiple layers. |
 | Text | Theme fonts, font size and weight, italic text, wrapping, alignment, and line height. `font-family` accepts a prioritized list of installed family names and generic families, including in the `font` shorthand. `text-decoration` supports underline, overline, and line-through in five styles, with `auto`, `from-font`, length, and percentage thickness. `text-shadow` supports offsets, blur, and multiple layers on glyphs and decorations. Text emphasis marks parse but have no drawing implementation. |
 | Cursor | `HTMLLabel` maps common CSS keywords to Godot cursor shapes. Image cursors and unmapped keywords use the control's fallback. |
+
+## Relational selectors and feature queries
+
+`:has()` matches relative to its subject. Use `:has(.icon)` for descendants, `:has(> .icon)` for children, and `:has(+ .item)` or `:has(~ .item)` for following siblings. A relative selector may continue with more combinators. The argument list contributes its highest specificity. `:where()` matches its selector list with zero specificity. `:empty` follows Selectors Level 4 and ignores comments, generated content, and document whitespace. [Selectors Level 4](https://www.w3.org/TR/selectors-4/#relational)
+
+Use `@supports (display: grid)` to test a declaration and `@supports selector(.card:has(> img))` to test a selector. Conditions accept `not`, `and`, `or`, and parentheses for grouping. Nest `@supports` and `@media` to require both conditions. Declaration probes use the CSS parser and the known rendering limits. A well-formed `var()` probe checks the declaration syntax before substitution. Selector probes reject unsupported arguments inside otherwise forgiving lists. [CSS Conditional Rules](https://www.w3.org/TR/css-conditional-3/#at-supports) · [Selector feature queries](https://www.w3.org/TR/css-conditional-4/#supports-selector-fn)
+
+## Cascade
+
+Document styles from `<style>` and `<link rel="stylesheet">` follow document order. Each `@import` contributes its rules at the import location. The additional `stylesheet` contributes author rules after the document's rules.
+
+DocRender compares declarations for each longhand in this order.
+
+1. Author declarations marked `!important` precede normal author declarations.
+2. A `style` attribute precedes stylesheet rules of the same importance.
+3. Among stylesheet rules with equal importance, higher selector specificity wins. For instance, a document rule for `#card` takes precedence over an additional rule for `.card`.
+4. When the preceding criteria match, the later declaration wins. For equally specific stylesheet rules, the additional stylesheet comes last.
+
+The pre-author baseline contains litehtml defaults, control and theme defaults, and HTML presentational hints. Both `revert` and `revert-layer` restore this baseline for the affected longhands. [CSS Cascade](https://www.w3.org/TR/css-cascade-5/#cascade-sort)
 
 ## Variables and length expressions
 
@@ -46,7 +65,13 @@ Length expressions are supported in `width`, `height`, their `min-` and `max-` v
 
 ## OkLCh colors
 
-`oklch(65% 0.15 40deg / 80%)` is valid wherever DocRender accepts a CSS color. Lightness, chroma, and alpha accept numbers and percentages. A chroma of `100%` represents `0.4`. Hue accepts a number in degrees or an angle in `deg`, `grad`, `rad`, or `turn`. Each component accepts `none`, treated as zero for rendering. Colors convert to sRGB with out-of-gamut channels clipped to the existing 8-bit output range. Relative colors, component math, and `color-mix()` remain outside the supported grammar. [CSS Color 4](https://www.w3.org/TR/css-color-4/#ok-lab)
+`oklch(65% 0.15 40deg / 80%)` is valid wherever DocRender accepts a CSS color. Lightness, chroma, and alpha accept numbers and percentages. A chroma of `100%` represents `0.4`. Hue accepts a number in degrees or an angle in `deg`, `grad`, `rad`, or `turn`. Each component accepts `none`, treated as zero when displayed directly. [CSS Color 4](https://www.w3.org/TR/css-color-4/#ok-lab)
+
+`color-mix(in oklch shorter hue, currentColor 30%, white)` mixes two colors in `srgb`, `srgb-linear`, `oklab`, or `oklch`. Omitting the interpolation method uses `oklab`. In `oklch`, hue can follow the `shorter`, `longer`, `increasing`, or `decreasing` arc. Missing components follow the CSS interpolation rules, and non-hue components are interpolated with premultiplied alpha. [CSS Color 4 interpolation](https://www.w3.org/TR/css-color-4/#interpolation)
+
+Each input can include a weight from `0%` to `100%`. Omitted weights share the remainder. Explicit weights are normalized, and when the total is below `100%`, it also scales the output alpha. A total of zero yields a transparent color. Custom properties can supply the inputs or weights. Mixes that contain `currentColor` are resolved in the element that uses the property. In the `color` property itself, they use the inherited text color. Nested mixes retain floating-point colors until painting, when channels are clipped to DocRender's 8-bit sRGB output. Relative colors, math in weights or color components, and mixes with more than two inputs are outside the supported grammar. [CSS Color 5](https://www.w3.org/TR/css-color-5/#color-mix)
+
+Markdown HTML blocks use the full HTML color pipeline. Markdown's inline `<span style>` supports constant mixes in `color` and `background-color`.
 
 ## 2D transforms
 
@@ -59,7 +84,7 @@ Length expressions are supported in `width`, `height`, their `min-` and `max-` v
 
 Translation and origin offsets accept lengths, percentages, and length expressions. Percentages use the border-box width or height. The default origin is the center of that box. Rotation accepts `deg`, `grad`, `rad`, `turn`, and unitless zero. Scale accepts finite factors, including negative factors. A singular transform such as `scale(0)` hides the subtree while preserving its place in the flow.
 
-Transforms affect painting, element rectangles, links, selection, and scrollable overflow. Non-replaced inline boxes and table columns or column groups can inherit an ancestor's transform as part of its subtree. Use an inline-block for a transform on an inline element itself. In Markdown, downward overflow expands the HTML block and the column bounds clip horizontal overflow. Skew, 3D transforms, `transform-box`, standalone transform properties, and animation are outside the supported set. [CSS Transforms Level 1](https://www.w3.org/TR/css-transforms-1/)
+Transforms affect painting, element rectangles, links, selection, and scrollable overflow. Non-replaced inline boxes and table columns or column groups can inherit an ancestor's transform as part of its subtree. Use an inline-block for a transform on an inline element itself. In Markdown, downward overflow expands the HTML block and the column bounds clip horizontal overflow. 3D transforms, `transform-box`, standalone transform properties, and animation are outside the supported set. [CSS Transforms Level 1](https://www.w3.org/TR/css-transforms-1/)
 
 Painting and hit testing use the exact clip shapes of up to 16 rounded or transformed overflow ancestors, starting with the closest ancestor. Farther clips use their document-space bounding rectangles. An element's own rounded shape is evaluated separately.
 
@@ -147,6 +172,6 @@ The editor's HTML source preview outlines visible elements with CSS declaration 
 | --- | --- |
 | `unknown_property` | `scrollbar-width: thin` |
 | `unsupported_value` | `grid-template-areas: "head head" "head ."` |
-| `not_rendered` | `border-top-style: groove` |
+| `not_rendered` | `text-emphasis-style: dot` |
 
 Diagnostics cover declarations reached by the stylesheet parser. For a declaration using `var()`, the value is checked when DocRender resolves it on an element. Drawing diagnostics identify the winning declaration after shorthand expansion. Use `get_render_error()` for parse and layout failures.

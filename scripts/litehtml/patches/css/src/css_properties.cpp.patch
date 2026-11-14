@@ -1,7 +1,18 @@
 diff --git a/src/css_properties.cpp b/src/css_properties.cpp
 --- a/src/css_properties.cpp
 +++ b/src/css_properties.cpp
-@@ -108,7 +108,26 @@
+@@ -11,7 +11,9 @@
+ 
+ void litehtml::css_properties::compute(const html_tag* el, const document::ptr& doc)
+ {
+-	m_color = el->get_property<web_color>(_color_, true, web_color::black, offset(m_color));
++	const auto color_parent = el->parent();
++	const web_color inherited_color = color_parent ? color_parent->css().get_color() : web_color::black;
++	m_color = el->get_property(_color_, true, web_color::black, offset(m_color)).resolve(inherited_color);
+ 
+ 	m_el_position	 = (element_position)	el->get_property<int>( _position_,		false,	element_position_static,	 offset(m_el_position));
+ 	m_display		 = (style_display)		el->get_property<int>( _display_,			false,	display_inline,			 offset(m_display));
+@@ -108,7 +110,26 @@
  	}
  	// 5. Otherwise, the remaining 'display' property values apply as specified.
  
@@ -28,7 +39,22 @@ diff --git a/src/css_properties.cpp b/src/css_properties.cpp
  	pixel_t font_size = get_font_size();
  
  	const css_length _auto = css_length::predef_value(0);
-@@ -253,6 +272,67 @@
+@@ -152,10 +173,10 @@
+ 	doc->cvt_units(m_css_padding.top,	 m_font_metrics, 0);
+ 	doc->cvt_units(m_css_padding.bottom, m_font_metrics, 0);
+ 
+-	m_css_borders.left.color   = get_color_property(el, _border_left_color_,   false, m_color, offset(m_css_borders.left.color));
+-	m_css_borders.right.color  = get_color_property(el, _border_right_color_,  false, m_color, offset(m_css_borders.right.color));
+-	m_css_borders.top.color    = get_color_property(el, _border_top_color_,    false, m_color, offset(m_css_borders.top.color));
+-	m_css_borders.bottom.color = get_color_property(el, _border_bottom_color_, false, m_color, offset(m_css_borders.bottom.color));
++	m_css_borders.left.color   = el->get_property(_border_left_color_, false, web_color::current_color, offset(m_css_borders.left.color));
++	m_css_borders.right.color  = el->get_property(_border_right_color_, false, web_color::current_color, offset(m_css_borders.right.color));
++	m_css_borders.top.color    = el->get_property(_border_top_color_, false, web_color::current_color, offset(m_css_borders.top.color));
++	m_css_borders.bottom.color = el->get_property(_border_bottom_color_, false, web_color::current_color, offset(m_css_borders.bottom.color));
+ 
+ 	m_css_borders.left.style   = (border_style) el->get_property<int>(_border_left_style_,   false, border_style_none, offset(m_css_borders.left.style));
+ 	m_css_borders.right.style  = (border_style) el->get_property<int>(_border_right_style_,  false, border_style_none, offset(m_css_borders.right.style));
+@@ -253,15 +274,68 @@
  	m_order = el->get_property<int>(_order_, false, 0, offset(m_order));
  
  	compute_background(el, doc);
@@ -94,9 +120,18 @@ diff --git a/src/css_properties.cpp b/src/css_properties.cpp
 +	}
 +
  	compute_flex(el, doc);
+-}
+-
+-// used for all color properties except `color` (color:currentcolor is converted to color:inherit during parsing)
+-litehtml::web_color litehtml::css_properties::get_color_property(const html_tag* el, string_id name, bool inherited, web_color default_value, uint_ptr member_offset) const
+-{
+-	web_color color = el->get_property<web_color>(name, inherited, default_value, member_offset);
+-	if (color.is_current_color) color = m_color;
+-	return color;
  }
  
-@@ -361,10 +441,10 @@
+ static const litehtml::pixel_t font_size_table[8][7] =
+@@ -361,10 +435,10 @@
  	m_font_size = (float)font_size;
  
  	// initialize font
@@ -109,15 +144,28 @@ diff --git a/src/css_properties.cpp b/src/css_properties.cpp
  								m_float == float_none && !is_one_of(m_el_position, element_position_absolute, element_position_fixed);
  
  	m_text_decoration_line = el->get_property<int>(_text_decoration_line_, propagate_decoration, text_decoration_line_none, offset(m_text_decoration_line));
-@@ -387,22 +467,10 @@
+@@ -375,34 +449,21 @@
+ 		m_text_decoration_line |= el->parent()->css().get_text_decoration_line();
+ 	}
+ 
++	m_text_decoration_color = el->get_property(_text_decoration_color_, propagate_decoration, web_color::current_color, offset(m_text_decoration_color));
+ 	if(m_text_decoration_line)
+ 	{
+ 		m_text_decoration_thickness = el->get_property<css_length>(_text_decoration_thickness_, propagate_decoration, css_length::predef_value(text_decoration_thickness_auto), offset(m_text_decoration_thickness));
+ 		m_text_decoration_style = (text_decoration_style) el->get_property<int>(_text_decoration_style_, propagate_decoration, text_decoration_style_solid, offset(m_text_decoration_style));
+-		m_text_decoration_color = get_color_property(el, _text_decoration_color_, propagate_decoration, web_color::current_color, offset(m_text_decoration_color));
+ 	} else
+ 	{
+ 		m_text_decoration_thickness = css_length::predef_value(text_decoration_thickness_auto);
+-		m_text_decoration_color = web_color::current_color;
  	}
  
  	// text-emphasis
 -	m_text_emphasis_style = el->get_property<string>(_text_emphasis_style_, true, "", offset(m_text_emphasis_style));
 +	m_text_emphasis_style = el->get_property<string>(_text_emphasis_style_, true, "none", offset(m_text_emphasis_style));
  	m_text_emphasis_position = el->get_property<int>(_text_emphasis_position_, true, text_emphasis_position_over, offset(m_text_emphasis_position));
- 	m_text_emphasis_color = get_color_property(el, _text_emphasis_color_, true, web_color::current_color, offset(m_text_emphasis_color));
- 
+-	m_text_emphasis_color = get_color_property(el, _text_emphasis_color_, true, web_color::current_color, offset(m_text_emphasis_color));
+-
 -	if(el->parent())
 -	{
 -		if(m_text_emphasis_style.empty() || m_text_emphasis_style == "initial" || m_text_emphasis_style == "unset")
@@ -130,10 +178,12 @@ diff --git a/src/css_properties.cpp b/src/css_properties.cpp
 -		}
 -		m_text_emphasis_position |= el->parent()->css().get_text_emphasis_position();
 -	}
++	m_text_emphasis_color = el->get_property(_text_emphasis_color_, true, web_color::current_color, offset(m_text_emphasis_color));
++
  
  	if(m_font_weight.is_predefined())
  	{
-@@ -434,7 +502,7 @@
+@@ -434,24 +495,37 @@
  	}
  
  	font_description descr;
@@ -142,8 +192,14 @@ diff --git a/src/css_properties.cpp b/src/css_properties.cpp
  	descr.size					= std::round(font_size);
  	descr.style					= m_font_style;
  	descr.weight				= (int) m_font_weight.val();
-@@ -446,6 +514,18 @@
- 	descr.emphasis_color		= m_text_emphasis_color;
+ 	descr.decoration_line		= m_text_decoration_line;
+ 	descr.decoration_thickness	= m_text_decoration_thickness;
+ 	descr.decoration_style		= m_text_decoration_style;
+-	descr.decoration_color		= m_text_decoration_color;
++	if (m_text_decoration_line) descr.decoration_color = m_text_decoration_color.to_srgb(m_color);
+ 	descr.emphasis_style		= m_text_emphasis_style;
+-	descr.emphasis_color		= m_text_emphasis_color;
++	if (m_text_emphasis_style != "none") descr.emphasis_color = m_text_emphasis_color.to_srgb(m_color);
  	descr.emphasis_position		= m_text_emphasis_position;
  
 +
@@ -161,7 +217,15 @@ diff --git a/src/css_properties.cpp b/src/css_properties.cpp
  	m_font = doc->get_font(descr, &m_font_metrics);
  }
  
-@@ -500,28 +580,30 @@
+ void litehtml::css_properties::compute_background(const html_tag* el, const document::ptr& doc)
+ {
+-	m_bg.m_color		= get_color_property(el, _background_color_, false, web_color::transparent, offset(m_bg.m_color));
++	m_bg.m_color		= el->get_property(_background_color_, false, web_color::transparent, offset(m_bg.m_color));
++	m_bg.m_current_color = m_color;
+ 
+ 	const css_size auto_auto(css_length::predef_value(background_size_auto), css_length::predef_value(background_size_auto));
+ 	m_bg.m_position_x	= el->get_property<length_vector>(_background_position_x_, false, { css_length(0, css_units_percentage) }, offset(m_bg.m_position_x));
+@@ -500,28 +574,30 @@
  
  void litehtml::css_properties::compute_flex(const html_tag* el, const document::ptr& doc)
  {

@@ -66,11 +66,21 @@ namespace litehtml {
 			if (token.type != CV_FUNCTION) return false;
 			const auto name = lowcase(token.name);
 			const auto& args = token.value;
+			css_transform_function function{};
+			if (name == "matrix") {
+				if (args.size() != 11) return false;
+				function.type = kind::matrix;
+				for (size_t i = 0; i < function.matrix.size(); ++i) {
+					if ((i != 0 && args[2 * i - 1].type != COMMA) ||
+						!parse_number(args[2 * i], function.matrix[i])) return false;
+				}
+				r_value.push_back(std::move(function));
+				continue;
+			}
 			const bool two = args.size() == 3 && args[1].ch == ',';
 			if (args.size() != 1 && !two) return false;
-			if (two && !is_one_of(name, "translate", "scale")) return false;
+			if (two && !is_one_of(name, "translate", "scale", "skew")) return false;
 
-			css_transform_function function{};
 			if (is_one_of(name, "translate", "translatex", "translatey")) {
 				function.type = kind::translate;
 				if (!parse_length(args[0], name == "translatey" ? function.y : function.x, true) ||
@@ -78,6 +88,10 @@ namespace litehtml {
 			} else if (name == "rotate") {
 				function.type = kind::rotate;
 				if (!parse_angle(args[0], function.first)) return false;
+			} else if (is_one_of(name, "skew", "skewx", "skewy")) {
+				function.type = kind::skew;
+				if (!parse_angle(args[0], name == "skewy" ? function.second : function.first) ||
+					(two && !parse_angle(args[2], function.second))) return false;
 			} else if (is_one_of(name, "scale", "scalex", "scaley")) {
 				function.type = kind::scale;
 				function.first = function.second = 1;

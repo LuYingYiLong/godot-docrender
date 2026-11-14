@@ -1,0 +1,37 @@
+diff --git a/include/litehtml/web_color.h b/include/litehtml/web_color.h
+--- a/include/litehtml/web_color.h
++++ b/include/litehtml/web_color.h
+@@ -3,10 +3,12 @@
+ 
+ #include "css_tokenizer.h"
+ #include "types.h"
++#include <memory>
+ 
+ namespace litehtml
+ {
+ 	class document_container;
++	struct css_color_data;
+ 
+ 	struct web_color
+ 	{
+@@ -15,6 +17,12 @@
+ 		byte blue  = 0;
+ 		byte alpha = 255;
+ 		bool is_current_color = false;
++		// Float samples and deferred mixes are shared across inherited style values.
++		std::shared_ptr<const css_color_data> css_data;
++
++		bool needs_current_color() const;
++		web_color resolve(const web_color& current) const;
++		web_color to_srgb(const web_color& current = black) const;
+ 
+ 		static const web_color transparent;
+ 		static const web_color black;
+@@ -33,6 +41,7 @@
+ 	};
+ 
+ 	bool parse_color(const css_token& token, web_color& color, document_container* container);
++	bool parse_color_at_depth(const css_token& token, web_color& color, document_container* container, unsigned depth);
+ }
+ 
+ #endif  // LH_WEB_COLOR_H

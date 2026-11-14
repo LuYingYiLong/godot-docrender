@@ -146,6 +146,8 @@
     <ClCompile Include="src\formats\html\html_text_mask.cpp" />
     <ClCompile Include="src\formats\html\css\css_color.cpp" />
     <ClCompile Include="src\formats\html\css\css_declarations.cpp" />
+    <ClCompile Include="src\formats\html\css\css_relational_selector.cpp" />
+    <ClCompile Include="src\formats\html\css\css_supports.cpp" />
     <ClCompile Include="src\formats\html\css\css_values_background.cpp" />
     <ClCompile Include="src\formats\html\css\css_values_box.cpp" />
     <ClCompile Include="src\formats\html\css\css_values_layout.cpp" />
@@ -209,6 +211,8 @@
     <ClInclude Include="src\formats\html\html_text_mask.h" />
     <ClInclude Include="src\formats\html\css\css_color.h" />
     <ClInclude Include="src\formats\html\css\css_declarations.h" />
+    <ClInclude Include="src\formats\html\css\css_relational_selector.h" />
+    <ClInclude Include="src\formats\html\css\css_supports.h" />
     <ClInclude Include="src\formats\html\css\css_value_parser.h" />
     <ClInclude Include="src\formats\html\litehtml_css.h" />
     <ClInclude Include="src\formats\html\litehtml_css_math.h" />

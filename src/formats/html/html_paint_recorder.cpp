@@ -50,10 +50,15 @@ uniform vec4 inner_radii_x;
 uniform vec4 inner_radii_y;
 uniform vec4 border_widths;
 uniform vec4 border_colors[4];
+uniform vec4 border_inner_colors[4];
 uniform ivec4 border_styles;
 const int BORDER_DOTTED = 2;
 const int BORDER_DASHED = 3;
 const int BORDER_DOUBLE = 4;
+const int BORDER_BEVEL_BANDS = 5;
+uniform vec4 border_middle_box;
+uniform vec4 border_middle_rx;
+uniform vec4 border_middle_ry;
 uniform vec4 double_outer_box;
 uniform vec4 double_outer_rx;
 uniform vec4 double_outer_ry;
@@ -423,7 +428,13 @@ void fragment() {
 			float inside_gap = box_coverage(document_point, double_inner_box, double_inner_rx, double_inner_ry, pixel_x, pixel_y);
 			coverage = min(coverage, max(outside_gap, inside_gap));
 		}
-		COLOR *= border_colors[side];
+		vec4 border_color = border_colors[side];
+		if (style == BORDER_BEVEL_BANDS && border_middle_box.z > border_middle_box.x &&
+				border_middle_box.w > border_middle_box.y) {
+			float inner_band = box_coverage(document_point, border_middle_box, border_middle_rx, border_middle_ry, pixel_x, pixel_y);
+			border_color = mix(border_color, border_inner_colors[side], inner_band);
+		}
+		COLOR *= border_color;
 	} else if (gradient_type > 0) {
 		vec2 point = document_point;
 		if (repeat_axes.x != 0) {
@@ -447,8 +458,9 @@ void fragment() {
 }
 )SHADER";
 
-		Color to_color(const web_color& p_color) {
-			return Color(p_color.red / 255.0f, p_color.green / 255.0f, p_color.blue / 255.0f, p_color.alpha / 255.0f);
+		Color to_color(const web_color& p_color, const web_color& p_current = web_color::black) {
+			const auto srgb = p_color.to_srgb(p_current);
+			return Color(srgb.red / 255.0f, srgb.green / 255.0f, srgb.blue / 255.0f, srgb.alpha / 255.0f);
 		}
 
 		Rect2 get_background_clip(const background_layer& p_layer) {
@@ -466,7 +478,7 @@ void fragment() {
 			return Vector4(p_rect.position.x, p_rect.position.y, p_rect.get_end().x, p_rect.get_end().y);
 		}
 
-		enum BorderPaint { BORDER_NONE, BORDER_SOLID, BORDER_DOTTED, BORDER_DASHED, BORDER_DOUBLE };
+		enum BorderPaint { BORDER_NONE, BORDER_SOLID, BORDER_DOTTED, BORDER_DASHED, BORDER_DOUBLE, BORDER_BEVEL_BANDS, BORDER_BEVEL_SOLID };
 
 		BorderPaint get_border_paint(border_style p_style) {
 			switch (p_style) {
@@ -474,6 +486,10 @@ void fragment() {
 				case border_style_dotted: return BORDER_DOTTED;
 				case border_style_dashed: return BORDER_DASHED;
 				case border_style_double: return BORDER_DOUBLE;
+				case border_style_groove:
+				case border_style_ridge: return BORDER_BEVEL_BANDS;
+				case border_style_inset:
+				case border_style_outset: return BORDER_BEVEL_SOLID;
 				default: return BORDER_NONE;
 			}
 		}
@@ -891,7 +907,7 @@ void fragment() {
 		const float width = line->get_line_width();
 		const float baseline = top_left.y + line->get_line_ascent();
 		const web_color css_color = p_shaped.decoration_color;
-		const Color decoration_color = css_color.is_current_color ? color : to_color(css_color);
+		const Color decoration_color = to_color(css_color, p_color);
 		std::vector<TextDecorationMask> decorations;
 		const auto add_decoration = [&](int p_flag, real_t p_top) {
 			const Rect2 rect(top_left.x, p_top, width, thickness);
@@ -909,7 +925,7 @@ void fragment() {
 			return p_shadow.blur.val() > 3.0f;
 		});
 		for (auto shadow = p_shadows.rbegin(); shadow != p_shadows.rend(); ++shadow) {
-			const Color shadow_color = shadow->color.is_current_color ? color : to_color(shadow->color);
+			const Color shadow_color = to_color(shadow->color, p_color);
 			const Vector2 offset(shadow->x.val(), shadow->y.val());
 			const float blur = shadow->blur.val();
 			if (shadow_color.a <= 0.0f || !offset.is_finite() || !std::isfinite(blur)) {
@@ -1056,7 +1072,7 @@ void fragment() {
 		const auto doc = p_element.get_document();
 		const auto pixels = [&](const css_length& p_length) { return doc->to_pixels(p_length, css.get_font_metrics(), 0); };
 		for (auto shadow = p_shadows.rbegin(); shadow != p_shadows.rend(); ++shadow) {
-			if (shadow->inset != p_inset || shadow->color.alpha == 0) {
+			if (shadow->inset != p_inset) {
 				continue;
 			}
 			const float blur = pixels(shadow->blur);
@@ -1069,7 +1085,7 @@ void fragment() {
 			RoundedRect shape = base.spread(p_inset ? -spread : spread);
 			shape.rect.position += offset;
 			Rect2 destination = p_inset ? base.rect : shape.rect.grow(blur * 1.75f);
-			const Color color = to_color(shadow->color.is_current_color ? css.get_color() : shadow->color);
+			const Color color = to_color(shadow->color, css.get_color());
 			if (color.a <= 0.0f || !shape.rect.is_finite() || !destination.is_finite() || (!p_inset && !shape.rect.has_area())) {
 				continue;
 			}
@@ -1127,7 +1143,9 @@ void fragment() {
 		const bool patterned = std::any_of(styles.begin(), styles.end(),
 			[](BorderPaint p_style) { return p_style == BORDER_DOTTED || p_style == BORDER_DASHED; });
 		const bool double_line = std::find(styles.begin(), styles.end(), BORDER_DOUBLE) != styles.end();
-		if (outer.has_radius() || patterned || double_line) {
+		const bool bevel_bands = std::find(styles.begin(), styles.end(), BORDER_BEVEL_BANDS) != styles.end();
+		const bool bevel = bevel_bands || std::find(styles.begin(), styles.end(), BORDER_BEVEL_SOLID) != styles.end();
+		if (outer.has_radius() || patterned || double_line || bevel) {
 			const auto inset = [&](float p_fraction) {
 				const Vector2 leading(left * p_fraction, top * p_fraction);
 				const Vector2 trailing(right * p_fraction, bottom * p_fraction);
@@ -1140,8 +1158,14 @@ void fragment() {
 			material->set_shader_parameter("inner_radii_x", inner.radii_x);
 			material->set_shader_parameter("inner_radii_y", inner.radii_y);
 			material->set_shader_parameter("border_widths", widths);
-			if (patterned || double_line) {
+			if (patterned || double_line || bevel) {
 				material->set_shader_parameter("border_styles", Vector4i(styles[0], styles[1], styles[2], styles[3]));
+			}
+			if (bevel_bands) {
+				const RoundedRect middle = inset(0.5f);
+				material->set_shader_parameter("border_middle_box", box_uniform(middle.rect));
+				material->set_shader_parameter("border_middle_rx", middle.radii_x);
+				material->set_shader_parameter("border_middle_ry", middle.radii_y);
 			}
 			if (double_line) {
 				const RoundedRect gap_outer = inset(1.0f / 3.0f);
@@ -1191,12 +1215,25 @@ void fragment() {
 				material->set_shader_parameter("border_pattern_starts", origins);
 				material->set_shader_parameter("border_pattern_continuous", closed);
 			}
-			const auto color_vector = [](const border& p_border) {
-				const Color color = to_color(p_border.color);
-				return Vector4(color.r, color.g, color.b, color.a);
-			};
-			material->set_shader_parameter("border_colors", PackedVector4Array({
-				color_vector(p_borders.top), color_vector(p_borders.right), color_vector(p_borders.bottom), color_vector(p_borders.left) }));
+			PackedVector4Array outer_colors;
+			PackedVector4Array inner_colors;
+			for (int side = 0; side < 4; ++side) {
+				const Color color = to_color(sides[side]->color);
+				Vector4 outer_color(color.r, color.g, color.b, color.a);
+				Vector4 inner_color = outer_color;
+				if (styles[side] == BORDER_BEVEL_BANDS || styles[side] == BORDER_BEVEL_SOLID) {
+					const Vector4 light = outer_color.lerp(Vector4(1, 1, 1, color.a), 0.35f);
+					const Vector4 dark = outer_color.lerp(Vector4(0, 0, 0, color.a), 0.35f);
+					const bool top_or_left = side == 0 || side == 3;
+					const bool sunken = sides[side]->style == border_style_groove || sides[side]->style == border_style_inset;
+					outer_color = top_or_left == sunken ? dark : light;
+					inner_color = top_or_left == sunken ? light : dark;
+				}
+				outer_colors.append(outer_color);
+				if (bevel_bands) inner_colors.append(inner_color);
+			}
+			material->set_shader_parameter("border_colors", outer_colors);
+			if (bevel_bands) material->set_shader_parameter("border_inner_colors", inner_colors);
 			add_command(Fill{ rect, Color(1, 1, 1) }, material);
 			return;
 		}

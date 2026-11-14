@@ -1,0 +1,27 @@
+diff --git a/include/litehtml/css_selector.h b/include/litehtml/css_selector.h
+--- a/include/litehtml/css_selector.h
++++ b/include/litehtml/css_selector.h
+@@ -204,6 +204,8 @@
+ 		css_selector::ptr			m_left;
+ 		css_element_selector		m_right;
+ 		css_combinator				m_combinator = combinator_descendant;
++		// On the first compound of a relative selector, the combinator from its anchor.
++		css_combinator				m_anchor_combinator = combinator_descendant;
+ 		media_query_list_list::ptr	m_media_query;
+ 		style::ptr					m_style;
+ 
+@@ -277,8 +279,12 @@
+ 		strict_mode = 0,
+ 		forgiving_mode = 1,
+ 		forbid_pseudo_elements = 1 << 1,
+-	};
+-
++		strict_arguments = 1 << 2,
++		relative_selectors = 1 << 3,
++		forbid_has = 1 << 4,
++	};
++
++	bool supports_css_selector(const css_token_vector& tokens, document_mode mode);
+ 	css_selector::vector parse_selector_list(const css_token_vector& tokens, int options, document_mode mode);
+ }
+ 

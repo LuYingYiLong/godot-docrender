@@ -2,17 +2,20 @@
 
 #include <litehtml/css_length.h>
 
+#include <array>
+
 namespace litehtml {
 	class document;
 
 	struct css_transform_function {
-		enum class kind { translate, rotate, scale };
+		enum class kind { translate, rotate, scale, skew, matrix };
 
 		kind type;
 		css_length x;
 		css_length y;
 		double first = 0;
 		double second = 0;
+		std::array<double, 6> matrix{};
 	};
 
 	using css_transform_list = std::vector<css_transform_function>;

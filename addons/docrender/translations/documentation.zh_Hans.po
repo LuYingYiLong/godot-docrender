@@ -2334,14 +2334,18 @@ msgid ""
 "URLs in HTML and stylesheet text are resolved from [param base_dir]. Paths may use [code]../[/code] "
 "within the project or absolute [code]res://[/code] paths. Images can be imported PNG, JPEG, WebP, or SVG textures. Missing or unsupported assets are skipped. "
 "Returns [constant OK] on success, [constant ERR_INVALID_PARAMETER] for a base directory outside "
-"[code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed."
+"[code]res://[/code], or [constant ERR_PARSE_ERROR] if the document cannot be parsed.\n"
+"The additional [param stylesheet] contributes author rules after the document's stylesheets. The "
+"cascade compares [code]!important[/code], inline style precedence, selector specificity, and "
+"source order, in that order."
 msgstr ""
 "替换文档并重置布局。空字符串会创建空文档。样式来自内联属性、[code]<style>[/code] 元素、"
 "[code]<link rel=\"stylesheet\">[/code] 和可选的样式表文本。可用 [code]@import[/code] 加载项目内 UTF-8 编码的 "
 "[code].css[/code] 文件。CSS 文件中的相对 URL 以文件所在目录为基准。HTML 和传入的样式表文本中的相对 URL 以 "
 "[param base_dir] 为基准。路径可使用 [code]../[/code] 访问项目内的上级目录，也可使用绝对 [code]res://[/code] 路径。"
 "图片可使用已导入的 PNG、JPEG、WebP 或 SVG 纹理。缺失或不受支持的资源会被跳过。成功时返回 [constant OK]，基目录不在 "
-"[code]res://[/code] 中时返回 [constant ERR_INVALID_PARAMETER]，无法解析文档时返回 [constant ERR_PARSE_ERROR]。"
+"[code]res://[/code] 中时返回 [constant ERR_INVALID_PARAMETER]，无法解析文档时返回 [constant ERR_PARSE_ERROR]。\n"
+"附加的 [param stylesheet] 在文档样式表之后提供作者规则。层叠依次比较 [code]!important[/code]、内联样式优先级、选择器权重和源码顺序。"
 
 #. doc_classes/HTMLLayout.xml
 msgid ""
@@ -2519,13 +2523,16 @@ msgstr "可共享的静态 HTML 源文档。"
 
 #. doc_classes/HTMLLabel.xml
 msgid ""
-"Additional CSS for [member text], passed to [method HTMLLayout.parse] alongside inline styles and"
-" [code]<style>[/code] elements."
-msgstr "[member text] 的附加 CSS，与内联样式和 [code]<style>[/code] 元素一起传给 [method HTMLLayout.parse]。"
+"Additional CSS for [member text]. Its rules follow the document's stylesheets in the author "
+"cascade. See [method HTMLLayout.parse]."
+msgstr ""
+"[member text] 的附加 CSS。其规则在作者层叠中排在文档样式表之后。参见 [method HTMLLayout.parse]。"
 
 #. doc_classes/HTMLDocument.xml
-msgid "Additional CSS for this document."
-msgstr "此文档的附加 CSS。"
+msgid ""
+"Additional CSS for this document. Its rules follow the document's stylesheets in the author "
+"cascade. See [method HTMLLayout.parse]."
+msgstr "此文档的附加 CSS。其规则在作者层叠中排在文档样式表之后。参见 [method HTMLLayout.parse]。"
 
 #. doc_classes/HTMLLabel.xml
 msgid ""

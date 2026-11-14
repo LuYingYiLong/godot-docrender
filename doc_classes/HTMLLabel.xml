@@ -136,7 +136,7 @@
 			Enables text selection. Disabling it clears the current selection.
 		</member>
 		<member name="stylesheet" type="String" setter="set_stylesheet" getter="get_stylesheet" default="&quot;&quot;">
-			Additional CSS for [member text], passed to [method HTMLLayout.parse] alongside inline styles and [code]&lt;style&gt;[/code] elements.
+			Additional CSS for [member text]. Its rules follow the document's stylesheets in the author cascade. See [method HTMLLayout.parse].
 		</member>
 		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
 			The HTML document or fragment to display.

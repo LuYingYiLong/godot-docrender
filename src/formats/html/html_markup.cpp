@@ -193,7 +193,7 @@ namespace docrender {
 			css_token_vector value = declaration.value;
 			remove_whitespace(value);
 			web_color color;
-			if (value.size() != 1 || !parse_color(value.front(), color, nullptr) || color.is_current_color) {
+			if (value.size() != 1 || !parse_color(value.front(), color, nullptr) || color.needs_current_color()) {
 				continue;
 			}
 			bool& important = name == "color" ? important_text : important_background;
@@ -202,6 +202,7 @@ namespace docrender {
 			}
 			important = declaration.important;
 			auto& target = name == "color" ? colors.text : colors.background;
+			color = color.to_srgb();
 			target = Color(color.red / 255.0f, color.green / 255.0f, color.blue / 255.0f, color.alpha / 255.0f);
 		}
 		return colors;

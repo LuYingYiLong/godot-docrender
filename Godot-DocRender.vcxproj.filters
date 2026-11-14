@@ -137,6 +137,12 @@
     <ClCompile Include="src\formats\html\css\css_declarations.cpp">
       <Filter>Source Files\formats\html\css</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_relational_selector.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
+    <ClCompile Include="src\formats\html\css\css_supports.cpp">
+      <Filter>Source Files\formats\html\css</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\html\css\css_values_background.cpp">
       <Filter>Source Files\formats\html\css</Filter>
     </ClCompile>
@@ -353,6 +359,12 @@
       <Filter>Header Files\formats\html\css</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\css\css_declarations.h">
+      <Filter>Header Files\formats\html\css</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\css\css_relational_selector.h">
+      <Filter>Header Files\formats\html\css</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\css\css_supports.h">
       <Filter>Header Files\formats\html\css</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\css\css_value_parser.h">

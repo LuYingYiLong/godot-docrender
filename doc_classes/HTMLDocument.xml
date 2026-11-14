@@ -22,7 +22,7 @@
 			The project directory used for relative image paths. Imported resources use the source file's directory.
 		</member>
 		<member name="stylesheet" type="String" setter="set_stylesheet" getter="get_stylesheet" default="&quot;&quot;">
-			Additional CSS for this document.
+			Additional CSS for this document. Its rules follow the document's stylesheets in the author cascade. See [method HTMLLayout.parse].
 		</member>
 		<member name="text" type="String" setter="set_text" getter="get_text" default="&quot;&quot;">
 			The source HTML document or fragment.

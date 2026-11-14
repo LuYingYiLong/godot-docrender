@@ -177,7 +177,7 @@ namespace litehtml {
 	}
 
 	bool docrender_editor::has_hover_styles(const document& p_document) {
-		for (const css* sheet : { &p_document.m_master_css, &p_document.m_styles, &p_document.m_user_css }) {
+		for (const css* sheet : { &p_document.m_master_css, &p_document.m_styles }) {
 			const auto& selectors = sheet->selectors();
 			if (std::any_of(selectors.begin(), selectors.end(), selector_uses_hover)) {
 				return true;
@@ -225,16 +225,10 @@ namespace litehtml {
 		doc.m_media_lists.clear();
 		doc.m_master_css = {};
 		doc.m_styles = {};
-		doc.m_user_css = {};
 
 		doc.container()->get_media_features(doc.m_media);
 		doc.m_master_css.parse_css_stylesheet(p_default_styles, "", p_document);
 		doc.m_master_css.sort_selectors();
-		if (!p_user_styles.empty()) {
-			p_container.set_css_source_kind(css_source_kind::stylesheet);
-			doc.m_user_css.parse_css_stylesheet(p_user_styles, "", p_document);
-			doc.m_user_css.sort_selectors();
-		}
 		doc.update_media_lists(doc.m_media);
 		root->apply_stylesheet(doc.m_master_css);
 		root->parse_attributes();
@@ -256,10 +250,13 @@ namespace litehtml {
 			}
 			doc.m_styles.parse_css_stylesheet(sheet.text, sheet.baseurl, p_document, media);
 		}
+		if (!p_user_styles.empty()) {
+			p_container.set_css_source_kind(css_source_kind::stylesheet);
+			doc.m_styles.parse_css_stylesheet(p_user_styles, "", p_document);
+		}
 		doc.m_styles.sort_selectors();
 		doc.update_media_lists(doc.m_media);
 		root->apply_stylesheet(doc.m_styles);
-		root->apply_stylesheet(doc.m_user_css);
 		p_container.set_css_source_kind(css_source_kind::none);
 		root->compute_styles();
 

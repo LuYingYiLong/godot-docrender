@@ -26,6 +26,14 @@ namespace docrender {
 					case Kind::scale:
 						matrix *= Transform2D(Vector2(function.first, 0), Vector2(0, function.second), Vector2());
 						break;
+					case Kind::skew:
+						matrix *= Transform2D(Vector2(1, std::tan(function.second)), Vector2(std::tan(function.first), 1), Vector2());
+						break;
+					case Kind::matrix: {
+						const auto& [a, b, c, d, e, f] = function.matrix;
+						matrix *= Transform2D(Vector2(a, b), Vector2(c, d), Vector2(e, f));
+						break;
+					}
 				}
 			}
 			return matrix * Transform2D(0, -pivot);

@@ -13,8 +13,15 @@ namespace litehtml {
 
 void css_value_parser::parse_box(string_id name, const css_token_vector& value, bool important)
 {
-	const css_token val = value.size() == 1 ? value.front() : css_token();
 	css_length len[4];
+	static const auto inset = _id("inset");
+	if (name == inset)
+	{
+		if (int n = parse_1234_lengths(value, len, f_length_percentage | f_math, "auto"))
+			add_four_properties(_top_, len, n, important);
+		return;
+	}
+	const css_token val = value.size() == 1 ? value.front() : css_token();
 	switch (name)
 	{
 	case _z_index_:

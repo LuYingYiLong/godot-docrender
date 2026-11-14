@@ -42,3 +42,9 @@ scons godot-docrender platform=windows target=template_release arch=x86_64
 SCons writes the libraries to `addons/docrender/bin/` and copies `pdfium.dll` there when the Windows x64 SDK is installed. Copy the full `addons/docrender` directory into a Godot project and reopen it to load the new binary. Use the CI build matrix to find `platform` and `arch` values for other targets. [Build workflow](.github/workflows/make_build.yml)
 
 When changing editor text or class documentation, update and check the translation catalogs. [Localization tools](tools/README.md)
+
+After building Windows x64 `template_debug`, run the CSS cascade regression checks with Godot 4.7.2. The runner tests both Compatibility and Forward+ in a temporary project. Use `--renderer gl_compatibility` or `--renderer forward_plus` to select one.
+
+```powershell
+python tests/html/run_css_cascade.py "C:/path/to/Godot_v4.7.2-stable_win64_console.exe"
+```

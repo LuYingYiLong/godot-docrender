@@ -37,6 +37,7 @@ namespace {
 			{ _right_, { property_family::box } },
 			{ _top_, { property_family::box } },
 			{ _bottom_, { property_family::box } },
+			{ _id("inset"), { property_family::box, { _top_, _right_, _bottom_, _left_ } } },
 			{ _margin_left_, { property_family::box } },
 			{ _margin_right_, { property_family::box } },
 			{ _margin_top_, { property_family::box } },
@@ -206,11 +207,6 @@ static bool has_drawing_gap(string_id name, const property_value& value)
 {
 	switch (name)
 	{
-	case _border_top_style_:
-	case _border_right_style_:
-	case _border_bottom_style_:
-	case _border_left_style_:
-		return value.is<int>() && value.get<int>() >= border_style_groove;
 	case _text_emphasis_style_:
 		return value.is<string>() && !value.get<string>().empty() && lowcase(value.get<string>()) != "none";
 	default:
@@ -303,6 +299,28 @@ css_parsed_declaration parse_css_declaration(string_id name, const css_token_vec
 	const string& baseurl, bool important, document_container* container, const css_source& source)
 {
 	return parse_declaration(name, tokens, baseurl, important, container, source, tokens);
+}
+
+bool supports_css_declaration(const css_token_vector& tokens)
+{
+	int index = 0;
+	skip_whitespace(tokens, index);
+	if (index == static_cast<int>(tokens.size()) || tokens[index].type != IDENT)
+		return false;
+
+	auto declaration = css_parser(css_token_vector(tokens.begin() + index, tokens.end())).consume_declaration();
+	if (!declaration || (!declaration.value.empty() && !is_declaration_value(declaration.value)))
+		return false;
+
+	remove_whitespace(declaration.value);
+	const auto name = _id(declaration.name.compare(0, 2, "--") == 0 ? declaration.name : lowcase(declaration.name));
+	const auto result = parse_css_declaration(name, declaration.value, "", declaration.important, nullptr, {});
+	if (result.status == css_declaration_status::deferred)
+		return true;
+	return result.status == css_declaration_status::parsed &&
+		std::none_of(result.properties.begin(), result.properties.end(), [](const auto& entry) {
+			return has_drawing_gap(entry.first, entry.second);
+		});
 }
 
 void resolve_css_declarations(const props_map& specified, const props_map& defaults, const html_tag& element,

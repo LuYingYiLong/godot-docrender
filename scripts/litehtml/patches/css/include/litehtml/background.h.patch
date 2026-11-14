@@ -1,0 +1,38 @@
+diff --git a/include/litehtml/background.h b/include/litehtml/background.h
+--- a/include/litehtml/background.h
++++ b/include/litehtml/background.h
+@@ -62,7 +62,7 @@
+ 			hue_interpolation_t  hue_interpolation = hue_interpolation_none;
+ 
+ 			void color_points_transparent_fix();
+-			bool prepare_color_points(float len, string_id grad_type, const vector<gradient::color_stop>& colors);
++			bool prepare_color_points(float len, string_id grad_type, const vector<gradient::color_stop>& colors, const web_color& current_color);
+ 		};
+ 
+ 		class linear_gradient : public gradient_base
+@@ -104,6 +104,7 @@
+ 		vector<image>			m_image;
+ 		string					m_baseurl;
+ 		web_color				m_color;
++		web_color				m_current_color;
+ 		int_vector				m_attachment;
+ 		length_vector			m_position_x;
+ 		length_vector			m_position_y;
+@@ -114,7 +115,7 @@
+ 
+ 		bool is_empty() const
+ 		{
+-			if(m_color.alpha != 0)
++			if(m_color.to_srgb(m_current_color).alpha != 0)
+ 				return false;
+ 			if(m_image.empty())
+ 				return true;
+@@ -126,7 +127,7 @@
+ 		}
+ 		int get_layers_number() const
+ 		{
+-			if(m_color != web_color::transparent)
++			if(m_color.to_srgb(m_current_color).alpha != 0)
+ 			{
+ 				return (int) m_image.size() + 1;
+ 			}

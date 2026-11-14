@@ -1,0 +1,79 @@
+diff --git a/src/background.cpp b/src/background.cpp
+--- a/src/background.cpp
++++ b/src/background.cpp
+@@ -196,7 +196,7 @@
+ 	if(idx == (int) m_image.size())
+ 	{
+ 		auto ret = std::make_unique<background_layer::color>();
+-		ret->color = m_color;
++		ret->color = m_color.to_srgb(m_current_color);
+ 		return ret;
+ 	}
+ 	return {};
+@@ -317,7 +317,7 @@
+ 
+ 	auto line_len = distance(ret->start, ret->end);
+ 
+-	if(!ret->prepare_color_points(line_len, m_image[idx].m_gradient.m_type, m_image[idx].m_gradient.m_colors))
++	if(!ret->prepare_color_points(line_len, m_image[idx].m_gradient.m_type, m_image[idx].m_gradient.m_colors, m_current_color))
+ 	{
+ 		return {};
+ 	}
+@@ -550,7 +550,7 @@
+ 		ret->radius.y = (float) m_image[idx].m_gradient.radial_radius_y.calc_percent(layer.origin_box.height);
+ 	}
+ 
+-	if(ret->prepare_color_points(ret->radius.x, m_image[idx].m_gradient.m_type, m_image[idx].m_gradient.m_colors))
++	if(ret->prepare_color_points(ret->radius.x, m_image[idx].m_gradient.m_type, m_image[idx].m_gradient.m_colors, m_current_color))
+ 	{
+ 		return ret;
+ 	}
+@@ -608,7 +608,7 @@
+ 	float corner4 = distance(ret->position, {(float) layer.origin_box.right(), (float) layer.origin_box.bottom()});
+ 	ret->radius = std::max({corner1, corner2, corner3, corner4});
+ 
+-	if(ret->prepare_color_points(0, m_image[idx].m_gradient.m_type, m_image[idx].m_gradient.m_colors))
++	if(ret->prepare_color_points(0, m_image[idx].m_gradient.m_type, m_image[idx].m_gradient.m_colors, m_current_color))
+ 	{
+ 		return ret;
+ 	}
+@@ -793,7 +793,7 @@
+ 	return length.val();
+ }
+ 
+-bool litehtml::background_layer::gradient_base::prepare_color_points(float line_len, string_id g_type, const std::vector<gradient::color_stop> &colors)
++bool litehtml::background_layer::gradient_base::prepare_color_points(float line_len, string_id g_type, const std::vector<gradient::color_stop> &colors, const web_color& current_color)
+ {
+ 	bool repeating;
+ 	if(g_type == _linear_gradient_ || g_type == _radial_gradient_ || g_type == _conic_gradient_)
+@@ -820,17 +820,18 @@
+ 			}
+ 			continue;
+ 		}
+-		if (item.color.alpha == 0)
++		const auto color = item.color.to_srgb(current_color);
++		if (color.alpha == 0)
+ 		{
+ 			has_transparent = true;
+ 		}
+ 		if (item.length)
+ 		{
+-			color_points.emplace_back(normalize_length(*item.length, line_len), item.color);
++			color_points.emplace_back(normalize_length(*item.length, line_len), color);
+ 		}
+ 		else if (item.angle)
+ 		{
+-			color_points.emplace_back(*item.angle / 360, item.color);
++			color_points.emplace_back(*item.angle / 360, color);
+ 		}
+ 		else
+ 		{
+@@ -838,7 +839,7 @@
+ 			{
+ 				none_units++;
+ 			}
+-			color_points.emplace_back(0.0f, item.color);
++			color_points.emplace_back(0.0f, color);
+ 		}
+ 	}
+ 	if(color_points.empty())
