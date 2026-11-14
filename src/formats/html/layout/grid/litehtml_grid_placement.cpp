@@ -16,8 +16,8 @@ namespace litehtml {
 		};
 
 		struct area {
-			line_range rows;
-			line_range columns;
+			line_range major;
+			line_range minor;
 		};
 
 		struct axis_position {
@@ -30,38 +30,74 @@ namespace litehtml {
 				static_cast<int>(std::clamp<std::int64_t>(end, first_line + 1, last_line)) };
 		}
 
-		axis_position resolve_axis(const grid_axis_placement& placement, std::size_t explicit_tracks) {
+		std::int64_t find_named_line(const grid_line_indices& names, const std::string& name, std::int64_t count,
+			std::int64_t from, int explicit_end, bool forward) {
+			const auto found = names.find(name);
+			// Only implicit lines on the side we are searching toward match.
+			if (forward) {
+				if (found != names.end()) {
+					const auto& lines = found->second;
+					const auto first = std::lower_bound(lines.begin(), lines.end(), from);
+					const auto matches = lines.end() - first;
+					if (count <= matches) return first[count - 1];
+					count -= matches;
+				}
+				return std::max<std::int64_t>(from, explicit_end + 1) + (count - 1);
+			}
+			if (found != names.end()) {
+				const auto& lines = found->second;
+				const auto end = std::upper_bound(lines.begin(), lines.end(), from);
+				const auto matches = end - lines.begin();
+				if (count <= matches) return *(end - count);
+				count -= matches;
+			}
+			return std::min<std::int64_t>(from, -1) - (count - 1);
+		}
+
+		std::optional<std::int64_t> resolve_line(const grid_line& line, int explicit_end, const grid_line_indices& names, bool start) {
 			using kind = grid_line::kind;
-			const auto resolve_line = [explicit_tracks](std::int64_t value) {
-				return value > 0 ? value - 1 : static_cast<std::int64_t>(explicit_tracks) + 1 + value;
-			};
-			const bool has_start = placement.start.type == kind::number;
-			const bool has_end = placement.end.type == kind::number;
-			if (has_start && has_end) {
-				auto start = resolve_line(placement.start.value);
-				auto end = resolve_line(placement.end.value);
-				if (start > end) std::swap(start, end);
-				return { clamp_range(start, std::max(end, start + 1)), 1 };
+			if (line.type == kind::automatic || line.type == kind::span) return std::nullopt;
+			if (line.type == kind::name) {
+				const auto found = names.find(line.name + (start ? "-start" : "-end"));
+				if (found != names.end()) return found->second.front();
 			}
-			const auto span = placement.start.type == kind::span ? placement.start.value :
-				placement.end.type == kind::span ? placement.end.value : 1;
-			if (has_start) {
-				const auto start = resolve_line(placement.start.value);
-				return { clamp_range(start, start + span), 1 };
+			const auto value = line.value;
+			if (line.name.empty()) return value > 0 ? value - 1 : explicit_end + 1 + value;
+			return value > 0 ? find_named_line(names, line.name, value, 0, explicit_end, true) :
+				find_named_line(names, line.name, -value, explicit_end, explicit_end, false);
+		}
+
+		axis_position resolve_axis(const grid_axis_placement& placement, int explicit_end, const grid_line_indices& names) {
+			using kind = grid_line::kind;
+			auto start = resolve_line(placement.start, explicit_end, names, true);
+			auto end = resolve_line(placement.end, explicit_end, names, false);
+			if (start && end) {
+				if (*start > *end) std::swap(start, end);
+				return { clamp_range(*start, std::max(*end, *start + 1)), 1 };
 			}
-			if (has_end) {
-				const auto end = resolve_line(placement.end.value);
-				return { clamp_range(end - span, end), 1 };
+			const auto& span = placement.start.type == kind::span ? placement.start : placement.end;
+			const auto length = span.type == kind::span ? span.value : 1;
+			const bool named_span = span.type == kind::span && !span.name.empty();
+			if (start) {
+				const auto last = named_span ? find_named_line(names, span.name, length, *start + 1, explicit_end, true) :
+					*start + length;
+				return { clamp_range(*start, last), 1 };
 			}
-			return { std::nullopt, static_cast<int>(std::min<std::int64_t>(span, last_line - first_line)) };
+			if (end) {
+				const auto first = named_span ? find_named_line(names, span.name, length, *end - 1, explicit_end, false) :
+					*end - length;
+				return { clamp_range(first, *end), 1 };
+			}
+			const auto auto_span = named_span ? 1 : std::min<std::int64_t>(length, last_line - first_line);
+			return { std::nullopt, static_cast<int>(auto_span) };
 		}
 
 		bool overlaps(line_range a, line_range b) {
 			return a.start < b.end && b.start < a.end;
 		}
 
-		// Each rectangle lives at the first row split it crosses. Queries visit
-		// only branches that can intersect their rows, with no per-cell allocation.
+		// Each rectangle lives at the first major-axis split it crosses. Queries
+		// visit only branches that can intersect it, with no per-cell allocation.
 		struct occupied_areas {
 			std::vector<area> crossing;
 			std::unique_ptr<occupied_areas> before;
@@ -69,11 +105,11 @@ namespace litehtml {
 
 			void add(const area& box, int low = first_line, int high = last_line) {
 				const int mid = low + (high - low) / 2;
-				if (high - low <= 1 || (box.rows.start < mid && box.rows.end > mid)) {
+				if (high - low <= 1 || (box.major.start < mid && box.major.end > mid)) {
 					crossing.push_back(box);
 					return;
 				}
-				const bool left = box.rows.end <= mid;
+				const bool left = box.major.end <= mid;
 				auto& branch = left ? before : after;
 				if (!branch) branch = std::make_unique<occupied_areas>();
 				branch->add(box, left ? low : mid, left ? mid : high);
@@ -82,21 +118,15 @@ namespace litehtml {
 			template <typename Visitor>
 			void visit_intersections(const area& box, const Visitor& visit, int low = first_line, int high = last_line) const {
 				for (const auto& occupied : crossing)
-					if (overlaps(box.rows, occupied.rows) && overlaps(box.columns, occupied.columns)) visit(occupied);
+					if (overlaps(box.major, occupied.major) && overlaps(box.minor, occupied.minor)) visit(occupied);
 				const int mid = low + (high - low) / 2;
-				if (before && box.rows.start < mid) before->visit_intersections(box, visit, low, mid);
-				if (after && box.rows.end > mid) after->visit_intersections(box, visit, mid, high);
+				if (before && box.major.start < mid) before->visit_intersections(box, visit, low, mid);
+				if (after && box.major.end > mid) after->visit_intersections(box, visit, mid, high);
 			}
 
-			int next_column(const area& box) const {
-				int next = box.columns.start;
-				visit_intersections(box, [&](const area& occupied) { next = std::max(next, occupied.columns.end); });
-				return next;
-			}
-
-			int next_row(const area& box) const {
-				int next = box.rows.start;
-				visit_intersections(box, [&](const area& occupied) { next = std::max(next, occupied.rows.end); });
+			int next_start(const area& box, line_range area::* axis) const {
+				int next = (box.*axis).start;
+				visit_intersections(box, [&](const area& occupied) { next = std::max(next, (occupied.*axis).end); });
 				return next;
 			}
 		};
@@ -106,120 +136,137 @@ namespace litehtml {
 		}
 	}
 
-	grid_placement place_grid_items(const std::vector<grid_item_lines>& items, std::size_t explicit_rows, std::size_t explicit_columns) {
+	grid_placement place_grid_items(const std::vector<grid_item_lines>& items, std::size_t explicit_rows, std::size_t explicit_columns,
+		const grid_line_indices& row_names, const grid_line_indices& column_names, grid_auto_flow flow) {
 		grid_placement result{ {}, explicit_rows, explicit_columns };
 		if (items.empty()) return result;
 
+		// Move along the minor axis before advancing to the next major track.
+		const auto explicit_major = flow.by_column ? explicit_columns : explicit_rows;
+		const auto explicit_minor = flow.by_column ? explicit_rows : explicit_columns;
+		const auto& major_names = flow.by_column ? column_names : row_names;
+		const auto& minor_names = flow.by_column ? row_names : column_names;
+		const auto record = [&](grid_track_range major, grid_track_range minor) {
+			result.items.push_back(flow.by_column ? grid_item_placement{ minor, major } : grid_item_placement{ major, minor });
+		};
+		const auto set_extents = [&](std::size_t major_extent, std::size_t minor_extent,
+			std::size_t major_offset, std::size_t minor_offset) {
+			result.row_count = flow.by_column ? minor_extent : major_extent;
+			result.column_count = flow.by_column ? major_extent : minor_extent;
+			result.row_offset = flow.by_column ? minor_offset : major_offset;
+			result.column_offset = flow.by_column ? major_offset : minor_offset;
+		};
+
 		struct pending_item {
-			axis_position rows;
-			axis_position columns;
+			axis_position major;
+			axis_position minor;
 		};
 		std::vector<pending_item> resolved;
 		std::vector<area> placed(items.size());
 		resolved.reserve(items.size());
-		int row_start = 0;
-		int column_start = 0;
-		int row_end = static_cast<int>(explicit_rows);
-		int column_end = static_cast<int>(explicit_columns);
+		int major_start = 0;
+		int minor_start = 0;
+		int major_end = static_cast<int>(explicit_major);
+		int minor_end = static_cast<int>(explicit_minor);
 		occupied_areas occupied;
 		bool all_single_auto = true;
 
 		const auto commit = [&](std::size_t index, const area& box) {
 			placed[index] = box;
 			occupied.add(box);
-			row_end = std::max(row_end, box.rows.end);
-			column_end = std::max(column_end, box.columns.end);
+			major_end = std::max(major_end, box.major.end);
+			minor_end = std::max(minor_end, box.minor.end);
 		};
 		for (std::size_t index = 0; index < items.size(); ++index) {
 			const auto& item = items[index];
-			const auto rows = resolve_axis(item.rows, explicit_rows);
-			const auto columns = resolve_axis(item.columns, explicit_columns);
-			if (rows.range) row_start = std::min(row_start, rows.range->start);
-			if (columns.range) column_start = std::min(column_start, columns.range->start);
-			resolved.push_back({ rows, columns });
-			all_single_auto &= !rows.range && !columns.range && rows.span == 1 && columns.span == 1;
-			if (rows.range && columns.range) commit(index, { *rows.range, *columns.range });
+			const auto major = resolve_axis(flow.by_column ? item.columns : item.rows, static_cast<int>(explicit_major), major_names);
+			const auto minor = resolve_axis(flow.by_column ? item.rows : item.columns, static_cast<int>(explicit_minor), minor_names);
+			if (major.range) major_start = std::min(major_start, major.range->start);
+			if (minor.range) minor_start = std::min(minor_start, minor.range->start);
+			resolved.push_back({ major, minor });
+			all_single_auto &= !major.range && !minor.range && major.span == 1 && minor.span == 1;
+			if (major.range && minor.range) commit(index, { *major.range, *minor.range });
 		}
+		result.items.reserve(items.size());
 		if (all_single_auto) {
-			result.column_count = std::max<std::size_t>(1, explicit_columns);
-			result.row_count = std::max(explicit_rows, std::min<std::size_t>(last_line,
-				(items.size() - 1) / result.column_count + 1));
-			result.items.reserve(items.size());
+			const auto minor_count = std::max<std::size_t>(1, explicit_minor);
+			const auto major_count = std::max(explicit_major, std::min<std::size_t>(last_line, (items.size() - 1) / minor_count + 1));
+			set_extents(major_count, minor_count, 0, 0);
 			for (std::size_t index = 0; index < items.size(); ++index) {
-				const auto row = std::min(result.row_count - 1, index / result.column_count);
-				const auto column = index % result.column_count;
-				result.items.push_back({ { row, row + 1 }, { column, column + 1 } });
+				const auto major = std::min(major_count - 1, index / minor_count);
+				const auto minor = index % minor_count;
+				record({ major, major + 1 }, { minor, minor + 1 });
 			}
 			return result;
 		}
 
-		std::unordered_map<int, int> row_cursors;
+		std::unordered_map<int, int> locked_cursors;
 		for (std::size_t index = 0; index < resolved.size(); ++index) {
 			const auto& item = resolved[index];
-			if (!item.rows.range || item.columns.range) continue;
-			const auto rows = *item.rows.range;
-			auto& column = row_cursors.try_emplace(rows.start, column_start).first->second;
+			if (!item.major.range || item.minor.range) continue;
+			const auto major = *item.major.range;
+			int minor = flow.dense ? minor_start : locked_cursors.try_emplace(major.start, minor_start).first->second;
 			for (;;) {
-				const auto columns = clamp_range(column, column + item.columns.span);
-				const int next = occupied.next_column({ rows, columns });
-				if (next == columns.start || column >= last_line) {
-					commit(index, { rows, columns });
-					column = columns.end;
+				const auto range = clamp_range(minor, minor + item.minor.span);
+				const int next = occupied.next_start({ major, range }, &area::minor);
+				if (next == range.start || minor >= last_line) {
+					commit(index, { major, range });
+					if (!flow.dense) locked_cursors[major.start] = range.end;
 					break;
 				}
-				column = next;
+				minor = next;
 			}
 		}
 
 		for (const auto& item : resolved) {
-			const int end = item.columns.range ? item.columns.range->end : std::min(last_line, column_start + item.columns.span);
-			column_end = std::max(column_end, end);
+			const int end = item.minor.range ? item.minor.range->end : std::min(last_line, minor_start + item.minor.span);
+			minor_end = std::max(minor_end, end);
 		}
 
-		int row = row_start;
-		int column = column_start;
+		int major = major_start;
+		int minor = minor_start;
 		for (std::size_t index = 0; index < resolved.size(); ++index) {
 			const auto& item = resolved[index];
-			if (item.rows.range) continue;
+			if (item.major.range) continue;
+			if (flow.dense) {
+				major = major_start;
+				minor = minor_start;
+			}
 
-			if (item.columns.range) {
-				if (item.columns.range->start < column) ++row;
-				column = item.columns.range->start;
+			if (item.minor.range) {
+				if (item.minor.range->start < minor) ++major;
+				minor = item.minor.range->start;
 				for (;;) {
-					const area box{ clamp_range(row, row + item.rows.span), *item.columns.range };
-					const int next = occupied.next_row(box);
-					if (next == box.rows.start || row >= last_line) {
+					const area box{ clamp_range(major, major + item.major.span), *item.minor.range };
+					const int next = occupied.next_start(box, &area::major);
+					if (next == box.major.start || major >= last_line) {
 						commit(index, box);
 						break;
 					}
-					row = next;
+					major = next;
 				}
 				continue;
 			}
 
-			const int span = std::min(item.columns.span, column_end - column_start);
+			const int span = std::min(item.minor.span, minor_end - minor_start);
 			for (;;) {
-				if (column > column_end - span) {
-					column = column_start;
-					++row;
+				if (minor > minor_end - span) {
+					minor = minor_start;
+					++major;
 				}
-				const area box{ clamp_range(row, row + item.rows.span), { column, column + span } };
-				const int next = occupied.next_column(box);
-				if (next == column || row >= last_line) {
+				const area box{ clamp_range(major, major + item.major.span), { minor, minor + span } };
+				const int next = occupied.next_start(box, &area::minor);
+				if (next == minor || major >= last_line) {
 					commit(index, box);
 					break;
 				}
-				column = next;
+				minor = next;
 			}
 		}
 
-		result.row_offset = static_cast<std::size_t>(-row_start);
-		result.column_offset = static_cast<std::size_t>(-column_start);
-		result.row_count = static_cast<std::size_t>(row_end - row_start);
-		result.column_count = static_cast<std::size_t>(column_end - column_start);
-		result.items.reserve(items.size());
+		set_extents(major_end - major_start, minor_end - minor_start, -major_start, -minor_start);
 		for (const auto& box : placed) {
-			result.items.push_back({ normalize_range(box.rows, row_start), normalize_range(box.columns, column_start) });
+			record(normalize_range(box.major, major_start), normalize_range(box.minor, minor_start));
 		}
 		return result;
 	}

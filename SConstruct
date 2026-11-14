@@ -116,7 +116,7 @@ def stage_litehtml_extensions(target, source, env):
         insert_before('#include "web_color.h"', '#include "formats/html/litehtml_css_transform.h"\n')
         insert_before("\t\tcss_token_vector\n", "\t\tcss_transform_list,\n\t\tcss_transform_origin,\n")
         insert_before('#include "web_color.h"', '#include "formats/html/layout/grid/litehtml_grid_tracks.h"\n')
-        insert_before("\t\tcss_token_vector\n", "\t\tgrid_track_template,\n")
+        insert_before("\t\tcss_token_vector\n", "\t\tgrid_track_template,\n\t\tgrid_area_template,\n\t\tgrid_track_list,\n\t\tgrid_auto_flow,\n")
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before("#include \"web_color.h\"", '#include "formats/html/litehtml_css.h"\n')
         insert_before("\t\tcss_token_vector\n", "\t\tstd::vector<box_shadow>,\n")
@@ -491,7 +491,8 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
                       "\t_grid_column_,\n\t_grid_column_start_,\n\t_grid_column_end_,\n")
         insert_before("\t_flex_flow_,", "\t_transform_,\n\t_transform_origin_,\n")
         insert_before("\t_flex_flow_,", "\t_gap_,\n\t_row_gap_,\n\t_column_gap_,\n")
-        insert_before("\t_flex_flow_,", "\t_grid_template_columns_,\n\t_grid_template_rows_,\n")
+        insert_before("\t_flex_flow_,", "\t_grid_template_columns_,\n\t_grid_template_rows_,\n\t_grid_template_areas_,\n\t_grid_area_,\n")
+        insert_before("\t_flex_flow_,", "\t_grid_auto_flow_,\n\t_grid_auto_rows_,\n\t_grid_auto_columns_,\n")
     elif path.name == "style.cpp":
         insert_before("\tcase _order_:", """\
 	case _transform_:
@@ -528,6 +529,7 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
         insert_before("\t{ _font_,", """\
 	{ _grid_row_, {_grid_row_start_, _grid_row_end_}},
 	{ _grid_column_, {_grid_column_start_, _grid_column_end_}},
+	{ _grid_area_, {_grid_row_start_, _grid_column_start_, _grid_row_end_, _grid_column_end_}},
 	{ _gap_, {_row_gap_, _column_gap_}},
 	{ _background_position_, {_background_position_x_, _background_position_y_}},
 	{ _background_image_, {_background_image_, _background_image_baseurl_}},
@@ -573,6 +575,15 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 		add_parsed_property(longhands[1], property_value(placement.end, important));
 		break;
 	}
+	case _grid_area_:
+	{
+		std::array<grid_line, 4> lines;
+		if (ident != "initial" && ident != "unset" && !parse_grid_area(value, lines)) break;
+		const auto& longhands = shorthands.at(name);
+		for (std::size_t index = 0; index < lines.size(); ++index)
+			add_parsed_property(longhands[index], property_value(std::move(lines[index]), important));
+		break;
+	}
 	case _grid_row_start_:
 	case _grid_row_end_:
 	case _grid_column_start_:
@@ -589,6 +600,28 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 		grid_track_template tracks;
 		if (ident == "initial" || ident == "unset" || parse_grid_tracks(value, tracks))
 			add_parsed_property(name, property_value(std::move(tracks), important));
+		break;
+	}
+	case _grid_template_areas_:
+	{
+		grid_area_template areas;
+		if (ident == "initial" || ident == "unset" || parse_grid_template_areas(value, areas))
+			add_parsed_property(name, property_value(std::move(areas), important));
+		break;
+	}
+	case _grid_auto_rows_:
+	case _grid_auto_columns_:
+	{
+		grid_track_list tracks;
+		if (ident == "initial" || ident == "unset" || parse_grid_auto_tracks(value, tracks))
+			add_parsed_property(name, property_value(std::move(tracks), important));
+		break;
+	}
+	case _grid_auto_flow_:
+	{
+		grid_auto_flow flow;
+		if (ident == "initial" || ident == "unset" || parse_grid_auto_flow(value, flow))
+			add_parsed_property(name, property_value(flow, important));
 		break;
 	}
 """)
@@ -1035,8 +1068,14 @@ const auto& item = m_grid->row(row).el_row;
         insert_before("\t\tflex_wrap get_flex_wrap() const;", """\
 		const grid_track_template& get_grid_template_columns() const { return m_grid_template_columns; }
 		const grid_track_template& get_grid_template_rows() const { return m_grid_template_rows; }
+		const grid_area_template& get_grid_template_areas() const { return m_grid_template_areas; }
+		const grid_track_list& get_grid_auto_rows() const { return m_grid_auto_rows; }
+		const grid_track_list& get_grid_auto_columns() const { return m_grid_auto_columns; }
+		grid_auto_flow get_grid_auto_flow() const { return m_grid_auto_flow; }
 """)
-        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", "\t\tgrid_track_template m_grid_template_columns, m_grid_template_rows;\n")
+        insert_before("\t\tflex_wrap\t\t\t\tm_flex_wrap;", "\t\tgrid_track_template m_grid_template_columns, m_grid_template_rows;\n"
+                      "\t\tgrid_area_template m_grid_template_areas;\n\t\tgrid_track_list m_grid_auto_rows, m_grid_auto_columns;\n"
+                      "\t\tgrid_auto_flow m_grid_auto_flow;\n")
         insert_before('#include "background.h"', '#include "formats/html/litehtml_box_shadow.h"\n')
         insert_before('#include "background.h"', '#include "formats/html/litehtml_css.h"\n')
         replace_once("string\t\t\t\t\tm_font_family;", "css_font_families\t\tm_font_families;")
@@ -1066,6 +1105,10 @@ const auto& item = m_grid->row(row).el_row;
         insert_before("\tcompute_flex(el, doc);", """\
 	m_grid_template_columns = el->get_property(_grid_template_columns_, false, grid_track_template(), offset(m_grid_template_columns));
 	m_grid_template_rows = el->get_property(_grid_template_rows_, false, grid_track_template(), offset(m_grid_template_rows));
+	m_grid_template_areas = el->get_property(_grid_template_areas_, false, grid_area_template(), offset(m_grid_template_areas));
+	m_grid_auto_rows = el->get_property(_grid_auto_rows_, false, grid_track_list(), offset(m_grid_auto_rows));
+	m_grid_auto_columns = el->get_property(_grid_auto_columns_, false, grid_track_list(), offset(m_grid_auto_columns));
+	m_grid_auto_flow = el->get_property(_grid_auto_flow_, false, grid_auto_flow(), offset(m_grid_auto_flow));
 	const auto compute_track_lengths = [&](grid_track_list& tracks) {
 		for (auto& track : tracks)
 			for (auto* breadth : {&track.minimum, &track.maximum})
@@ -1073,9 +1116,12 @@ const auto& item = m_grid->row(row).el_row;
 	};
 	for (auto* axis : {&m_grid_template_columns, &m_grid_template_rows})
 	{
-		compute_track_lengths(axis->tracks);
-		if (axis->repeat) compute_track_lengths(axis->repeat->pattern);
+		compute_track_lengths(axis->prefix.tracks);
+		compute_track_lengths(axis->suffix.tracks);
+		if (axis->repeat) compute_track_lengths(axis->repeat->pattern.tracks);
 	}
+	compute_track_lengths(m_grid_auto_rows);
+	compute_track_lengths(m_grid_auto_columns);
 
 	if (const auto p = el->parent(); p && p->css().get_display() == display_grid && el->in_normal_flow())
 	{

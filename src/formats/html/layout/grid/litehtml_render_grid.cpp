@@ -159,6 +159,7 @@ namespace litehtml {
 			width, definite_size(self.min_width), definite_size(self.max_width));
 		auto row_axis = expand_grid_tracks(css().get_grid_template_rows(), row_gap,
 			height, definite_size(self.min_height), definite_size(self.max_height));
+		apply_grid_template_areas(css().get_grid_template_areas(), row_axis, column_axis);
 		const auto& columns = column_axis.tracks;
 		const auto& rows = row_axis.tracks;
 		std::vector<render_item*> items;
@@ -169,10 +170,11 @@ namespace litehtml {
 				positions.push_back(child->css().get_grid_lines());
 			}
 		}
-		const auto placement = place_grid_items(positions, rows.size(), columns.size());
-		const auto column_gutters = finish_grid_tracks(column_axis, placement.column_offset, placement.column_count,
+		const auto placement = place_grid_items(positions, row_axis.explicit_count, column_axis.explicit_count,
+			row_axis.names, column_axis.names, css().get_grid_auto_flow());
+		const auto column_gutters = finish_grid_tracks(column_axis, css().get_grid_auto_columns(), placement.column_offset, placement.column_count,
 			placement.items, &grid_item_placement::columns);
-		const auto row_gutters = finish_grid_tracks(row_axis, placement.row_offset, placement.row_count,
+		const auto row_gutters = finish_grid_tracks(row_axis, css().get_grid_auto_rows(), placement.row_offset, placement.row_count,
 			placement.items, &grid_item_placement::rows);
 
 		std::vector<grid_track_contribution> column_content;

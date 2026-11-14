@@ -27,23 +27,47 @@ namespace litehtml {
 			return value != 0;
 		}
 
+		bool is_grid_name(const css_token& token) {
+			return token.type == IDENT && !is_one_of(token.ident(), "auto", "span", "inherit", "initial", "unset", "revert", "revert-layer", "default");
+		}
+
 		bool parse_line(const css_token* first, const css_token* end, grid_line& line) {
 			const auto count = end - first;
 			if (count == 1 && first[0].ident() == "auto") {
 				line = {};
 				return true;
 			}
-			std::int64_t value;
-			if (count == 1 && read_integer(first[0], value)) {
-				line = { grid_line::kind::number, value };
-				return true;
+			if (count < 1 || count > 3) return false;
+			std::int64_t value = 0;
+			string name;
+			bool span = false;
+			for (auto token = first; token != end; ++token) {
+				if (!span && token->ident() == "span") span = true;
+				else if (!value && read_integer(*token, value)) continue;
+				else if (name.empty() && is_grid_name(*token)) name = token->name;
+				else return false;
 			}
-			if (count == 2 && ((first[0].ident() == "span" && read_integer(first[1], value)) ||
-				(first[1].ident() == "span" && read_integer(first[0], value))) && value > 0) {
-				line = { grid_line::kind::span, value };
-				return true;
+			if ((!value && name.empty()) || (span && value < 0)) return false;
+			using kind = grid_line::kind;
+			line = { span ? kind::span : value ? kind::number : kind::name, value ? value : 1, std::move(name) };
+			return true;
+		}
+
+		grid_line omitted_grid_line(const grid_line& line) {
+			return line.type == grid_line::kind::name ? line : grid_line{};
+		}
+
+		std::size_t parse_grid_lines(const css_token_vector& tokens, grid_line* lines, std::size_t capacity) {
+			if (tokens.empty()) return 0;
+			const auto* next = tokens.data();
+			const auto* end = next + tokens.size();
+			for (std::size_t index = 0; index < capacity; ++index) {
+				const auto* slash = std::find_if(next, end, [](const auto& token) { return token.ch == '/'; });
+				if (!parse_line(next, slash, lines[index])) return 0;
+				if (slash == end) return index + 1;
+				next = slash + 1;
 			}
-			return false;
+			return 0;
 		}
 
 		bool parse_breadth(const css_token& token, bool allow_fraction, grid_breadth& breadth) {
@@ -83,6 +107,38 @@ namespace litehtml {
 			return track.minimum.kind == grid_breadth_kind::length || track.maximum.kind == grid_breadth_kind::length;
 		}
 
+		bool append_grid_line_names(const css_token& block, grid_track_segment& segment) {
+			const auto index = static_cast<int>(segment.tracks.size());
+			for (const auto& token : block.value) {
+				if (token.type == WHITESPACE) continue;
+				if (!is_grid_name(token)) return false;
+				auto& indices = segment.names[token.name];
+				if (indices.empty() || indices.back() != index) indices.push_back(index);
+			}
+			return true;
+		}
+
+		void append_grid_segment(grid_track_segment& to, const grid_track_segment& from) {
+			const auto offset = static_cast<int>(to.tracks.size());
+			to.tracks.insert(to.tracks.end(), from.tracks.begin(), from.tracks.end());
+			for (const auto& [name, lines] : from.names) {
+				auto& indices = to.names[name];
+				for (const auto index : lines) {
+					const auto line = offset + index;
+					if (indices.empty() || indices.back() != line) indices.push_back(line);
+				}
+			}
+		}
+
+		bool is_grid_cell_name_byte(unsigned char ch) {
+			return ch >= 0x80 || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+				(ch >= '0' && ch <= '9') || ch == '_' || ch == '-';
+		}
+
+		bool is_grid_cell_space(char ch) {
+			return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f';
+		}
+
 		std::size_t auto_repeat_count(const grid_track_template& axis, const css_length& gap,
 			std::optional<pixel_t> definite, std::optional<pixel_t> minimum, std::optional<pixel_t> maximum) {
 			const auto upper = definite ? definite : maximum;
@@ -99,8 +155,9 @@ namespace litehtml {
 			const double gap_size = std::max<pixel_t>(0, gap.calc_percent(basis));
 			// Charge one gutter per track and then remove the trailing gutter.
 			double fixed_extent = -gap_size;
-			for (const auto& track : axis.tracks) fixed_extent += track_breadth(track) + gap_size;
-			const auto& pattern = axis.repeat->pattern;
+			for (const auto* segment : { &axis.prefix, &axis.suffix })
+				for (const auto& track : segment->tracks) fixed_extent += track_breadth(track) + gap_size;
+			const auto& pattern = axis.repeat->pattern.tracks;
 			double pattern_extent = 0;
 			for (const auto& track : pattern) pattern_extent += std::max(1.0, track_breadth(track)) + gap_size;
 			if (!std::isfinite(basis) || !std::isfinite(fixed_extent) || !std::isfinite(pattern_extent)) return 1;
@@ -109,7 +166,7 @@ namespace litehtml {
 			// Track and gap lengths can round before this division (e.g. two 45% tracks and a 10% gap).
 			const double tolerance = std::numeric_limits<pixel_t>::epsilon() * std::max(1.0, repetitions);
 			const double count = upper ? std::floor(repetitions + tolerance) : std::ceil(repetitions - tolerance);
-			const auto limit = (grid_track_limit - axis.tracks.size()) / pattern.size();
+			const auto limit = (grid_track_limit - axis.prefix.tracks.size() - axis.suffix.tracks.size()) / pattern.size();
 			return static_cast<std::size_t>(std::clamp(count, 1.0, static_cast<double>(limit)));
 		}
 
@@ -285,7 +342,15 @@ namespace litehtml {
 			return true;
 		}
 		std::size_t available_tracks = grid_track_limit;
+		bool previous_was_line_names = false;
 		for (const auto& token : tokens) {
+			auto& segment = parsed.repeat ? parsed.suffix : parsed.prefix;
+			if (token.type == SQUARE_BLOCK) {
+				if (previous_was_line_names || !append_grid_line_names(token, segment)) return false;
+				previous_was_line_names = true;
+				continue;
+			}
+			previous_was_line_names = false;
 			if (token.type == CV_FUNCTION && lowcase(token.name) == "repeat") {
 				const auto& args = token.value;
 				if (args.size() < 3 || args[1].ch != ',') return false;
@@ -293,56 +358,164 @@ namespace litehtml {
 				const bool automatic = keyword == "auto-fill" || keyword == "auto-fit";
 				std::int64_t count = 1;
 				if (!automatic && (!read_integer(args[0], count) || count <= 0)) return false;
-				const std::size_t length = args.size() - 2;
-				if (static_cast<std::uint64_t>(count) > available_tracks / length) return false;
-				grid_track_list pattern(length);
-				for (std::size_t i = 0; i < length; ++i)
-					if (!parse_track(args[i + 2], pattern[i])) return false;
+				grid_track_segment pattern;
+				const auto max_length = available_tracks / static_cast<std::uint64_t>(count);
+				bool pattern_line_names = false;
+				for (auto it = args.begin() + 2; it != args.end(); ++it) {
+					if (it->type == SQUARE_BLOCK) {
+						if (pattern_line_names || !append_grid_line_names(*it, pattern)) return false;
+					} else {
+						grid_track track;
+						if (pattern.tracks.size() == max_length || !parse_track(*it, track)) return false;
+						pattern.tracks.push_back(std::move(track));
+					}
+					pattern_line_names = it->type == SQUARE_BLOCK;
+				}
+				const auto length = pattern.tracks.size();
+				if (length == 0) return false;
 				available_tracks -= static_cast<std::size_t>(count) * length;
 				if (automatic) {
-					if (parsed.repeat || !std::all_of(pattern.begin(), pattern.end(), has_fixed_breadth)) return false;
-					parsed.repeat = grid_auto_repeat{ parsed.tracks.size(), std::move(pattern), keyword == "auto-fit" };
+					if (parsed.repeat || !std::all_of(pattern.tracks.begin(), pattern.tracks.end(), has_fixed_breadth)) return false;
+					parsed.repeat = grid_auto_repeat{ std::move(pattern), keyword == "auto-fit" };
 				} else {
 					for (std::int64_t i = 0; i < count; ++i)
-						parsed.tracks.insert(parsed.tracks.end(), pattern.begin(), pattern.end());
+						append_grid_segment(segment, pattern);
 				}
 			}
 			else {
 				grid_track track;
 				if (available_tracks == 0 || !parse_track(token, track)) return false;
-				parsed.tracks.push_back(std::move(track));
+				segment.tracks.push_back(std::move(track));
 				--available_tracks;
 			}
 		}
 		if (parsed.repeat) {
-			if (!std::all_of(parsed.tracks.begin(), parsed.tracks.end(), has_fixed_breadth)) return false;
-		} else if (parsed.tracks.empty()) return false;
+			for (const auto* segment : { &parsed.prefix, &parsed.suffix })
+				if (!std::all_of(segment->tracks.begin(), segment->tracks.end(), has_fixed_breadth)) return false;
+		} else if (parsed.prefix.tracks.empty()) return false;
 		tracks = std::move(parsed);
+		return true;
+	}
+
+	bool parse_grid_auto_tracks(const css_token_vector& tokens, grid_track_list& tracks) {
+		if (tokens.empty() || tokens.size() > grid_track_limit) return false;
+		grid_track_list parsed(tokens.size());
+		for (std::size_t i = 0; i < tokens.size(); ++i)
+			if (!parse_track(tokens[i], parsed[i])) return false;
+		tracks = std::move(parsed);
+		return true;
+	}
+
+	bool parse_grid_auto_flow(const css_token_vector& tokens, grid_auto_flow& flow) {
+		if (tokens.empty() || tokens.size() > 2) return false;
+		grid_auto_flow parsed;
+		bool has_direction = false;
+		for (const auto& token : tokens) {
+			const auto keyword = token.ident();
+			if (!has_direction && (keyword == "row" || keyword == "column")) {
+				parsed.by_column = keyword == "column";
+				has_direction = true;
+			} else if (!parsed.dense && keyword == "dense") {
+				parsed.dense = true;
+			} else return false;
+		}
+		flow = parsed;
 		return true;
 	}
 
 	expanded_grid_tracks expand_grid_tracks(const grid_track_template& axis, const css_length& gap,
 		std::optional<pixel_t> definite, std::optional<pixel_t> minimum, std::optional<pixel_t> maximum) {
-		if (!axis.repeat) return { axis.tracks, std::nullopt };
-
-		const auto& repeat = *axis.repeat;
-		const auto count = auto_repeat_count(axis, gap, definite, minimum, maximum);
-		const auto repeated = count * repeat.pattern.size();
-		const auto insertion = axis.tracks.begin() + repeat.insertion;
 		expanded_grid_tracks expanded;
-		expanded.tracks.reserve(axis.tracks.size() + repeated);
-		expanded.tracks.insert(expanded.tracks.end(), axis.tracks.begin(), insertion);
+		const auto count = axis.repeat ? auto_repeat_count(axis, gap, definite, minimum, maximum) : 0;
+		const auto repeated = count ? count * axis.repeat->pattern.tracks.size() : 0;
+		const auto insertion = axis.prefix.tracks.size();
+		expanded.tracks.reserve(insertion + repeated + axis.suffix.tracks.size());
+		append_grid_segment(expanded, axis.prefix);
 		for (std::size_t i = 0; i < count; ++i)
-			expanded.tracks.insert(expanded.tracks.end(), repeat.pattern.begin(), repeat.pattern.end());
-		expanded.tracks.insert(expanded.tracks.end(), insertion, axis.tracks.end());
-		if (repeat.fit) expanded.fit_range = grid_track_range{ repeat.insertion, repeat.insertion + repeated };
+			append_grid_segment(expanded, axis.repeat->pattern);
+		append_grid_segment(expanded, axis.suffix);
+		if (axis.repeat && axis.repeat->fit) expanded.fit_range = grid_track_range{ insertion, insertion + repeated };
 		return expanded;
 	}
 
-	grid_track_gutters finish_grid_tracks(expanded_grid_tracks& axis, std::size_t offset, std::size_t count,
+	bool parse_grid_template_areas(const css_token_vector& tokens, grid_area_template& areas) {
+		if (tokens.size() == 1 && tokens.front().ident() == "none") {
+			areas = {};
+			return true;
+		}
+		if (tokens.empty() || tokens.size() > grid_track_limit) return false;
+
+		struct area_cells {
+			grid_item_placement bounds;
+			std::size_t count = 0;
+		};
+		std::unordered_map<std::string, area_cells> cells;
+		grid_area_template parsed;
+		for (const auto& token : tokens) {
+			if (token.type != STRING) return false;
+			const auto& row = token.str;
+			std::size_t column = 0;
+			for (std::size_t index = 0; index < row.size();) {
+				const auto first = index;
+				const auto ch = row[index++];
+				if (is_grid_cell_space(ch)) continue;
+				if (column == grid_track_limit) return false;
+				if (ch == '.') {
+					while (index < row.size() && row[index] == '.') ++index;
+				} else if (is_grid_cell_name_byte(ch)) {
+					while (index < row.size() && is_grid_cell_name_byte(row[index])) ++index;
+					const grid_item_placement cell{ { parsed.rows, parsed.rows + 1 }, { column, column + 1 } };
+					auto& area = cells.try_emplace(row.substr(first, index - first), area_cells{ cell }).first->second;
+					area.bounds.rows.end = cell.rows.end;
+					area.bounds.columns.start = std::min(area.bounds.columns.start, column);
+					area.bounds.columns.end = std::max(area.bounds.columns.end, column + 1);
+					++area.count;
+				} else return false;
+				++column;
+			}
+			if (column == 0 || (parsed.rows && parsed.columns != column)) return false;
+			parsed.columns = column;
+			++parsed.rows;
+		}
+		for (const auto& [name, area] : cells) {
+			if (area.count != span_of(area.bounds.rows) * span_of(area.bounds.columns)) return false;
+			parsed.areas.emplace(name, area.bounds);
+		}
+		areas = std::move(parsed);
+		return true;
+	}
+
+	void apply_grid_template_areas(const grid_area_template& areas, expanded_grid_tracks& rows, expanded_grid_tracks& columns) {
+		// An area can extend the explicit grid without assigning track sizes.
+		rows.explicit_count = std::max(rows.tracks.size(), areas.rows);
+		columns.explicit_count = std::max(columns.tracks.size(), areas.columns);
+		const auto add_name = [](grid_line_indices& names, const std::string& name, std::size_t index) {
+			auto& lines = names[name];
+			const auto line = static_cast<int>(index);
+			const auto at = std::lower_bound(lines.begin(), lines.end(), line);
+			if (at == lines.end() || *at != line) lines.insert(at, line);
+		};
+		for (const auto& [name, bounds] : areas.areas) {
+			const auto start = name + "-start";
+			const auto end = name + "-end";
+			add_name(rows.names, start, bounds.rows.start);
+			add_name(rows.names, end, bounds.rows.end);
+			add_name(columns.names, start, bounds.columns.start);
+			add_name(columns.names, end, bounds.columns.end);
+		}
+	}
+
+	grid_track_gutters finish_grid_tracks(expanded_grid_tracks& axis, const grid_track_list& pattern, std::size_t offset, std::size_t count,
 		const std::vector<grid_item_placement>& items, grid_track_range grid_item_placement::* dimension) {
+		const auto sized_end = offset + axis.tracks.size();
 		axis.tracks.insert(axis.tracks.begin(), offset, grid_track{});
 		axis.tracks.resize(count);
+		if (!pattern.empty()) {
+			for (std::size_t i = 0; i < offset; ++i)
+				axis.tracks[offset - 1 - i] = pattern[pattern.size() - 1 - i % pattern.size()];
+			for (auto i = sized_end; i < count; ++i)
+				axis.tracks[i] = pattern[(i - sized_end) % pattern.size()];
+		}
 		grid_track_gutters gutters{ count, {} };
 		if (!axis.fit_range) return gutters;
 
@@ -390,12 +563,21 @@ namespace litehtml {
 	}
 
 	bool parse_grid_axis_placement(const css_token_vector& tokens, grid_axis_placement& placement) {
-		if (tokens.empty()) return false;
-		const auto* begin = tokens.data();
-		const auto* end = begin + tokens.size();
-		const auto* slash = std::find_if(begin, end, [](const auto& token) { return token.ch == '/'; });
-		return parse_line(begin, slash, placement.start) &&
-			(slash == end || parse_line(slash + 1, end, placement.end));
+		std::array<grid_line, 2> lines;
+		const auto count = parse_grid_lines(tokens, lines.data(), lines.size());
+		if (count == 0) return false;
+		if (count == 1) lines[1] = omitted_grid_line(lines[0]);
+		placement = { std::move(lines[0]), std::move(lines[1]) };
+		return true;
+	}
+
+	bool parse_grid_area(const css_token_vector& tokens, std::array<grid_line, 4>& lines) {
+		const auto count = parse_grid_lines(tokens, lines.data(), lines.size());
+		if (count == 0) return false;
+		if (count < 2) lines[1] = omitted_grid_line(lines[0]);
+		if (count < 3) lines[2] = omitted_grid_line(lines[0]);
+		if (count < 4) lines[3] = omitted_grid_line(lines[1]);
+		return true;
 	}
 
 	bool grid_tracks_use_percentage(const grid_track_list& tracks) {
