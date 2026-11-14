@@ -46,6 +46,15 @@ struct grid_area_template {
 	std::unordered_map<std::string, grid_item_placement> areas;
 };
 
+struct grid_definition {
+	grid_track_template rows;
+	grid_track_template columns;
+	grid_area_template areas;
+	grid_track_list auto_rows;
+	grid_track_list auto_columns;
+	grid_auto_flow flow;
+};
+
 struct expanded_grid_tracks : grid_track_segment {
 	std::size_t explicit_count = 0;
 	std::optional<grid_track_range> fit_range;
@@ -77,6 +86,7 @@ bool parse_grid_tracks(const css_token_vector& tokens, grid_track_template& trac
 bool parse_grid_auto_tracks(const css_token_vector& tokens, grid_track_list& tracks);
 bool parse_grid_auto_flow(const css_token_vector& tokens, grid_auto_flow& flow);
 bool parse_grid_template_areas(const css_token_vector& tokens, grid_area_template& areas);
+bool parse_grid_definition(const css_token_vector& tokens, bool allow_auto_flow, grid_definition& definition);
 expanded_grid_tracks expand_grid_tracks(const grid_track_template& tracks, const css_length& gap,
 	std::optional<pixel_t> definite, std::optional<pixel_t> minimum, std::optional<pixel_t> maximum);
 void apply_grid_template_areas(const grid_area_template& areas, expanded_grid_tracks& rows, expanded_grid_tracks& columns);

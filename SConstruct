@@ -196,14 +196,22 @@ def stage_litehtml_extensions(target, source, env):
 		enum class content_baseline_edge { none, start, end };
 		content_baseline_edge grid_content_edge = content_baseline_edge::none;
 		pixel_t grid_baseline_padding = 0;
+		bool grid_intrinsic_width = false;
 
 """)
         text = text.replace("\t\t\tret.size_mode = _size_mode;", """\
 			ret.grid_content_edge = content_baseline_edge::none;
 			ret.grid_baseline_padding = 0;
 			ret.size_mode = _size_mode;""")
-        replace_once('flex;inline-flex"', 'flex;inline-flex;grid"')
-        replace_once("\t\tdisplay_inline_flex,\n", "\t\tdisplay_inline_flex,\n\t\tdisplay_grid,\n")
+        replace_once('flex;inline-flex"', 'flex;inline-flex;grid;inline-grid"')
+        replace_once("\t\tdisplay_inline_flex,\n", "\t\tdisplay_inline_flex,\n\t\tdisplay_grid,\n\t\tdisplay_inline_grid,\n")
+        insert_before("#define  font_size_strings", """\
+	inline bool is_grid_display(style_display value)
+	{
+		return value == display_grid || value == display_inline_grid;
+	}
+
+""")
         insert_before("\t\t\tsize_mode_content = 0x04,\n", """\
 			size_mode_grid_assigned_width = 0x08,
 			size_mode_grid_stretch_height = 0x10,
@@ -296,16 +304,21 @@ pixel_t css_length::evaluate_expression(pixel_t basis) const
 """)
     elif path.name == "element.cpp":
         insert_before('#include "render_flex.h"', '#include "formats/html/layout/grid/litehtml_render_grid.h"\n')
+        text = text.replace("css().get_display() == display_inline_flex)",
+                            "css().get_display() == display_inline_flex ||\n\t\t   css().get_display() == display_inline_grid)", 2)
         insert_before("\tif(ret)\n", """\
-	if (css().get_display() == display_grid)
+	if (is_grid_display(css().get_display()))
 		ret = std::make_shared<render_item_grid>(shared_from_this());
 """)
         insert_before("\tif(\tm_css.get_display() == display_inline_block ||", """\
-	if (m_css.get_display() == display_grid)
+	if (is_grid_display(m_css.get_display()))
 		return true;
-	if (const auto p = parent(); p && p->css().get_display() == display_grid && m_css.get_display() != display_inline_text)
+	if (const auto p = parent(); p && is_grid_display(p->css().get_display()) && m_css.get_display() != display_inline_text)
 		return true;
 """)
+    elif path.name == "iterators.cpp":
+        insert_before("        el->src_el()->css().get_display() == display_inline_flex ||",
+                      "        el->src_el()->css().get_display() == display_inline_grid ||\n")
     elif path.name == "render_item.cpp":
         insert_before("bool litehtml::render_item::fetch_positioned()", """\
 void litehtml::render_item::paint(uint_ptr hdc, pixel_t x, pixel_t y, const position* clip)
@@ -366,6 +379,10 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
                                         "if (el->is_grid_item() || el->src_el()->css().get_display() == display_inline_block ||")
         grid_paint = grid_paint.replace("if(el->src_el()->css().get_display() == display_inline_block ||",
                                         "if(el->is_grid_item() || el->src_el()->css().get_display() == display_inline_block ||")
+        for comparison, operator in (("==", "||"), ("!=", "&&")):
+            inline_block = f"el->src_el()->css().get_display() {comparison} display_inline_block {operator}"
+            grid_paint = grid_paint.replace(inline_block, inline_block.replace("display_inline_block", "display_inline_grid") +
+                                            "\n                                " + inline_block)
         grid_paint = grid_paint.replace("if (el->src_el()->css().get_float() == float_none &&\n",
                                         "if (!el->is_grid_item() && el->src_el()->css().get_float() == float_none &&\n")
         grid_paint = grid_paint.replace("if(\tel->src_el()->css().get_float() == float_none &&\n",
@@ -440,7 +457,7 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
             replace_once(f"if (ret.{axis}.type != containing_block_context::cbc_value_type_auto &&",
                          f"if (!{flag} && ret.{axis}.type != containing_block_context::cbc_value_type_auto &&")
         insert_before("\t\tif (len.expression() && len.units() == css_units_percentage &&",
-                      "\t\tconst bool grid_sizing = css().get_display() == display_grid || is_grid_item();\n")
+                      "\t\tconst bool grid_sizing = is_grid_display(css().get_display()) || is_grid_item();\n")
         replace_once("if (len.expression() && len.units() == css_units_percentage &&",
                      "if ((len.expression() || grid_sizing) && len.units() == css_units_percentage &&")
         replace_once("out_value.type = len.expression() ? containing_block_context::cbc_value_type_absolute",
@@ -451,13 +468,18 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
         replace_once("if(src_el()->is_block_formatting_context() || ! fmt_ctx)",
                      "if(src_el()->is_block_formatting_context() || is_grid_item() || ! fmt_ctx)")
         replace_once("\tcalc_outlines(containing_block_size.width);",
-                     "\tcalc_outlines(containing_block_size.size_mode & containing_block_context::size_mode_grid_measure_width ?\n"
-                     "\t\t0 : containing_block_size.width.value);\n"
+                     "\tconst bool intrinsic_outlines = (containing_block_size.size_mode & containing_block_context::size_mode_grid_measure_width) ||\n"
+                     "\t\t(containing_block_size.grid_intrinsic_width && css().get_display() == display_inline_grid);\n"
+                     "\tcalc_outlines(intrinsic_outlines ? 0 : containing_block_size.width.value);\n"
                      "\tif (containing_block_size.grid_content_edge == containing_block_context::content_baseline_edge::start)\n"
                      "\t\tm_padding.top += containing_block_size.grid_baseline_padding;\n"
                      "\telse if (containing_block_size.grid_content_edge == containing_block_context::content_baseline_edge::end)\n"
                      "\t\tm_padding.bottom += containing_block_size.grid_baseline_padding;")
         insert_before("\t// Fix box sizing", """\
+	// An intrinsic probe gives descendants room for unwrapped content.
+	// Its width becomes a percentage basis only inside a definitively sized box.
+	ret.grid_intrinsic_width = ret.width.type != containing_block_context::cbc_value_type_absolute &&
+		(cb_context.grid_intrinsic_width || (cb_context.size_mode & containing_block_context::size_mode_grid_measure_width));
 	ret.grid_content_edge = cb_context.grid_content_edge;
 	if (cb_context.grid_baseline_padding > 0 && css().get_box_sizing() == box_sizing_content_box)
 	{
@@ -471,7 +493,7 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 """)
         insert_before("\t\t\t\tfor(const auto& el : m_children)\n\t\t\t\t{\n\t\t\t\t\tel->calc_document_size(child_size", "\t\t\t\tchild_size = layout_overflow();\n")
         insert_before("\t\t\t\t\tfor(const auto& el : m_children)\n\t\t\t\t\t{\n\t\t\t\t\t\tel->calc_document_size(sz", """\
-						if (css().get_display() == display_grid && !is_viewport_fixed())
+						if (is_grid_display(css().get_display()) && !is_viewport_fixed())
 					{
 						const auto overflow_size = layout_overflow();
 						sz.width = std::max(sz.width, x + m_pos.x + overflow_size.width);
@@ -497,6 +519,7 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 			return layout_baseline(last).value_or(height() - margin_bottom());
 		}
 		virtual pixel_t baseline_content_height() const { return m_pos.height; }
+		virtual pixel_t get_inline_baseline() { return get_last_baseline(); }
 
 """)
         insert_before("\t\tbool is_flex_item() const", """\
@@ -518,13 +541,13 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 		bool is_grid_item() const
 		{
 			auto p = parent();
-			return p && p->css().get_display() == display_grid && src_el()->in_normal_flow();
+			return p && is_grid_display(p->css().get_display()) && src_el()->in_normal_flow();
 		}
 
 """)
         for edge in ("top", "bottom"):
             insert_before(f"                   m_margins.{edge} >= 0 &&", """\
-                   css().get_display() != display_grid &&
+                   !is_grid_display(css().get_display()) &&
                    !is_grid_item() &&
 """)
     elif path.name == "flex_item.cpp":
@@ -543,6 +566,7 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
         insert_before("\t_flex_flow_,", "\t_transform_,\n\t_transform_origin_,\n")
         insert_before("\t_flex_flow_,", "\t_gap_,\n\t_row_gap_,\n\t_column_gap_,\n")
         insert_before("\t_flex_flow_,", "\t_grid_template_columns_,\n\t_grid_template_rows_,\n\t_grid_template_areas_,\n\t_grid_area_,\n")
+        insert_before("\t_flex_flow_,", "\t_grid_template_,\n\t_grid_,\n")
         insert_before("\t_flex_flow_,", "\t_grid_auto_flow_,\n\t_grid_auto_rows_,\n\t_grid_auto_columns_,\n")
         insert_before("\t_flex_flow_,", "\t_justify_items_,\n\t_justify_self_,\n")
         insert_before("\t_flex_flow_,", "\t_place_items_,\n\t_place_self_,\n\t_place_content_,\n")
@@ -625,6 +649,9 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
 	{ _grid_row_, {_grid_row_start_, _grid_row_end_}},
 	{ _grid_column_, {_grid_column_start_, _grid_column_end_}},
 	{ _grid_area_, {_grid_row_start_, _grid_column_start_, _grid_row_end_, _grid_column_end_}},
+	{ _grid_template_, {_grid_template_rows_, _grid_template_columns_, _grid_template_areas_}},
+	{ _grid_, {_grid_template_rows_, _grid_template_columns_, _grid_template_areas_,
+		_grid_auto_rows_, _grid_auto_columns_, _grid_auto_flow_}},
 	{ _gap_, {_row_gap_, _column_gap_}},
 	{ _background_position_, {_background_position_x_, _background_position_y_}},
 	{ _background_image_, {_background_image_, _background_image_baseurl_}},
@@ -660,6 +687,22 @@ void litehtml::render_item::extend_scroll_size(const size& extent)
                      'if (tokens.size() == 1 && value_in_list(tokens[0].ident(), font_system_family_name_strings))\n\t{\n\t\tfont_family.push_back({ "system-ui", true });')
         replace_once("if (!parse_font_family(tokens, font_family))", "if (!parse_font_families(tokens, font_family))")
         insert_before("\tcase _order_:", """\
+	case _grid_template_:
+	case _grid_:
+	{
+		grid_definition definition;
+		if (ident != "initial" && ident != "unset" && !parse_grid_definition(value, name == _grid_, definition)) break;
+		add_parsed_property(_grid_template_rows_, property_value(std::move(definition.rows), important));
+		add_parsed_property(_grid_template_columns_, property_value(std::move(definition.columns), important));
+		add_parsed_property(_grid_template_areas_, property_value(std::move(definition.areas), important));
+		if (name == _grid_)
+		{
+			add_parsed_property(_grid_auto_rows_, property_value(std::move(definition.auto_rows), important));
+			add_parsed_property(_grid_auto_columns_, property_value(std::move(definition.auto_columns), important));
+			add_parsed_property(_grid_auto_flow_, property_value(definition.flow, important));
+		}
+		break;
+	}
 	case _grid_row_:
 	case _grid_column_:
 	{
@@ -1134,6 +1177,25 @@ std::optional<litehtml::pixel_t> litehtml::render_item_block_context::find_layou
 
 """)
     elif path.name == "render_inline_context.cpp":
+        replace_once("\t\tif(item->get_el()->src_el()->is_inline_box())\n", """\
+		if (item->get_el()->css().get_display() == display_inline_grid)
+		{
+			auto columns = self_size.new_width(self_size.render_width);
+			if (self_size.grid_intrinsic_width)
+			{
+				columns.width.type = containing_block_context::cbc_value_type_auto;
+				columns.size_mode = containing_block_context::size_mode_content;
+			}
+			item->set_rendered_widths(item->get_el()->render(0, 0, columns, fmt_ctx));
+		} else if(item->get_el()->src_el()->is_inline_box())
+""")
+        insert_before("\tel_pos.el_pos.y\t\t\t= line_top;", """\
+	if (el->get_el()->css().get_display() == display_inline_grid)
+	{
+		el_pos.el_pos.width = el->width();
+		el_pos.el_pos.height = el->height();
+	}
+""")
         insert_before("litehtml::pixel_t litehtml::render_item_inline_context::get_first_baseline()", """\
 litehtml::pixel_t litehtml::render_item_inline_context::baseline_content_height() const
 {
@@ -1161,10 +1223,22 @@ std::optional<litehtml::pixel_t> litehtml::render_item_inline_context::find_layo
 
 """)
     elif path.name == "line_box.h":
-        insert_before("#include <memory>", "#include <unordered_set>\n")
+        insert_before("#include <memory>", "#include <optional>\n#include <unordered_set>\n")
+        insert_before("\t\tpixel_t m_rendered_min_width = 0;", "\t\tstd::optional<pixel_t> m_rendered_natural_width;\n")
+        insert_before("\t\tvirtual void y_shift(pixel_t shift);", """\
+		pixel_t get_rendered_natural_width() const { return m_rendered_natural_width.value_or(get_rendered_min_width()); }
+		void set_rendered_widths(rendered_width widths)
+		{
+			m_rendered_natural_width = widths.natural_width;
+			set_rendered_min_width(widths.min_width);
+		}
+""")
         insert_before("\t\tvoid\ty_shift(pixel_t shift);",
                       "\t\tvoid shift_for_content_alignment(pixel_t shift, std::unordered_set<render_item*>& shifted);\n")
     elif path.name == "line_box.cpp":
+        text = text.replace("lbi->get_el()->get_last_baseline()", "lbi->get_el()->get_inline_baseline()")
+        replace_once("m_rendered_width.natural_width += lbi->get_rendered_min_width();",
+                     "m_rendered_width.natural_width += lbi->get_rendered_natural_width();")
         insert_before("void litehtml::line_box::y_shift( pixel_t shift )", """\
 void litehtml::line_box::shift_for_content_alignment(pixel_t shift, std::unordered_set<render_item*>& shifted)
 {
@@ -1309,6 +1383,19 @@ const auto& item = m_grid->row(row).el_row;
         insert_before("\t\tconst string& get_cursor()", "\t\tconst std::vector<box_shadow>& get_text_shadows() const { return m_text_shadows; }\n\n")
         insert_before("\t\telement_position\t\tm_el_position;", "\t\tstd::vector<box_shadow> m_text_shadows;\n")
     elif path.name == "css_properties.cpp":
+        insert_before("\tcompute_font(el, doc);", """\
+	if (m_display == display_inline_grid)
+	{
+		const auto parent = el->parent();
+		if (el->is_root() || m_float != float_none ||
+			is_one_of(m_el_position, element_position_absolute, element_position_fixed) ||
+			(parent && is_one_of(parent->css().get_display(), display_flex, display_inline_flex, display_grid, display_inline_grid)))
+			m_display = display_grid;
+	}
+
+""")
+        replace_once("!is_one_of(m_display, display_inline_block, display_inline_table, display_inline_flex)",
+                     "!is_one_of(m_display, display_inline_block, display_inline_table, display_inline_flex, display_inline_grid)")
         for name, conversion in (("justify_content", "justify_content"), ("align_content", "align_content"),
                                  ("align_items", "item_alignment"), ("align_self", "item_alignment")):
             original = re.search(rf"m_flex_{name} = .*?;", text).group()
@@ -1352,7 +1439,7 @@ const auto& item = m_grid->row(row).el_row;
 	compute_track_lengths(m_grid_auto_rows);
 	compute_track_lengths(m_grid_auto_columns);
 
-	if (const auto p = el->parent(); p && p->css().get_display() == display_grid && el->in_normal_flow())
+	if (const auto p = el->parent(); p && is_grid_display(p->css().get_display()) && el->in_normal_flow())
 	{
 		m_float = float_none;
 		m_clear = clear_none;
@@ -1705,7 +1792,7 @@ for build_object, library_sources in ((html_object, Glob(f"{litehtml}/src/*.cpp"
     for source in library_sources:
         source_path = Path(str(source)).relative_to(litehtml).with_suffix("")
         if source_path.as_posix() in ("src/style", "src/html_tag", "src/css_properties", "src/el_text",
-                                      "src/css_parser", "src/css_length", "src/document", "src/element",
+                                      "src/css_parser", "src/css_length", "src/document", "src/element", "src/iterators",
                                       "src/render_block", "src/render_block_context", "src/render_inline_context",
                                       "src/render_flex", "src/render_image", "src/render_item", "src/render_table",
                                       "src/flex_item", "src/flex_line", "src/line_box"):

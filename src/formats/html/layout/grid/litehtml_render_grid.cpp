@@ -311,21 +311,19 @@ namespace litehtml {
 			if (group.first && (!last || !group.last)) return start + *group.first;
 			if (group.last) return end - *group.last;
 
-			std::optional<std::pair<std::size_t, pixel_t>> baseline;
-			std::optional<std::pair<std::size_t, pixel_t>> synthesized;
-			const auto precedes = [last](std::size_t column, const auto& current) {
-				return !current || (last ? column >= current->first : column < current->first);
-			};
+			std::optional<std::size_t> baseline_item;
+			std::size_t baseline_column = 0;
 			for (std::size_t i = 0; i < items.size(); ++i) {
 				const auto& placement = placements[i];
 				if (row_of(placement) != edge) continue;
 				const auto column = last ? placement.columns.end - 1 : placement.columns.start;
-				const auto& item = *items[i];
-				if (precedes(column, synthesized)) synthesized = { column, item.bottom() - item.margin_bottom() };
-				if (precedes(column, baseline))
-					if (const auto value = item.layout_baseline(last)) baseline = { column, item.top() + *value };
+				if (!baseline_item || (last ? column >= baseline_column : column < baseline_column)) {
+					baseline_item = i;
+					baseline_column = column;
+				}
 			}
-			return (baseline ? baseline : synthesized)->second;
+			const auto& item = *items[*baseline_item];
+			return item.top() + item.baseline_or_border_bottom(last);
 		}
 
 	}
@@ -406,11 +404,12 @@ namespace litehtml {
 		last_baseline.reset();
 		occupied_row_height = 0;
 		const auto self = calculate_containing_block_context(containing_block_size);
+		const bool inline_grid = css().get_display() == display_inline_grid;
 		const bool measure_width = containing_block_size.size_mode & context::size_mode_grid_measure_width;
 		const bool fit_content = containing_block_size.size_mode & context::size_mode_content;
 		const bool definite_width = (is_definite(self.width) && !(fit_content &&
 			(containing_block_size.size_mode & context::size_mode_exact_width))) ||
-			(!fit_content && src_el()->in_normal_flow() && css().get_float() == float_none);
+			(!inline_grid && !fit_content && src_el()->in_normal_flow() && css().get_float() == float_none);
 		const bool definite_height = is_definite(self.height);
 		const auto available_width = clamp_size(self.render_width, self.min_width, self.max_width);
 		const auto available_height = clamp_size(self.height - box_sizing_height(), self.min_height, self.max_height);
@@ -591,8 +590,12 @@ namespace litehtml {
 		const auto initial_rows = size_grid_tracks(rows, row_content, row_gutters,
 			row_gap.calc_percent(height.value_or(0)), height, stretches(align_content));
 		m_pos.height = definite_height ? available_height : clamp_size(initial_rows.extent, self.min_height, self.max_height);
-		const rendered_width widths{ m_pos.width + content_offset_width(),
-			(definite_width && is_definite(self.width) ? m_pos.width : initial_columns.minimum) + content_offset_width() };
+		const auto natural_width = inline_grid && !definite_width ?
+			clamp_size(initial_columns.extent, self.min_width, self.max_width) : m_pos.width;
+		const auto minimum_width = inline_grid && !definite_width ?
+			clamp_size(initial_columns.minimum, self.min_width, self.max_width) :
+			(definite_width && is_definite(self.width) ? m_pos.width : initial_columns.minimum);
+		const rendered_width widths{ natural_width + content_offset_width(), minimum_width + content_offset_width() };
 		const bool measuring_height = containing_block_size.size_mode & context::size_mode_grid_measure_height;
 		const bool measuring_baseline = containing_block_size.size_mode & context::size_mode_grid_measure_baseline;
 		if (measuring_height && !measuring_baseline) return widths;

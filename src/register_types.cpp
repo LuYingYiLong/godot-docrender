@@ -9,6 +9,7 @@
 #include "editor/markdown_preview_editor_plugin.h"
 #include "editor/mermaid_preview_editor_plugin.h"
 #include "editor/script_editor_preview_plugin.h"
+#include "formats/html/html_canvas_renderer.h"
 #include "formats/html/html_document.h"
 #include "formats/latex/latex_document.h"
 #include "formats/latex/latex_document_loader.h"
@@ -49,6 +50,7 @@ void initialize_docrender_module(ModuleInitializationLevel p_level) {
 		GDREGISTER_INTERNAL_CLASS(DocRenderTexLoader);
 		GDREGISTER_CLASS(MarkdownLabel);
 		GDREGISTER_ABSTRACT_CLASS(HTMLElement);
+		GDREGISTER_INTERNAL_CLASS(docrender::HTMLCanvasRenderer);
 		GDREGISTER_CLASS(HTMLLayout);
 		GDREGISTER_CLASS(HTMLDocument);
 		GDREGISTER_INTERNAL_CLASS(HTMLLabelCanvas);
@@ -97,7 +99,7 @@ void uninitialize_docrender_module(ModuleInitializationLevel p_level) {
 		tex_loader.unref();
 		PDFReader::shutdown_backend();
 		TeXRender::shutdown_renderer();
-		HTMLLayout::release_paint_shader();
+		docrender::release_html_paint_shader();
 	}
 }
 

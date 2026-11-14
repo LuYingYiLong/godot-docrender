@@ -21,6 +21,7 @@ namespace litehtml {
 		explicit render_item_grid(const std::shared_ptr<element>& element) : render_item_block(element) {}
 		pixel_t get_first_baseline() override { return baseline_or_border_bottom(false); }
 		pixel_t get_last_baseline() override { return baseline_or_border_bottom(true); }
+		pixel_t get_inline_baseline() override { return layout_baseline(false).value_or(height()); }
 		pixel_t baseline_content_height() const override { return occupied_row_height; }
 		std::shared_ptr<render_item> init() override;
 		std::shared_ptr<render_item> clone() override { return std::make_shared<render_item_grid>(src_el()); }

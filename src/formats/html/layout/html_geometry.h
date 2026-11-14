@@ -48,7 +48,19 @@ namespace docrender {
 	struct TransformedClip {
 		RoundedRect shape;
 		godot::Transform2D matrix;
+
+		bool contains_point(const godot::Vector2& p_point, bool p_precise) const;
 	};
+
+	// Visit overflow clips from the closest ancestor outward. The element's own
+	// shape is applied separately, and the remaining ancestors use their bounds.
+	inline bool use_precise_clip(const RoundedRect& p_shape, const godot::Transform2D& p_matrix, int& r_remaining) {
+		if (r_remaining == 0 || (!p_shape.has_radius() && p_matrix == godot::Transform2D())) {
+			return false;
+		}
+		--r_remaining;
+		return true;
+	}
 
 	godot::Rect2 clipped_visual_bounds(const godot::Rect2& p_rect, const godot::Transform2D& p_matrix,
 		const std::vector<TransformedClip>& p_clips);

@@ -103,16 +103,19 @@ namespace docrender {
 		}
 	}
 
+	bool TransformedClip::contains_point(const Vector2& p_point, bool p_precise) const {
+		return p_precise ? shape.has_point(matrix.affine_inverse().xform(p_point)) : matrix.xform(shape.rect).has_point(p_point);
+	}
+
 	Rect2 clipped_visual_bounds(const Rect2& p_rect, const Transform2D& p_matrix,
 		const std::vector<TransformedClip>& p_clips) {
 		if (!p_rect.has_area()) return {};
 		if (p_clips.empty()) return p_matrix.xform(p_rect);
 		Polygon polygon = rect_polygon(p_rect, p_matrix);
-		int precise = 0;
+		int remaining = MAX_ROUNDED_CLIPS;
 		for (auto clip = p_clips.rbegin(); clip != p_clips.rend(); ++clip) {
 			if (!clip->shape.rect.has_area()) return {};
-			const bool complex = clip->shape.has_radius() || clip->matrix != Transform2D();
-			const bool use_precise = complex && precise++ < MAX_ROUNDED_CLIPS;
+			const bool use_precise = use_precise_clip(clip->shape, clip->matrix, remaining);
 			const Transform2D matrix = use_precise ? clip->matrix : Transform2D();
 			const auto shape = use_precise ? clip_polygon(*clip, true) :
 				rect_polygon(clip->matrix.xform(clip->shape.rect), matrix);
@@ -209,12 +212,10 @@ namespace docrender {
 		if (!inside) {
 			return false;
 		}
-		int precise_clips = 0;
+		int remaining = MAX_ROUNDED_CLIPS;
 		for (auto* clip = overflow; clip; clip = clip->parent) {
-			const bool precise = (clip->shape.has_radius() || clip->matrix != Transform2D()) &&
-				precise_clips++ < MAX_ROUNDED_CLIPS;
-			const Vector2 clip_point = clip->inverse.xform(p_point);
-			if (!(precise ? clip->shape.has_point(clip_point) : clip->matrix.xform(clip->shape.rect).has_point(p_point))) {
+			const bool precise = use_precise_clip(clip->shape, clip->matrix, remaining);
+			if (!(precise ? clip->shape.has_point(clip->inverse.xform(p_point)) : clip->matrix.xform(clip->shape.rect).has_point(p_point))) {
 				return false;
 			}
 		}
@@ -235,14 +236,14 @@ namespace docrender {
 			return clipped_visual_bounds(p_box, matrix, shapes).has_area();
 		}
 		Rect2 visible = p_box;
-		int rounded_clips = 0;
+		int remaining = MAX_ROUNDED_CLIPS;
 		for (auto* entry = overflow; entry; entry = entry->parent) {
 			const RoundedRect& clip = entry->shape;
 			visible = visible.intersection(entry->matrix.xform(clip.rect));
 			if (!visible.has_area()) {
 				return false;
 			}
-			if (clip.has_radius() && rounded_clips++ < MAX_ROUNDED_CLIPS && entry->matrix == Transform2D()) {
+			if (use_precise_clip(clip, entry->matrix, remaining)) {
 				// A rectangle entirely inside a cut-off corner cannot be revealed by scrolling the label.
 				for (int i = 0; i < 4; ++i) {
 					const Vector2 inward(i == 0 || i == 3 ? visible.get_end().x : visible.position.x,

@@ -102,6 +102,9 @@
     <ClCompile Include="src\formats\docrender_source.cpp">
       <Filter>Source Files\formats</Filter>
     </ClCompile>
+    <ClCompile Include="src\formats\html\html_canvas_renderer.cpp">
+      <Filter>Source Files\formats\html</Filter>
+    </ClCompile>
     <ClCompile Include="src\formats\html\html_document.cpp">
       <Filter>Source Files\formats\html</Filter>
     </ClCompile>
@@ -281,6 +284,9 @@
     <ClInclude Include="src\formats\mermaid\mermaid_render.h">
       <Filter>Header Files\formats\mermaid</Filter>
     </ClInclude>
+    <ClInclude Include="src\formats\html\html_canvas_renderer.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
     <ClInclude Include="src\formats\html\html_document.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
@@ -291,6 +297,9 @@
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\html_markup.h">
+      <Filter>Header Files\formats\html</Filter>
+    </ClInclude>
+    <ClInclude Include="src\formats\html\html_paint_run.h">
       <Filter>Header Files\formats\html</Filter>
     </ClInclude>
     <ClInclude Include="src\formats\html\litehtml_box_shadow.h">

@@ -17,7 +17,7 @@ DocRender uses litehtml v0.10 (`9bc84b8`) for CSS parsing, the cascade, and layo
 
 | Area | Support |
 | --- | --- |
-| Layout | Block and inline layout, lists, tables, Flexbox, block Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Sticky positioning is unsupported. |
+| Layout | Block and inline layout, lists, tables, Flexbox, block and inline Grid, dimensions, margins, padding, and static, relative, absolute, and fixed positioning. Sticky positioning is unsupported. |
 | 2D transforms | `transform` accepts `none` and lists of `translate()`, `translateX()`, `translateY()`, `rotate()`, `scale()`, `scaleX()`, and `scaleY()`. `transform-origin` supports one or two position components. See the 2D transforms section below. |
 | Grid | Track lists support named lines and `repeat()`, including `auto-fill` and `auto-fit`. Grid items support placement by name, line number, or span. Grid supports automatic placement, patterned implicit tracks, item alignment, and track distribution. |
 | Flexbox spacing | `row-gap`, `column-gap`, and one- or two-value `gap` work with wrapping and reverse directions. The shorthand sets the row gap first and the column gap second. Values include `normal` (zero in Flexbox), non-negative lengths, and percentages. Percentage gaps use the container's inner size on their axis and resolve to zero when that size depends on the flex items. [CSS Gaps](https://www.w3.org/TR/css-gaps-1/#gaps) |
@@ -55,6 +55,8 @@ Translation and origin offsets accept lengths, percentages, and length expressio
 
 Transforms affect painting, element rectangles, links, selection, and scrollable overflow. Non-replaced inline boxes and table columns or column groups can inherit an ancestor's transform as part of its subtree. Use an inline-block for a transform on an inline element itself. In Markdown, downward overflow expands the HTML block and the column bounds clip horizontal overflow. Skew, 3D transforms, `transform-box`, standalone transform properties, and animation are outside the supported set. [CSS Transforms Level 1](https://www.w3.org/TR/css-transforms-1/)
 
+Painting and hit testing use the exact clip shapes of up to 16 rounded or transformed overflow ancestors, starting with the closest ancestor. Farther clips use their document-space bounding rectangles. An element's own rounded shape is evaluated separately.
+
 ## Grid
 
 ```css
@@ -70,6 +72,8 @@ Transforms affect painting, element rectangles, links, selection, and scrollable
   grid-row: 1;
 }
 ```
+
+`display: inline-grid` uses the same tracks and item placement as `grid`. An automatic width fits the content within the containing block, subject to intrinsic sizes and `min-width` and `max-width`. The whole grid moves to the next line if it cannot fit alongside preceding text. Text inside each item can wrap within its grid area. The surrounding line uses the grid's first baseline by default, and `vertical-align` can change how the box lines up with its neighbors. [CSS Grid container sizing and baselines](https://www.w3.org/TR/css-grid-2/#grid-container-sizing) · [CSS Inline baseline source](https://www.w3.org/TR/css-inline-3/#baseline-source)
 
 Use a positive integer in `repeat()` to repeat one or more track sizes. For example, `repeat(2, 80px minmax(0, 1fr))` creates four tracks. An axis can declare up to 10,000 explicit tracks. `minmax()` accepts non-negative lengths, percentages, and `auto` on either side, with fractions also accepted as the maximum. [CSS Grid track sizing](https://www.w3.org/TR/css-grid-2/#track-sizes)
 
@@ -110,7 +114,11 @@ Grid items with `align-content: first baseline` or `last baseline` can align the
 
 `place-items`, `place-self`, and `place-content` set the corresponding `align-*` and `justify-*` properties in that order. A single value applies to both axes, as in `place-items: center`. With a single baseline value in `place-content`, the second axis defaults to `start`. Multi-keyword values such as `place-self: safe end unsafe center` use the grammar of the corresponding longhand. [CSS Box Alignment shorthands](https://www.w3.org/TR/css-align-3/#place-content)
 
-The `grid` and `grid-template` shorthands, `subgrid`, and `inline-grid` remain unsupported.
+`grid-template` sets the explicit rows, columns, and named areas. Use `none`, a pair of track lists such as `40px auto / repeat(3, 1fr)`, or quoted area rows such as `"head head" 40px "nav main" / 12rem 1fr`. In the quoted form, omitted row sizes are `auto`, the optional column list uses individual tracks, and line names on either side of a row boundary share that line. The implicit grid settings remain in effect. [CSS Grid template shorthand](https://www.w3.org/TR/css-grid-2/#grid-template-property)
+
+`grid` accepts the same explicit forms and adds automatic placement forms such as `auto-flow dense 24px / repeat(3, 1fr)` and `40px 40px / auto-flow 100px`. Put `auto-flow` on the left of the slash to create rows or on the right to create columns. The optional `dense` keyword can appear immediately before or after it. Any sizes that follow form the repeating implicit track pattern on that axis. Omitted longhands reset to their initial values: `none` for the explicit grid, `auto` for implicit track sizes, and `row` for the flow direction. Both shorthands preserve the existing gaps. [CSS Grid definition shorthand](https://www.w3.org/TR/css-grid-2/#grid-shorthand)
+
+`subgrid` remains unsupported.
 
 ## Font families
 
@@ -131,7 +139,7 @@ The editor's HTML source preview outlines visible elements with CSS declaration 
 
 | Kind | Example |
 | --- | --- |
-| `unknown_property` | `grid-template: auto / 1fr` |
+| `unknown_property` | `scrollbar-width: thin` |
 | `unsupported_value` | `grid-template-areas: "head head" "head ."` |
 | `not_rendered` | `border-top-style: groove` |
 

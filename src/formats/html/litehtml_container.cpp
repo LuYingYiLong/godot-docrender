@@ -9,10 +9,8 @@
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/os.hpp>
-#include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/shader.hpp>
-#include <godot_cpp/classes/style_box.hpp>
 #include <godot_cpp/classes/system_font.hpp>
 #include <godot_cpp/classes/text_server.hpp>
 #include <godot_cpp/classes/text_server_manager.hpp>
@@ -23,6 +21,7 @@
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <litehtml/document.h>
 #include <litehtml/el_image.h>
+#include <litehtml/html.h>
 #include <litehtml/html_tag.h>
 #include <litehtml/render_image.h>
 
@@ -31,7 +30,6 @@
 #include <cmath>
 #include <limits>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 
 using namespace godot;
@@ -109,6 +107,11 @@ uniform vec4 clip_radii_y[16];
 uniform vec4 clip_bases[16];
 uniform vec2 clip_offsets[16];
 uniform bool affine_clips;
+
+uniform bool has_shape;
+uniform vec4 shape_box;
+uniform vec4 shape_radii_x;
+uniform vec4 shape_radii_y;
 
 uniform bool draw_border;
 uniform vec4 inner_box;
@@ -408,6 +411,9 @@ void fragment() {
 		}
 		coverage = min(coverage, box_coverage(point, clip_boxes[i], clip_radii_x[i], clip_radii_y[i], dx, dy));
 	}
+	if (has_shape) {
+		coverage = min(coverage, box_coverage(document_point, shape_box, shape_radii_x, shape_radii_y, pixel_x, pixel_y));
+	}
 	if (decoration_pattern != 0) {
 		float width = decoration_thickness;
 		float y = document_point.y - decoration_center;
@@ -438,9 +444,8 @@ void fragment() {
 		if (inner_box.z > inner_box.x && inner_box.w > inner_box.y) {
 			coverage = min(coverage, 1.0 - box_coverage(document_point, inner_box, inner_radii_x, inner_radii_y, pixel_x, pixel_y));
 		}
-		vec4 box = clip_boxes[clip_count - 1];
-		vec2 a = document_point - box.xy;
-		vec2 b = box.zw - document_point;
+		vec2 a = document_point - shape_box.xy;
+		vec2 b = shape_box.zw - document_point;
 		vec4 distance = vec4(a.y, b.x, b.y, a.x) / max(border_widths, vec4(0.000001));
 		int side = -1;
 		for (int i = 0; i < 4; i++) {
@@ -756,7 +761,7 @@ void fragment() {
 		clip_material.unref();
 		plain_text = String();
 		text_runs.clear();
-		for (PaintRun& run : paint_runs) {
+		for (HTMLPaintRun& run : paint_runs) {
 			for (Command& command : run.commands) {
 				if (Text* text = std::get_if<Text>(&command)) {
 					const Rect2 rect(text->position, text->line->get_size());
@@ -775,7 +780,7 @@ void fragment() {
 		// The DOM pass assigns offsets while the paint runs retain the exact clip geometry.
 		painted_text.clear();
 		painted_text_by_renderer.clear();
-		for (const PaintRun& run : paint_runs) {
+		for (const HTMLPaintRun& run : paint_runs) {
 			for (const Command& command : run.commands) {
 				if (const Text* text = std::get_if<Text>(&command); text && text->offset >= 0) {
 					const Rect2 rect(text->position, text->line->get_size());
@@ -891,8 +896,8 @@ void fragment() {
 			}
 			return;
 		}
-		const bool block = display != display_inline && display != display_inline_block && display != display_inline_flex &&
-			display != display_inline_table && display != display_table_cell;
+		const bool block = !litehtml::is_one_of(display, display_inline, display_inline_block, display_inline_flex,
+			display_inline_grid, display_inline_table, display_table_cell);
 		const int64_t start = plain_text.length();
 		const String preceding_separator = r_separator;
 		if (block && start > 0 && !r_separator.begins_with("\n")) {
@@ -913,7 +918,7 @@ void fragment() {
 		}
 	}
 
-	const std::vector<LiteHTMLContainer::PaintRun>& LiteHTMLContainer::get_paint_runs() const {
+	const std::vector<HTMLPaintRun>& LiteHTMLContainer::get_paint_runs() const {
 		return paint_runs;
 	}
 
@@ -943,9 +948,11 @@ void fragment() {
 					dx = delta.x;
 					dy = delta.y;
 				}
-				for (const auto& clip : run.clips) {
-					const Vector2 clip_point = clip.matrix.affine_inverse().xform(p_point);
-					if (!clip.shape.has_point(clip_point)) dy = std::max(dy, real_t(0.01));
+				int remaining = MAX_ROUNDED_CLIPS;
+				for (auto clip = run.clips.rbegin(); clip != run.clips.rend(); ++clip) {
+					if (!clip->contains_point(p_point, use_precise_clip(clip->shape, clip->matrix, remaining))) {
+						dy = std::max(dy, real_t(0.01));
+					}
 				}
 			}
 			if (dy < best_y || (dy == best_y && dx <= best_x)) {
@@ -992,63 +999,6 @@ void fragment() {
 		return result;
 	}
 
-	void LiteHTMLContainer::PaintRun::draw(RenderingServer& p_server, const RID& p_canvas, const Vector2& p_offset,
-		const TextServer* p_text_server, const Highlight& p_search, const Highlight& p_selection) const {
-		for (const Command& command : commands) {
-			std::visit([&](const auto& p_draw) {
-				using Draw = std::decay_t<decltype(p_draw)>;
-				if constexpr (std::is_same_v<Draw, Fill>) {
-					const Rect2 rect = translate_rect(p_draw.rect, p_offset);
-					p_server.canvas_item_add_rect(p_canvas, rect, p_draw.color);
-				}
-				else if constexpr (std::is_same_v<Draw, Text>) {
-					if (p_text_server && p_draw.offset >= 0) {
-						for (const Highlight* highlight : { &p_search, &p_selection }) {
-							const int64_t from = std::max<int64_t>(0, highlight->from - p_draw.offset);
-							const int64_t to = std::min(p_draw.length, highlight->to - p_draw.offset);
-							if (from < to) {
-								const auto ranges = p_text_server->shaped_text_get_selection(p_draw.line->get_rid(), from, to);
-								for (int64_t i = 0; i < ranges.size(); ++i) {
-									const Vector2 range = ranges[i];
-									const Rect2 rect = translate_rect(Rect2(range.x, 0, range.y - range.x, p_draw.line->get_size().y),
-										p_draw.position + p_offset);
-									if (highlight->style) {
-										highlight->style->draw(p_canvas, rect);
-									} else {
-										p_server.canvas_item_add_rect(p_canvas, rect, highlight->color);
-									}
-								}
-							}
-						}
-					}
-					p_draw.line->draw(p_canvas, p_draw.position + p_offset, p_draw.color);
-				}
-				else if constexpr (std::is_same_v<Draw, Image>) {
-					const Rect2 rect = translate_rect(p_draw.destination, p_offset);
-					if (p_draw.repeat) {
-						p_server.canvas_item_set_default_texture_repeat(p_canvas, RenderingServer::CANVAS_ITEM_TEXTURE_REPEAT_ENABLED);
-					}
-					p_draw.texture->draw_rect_region(p_canvas, rect, p_draw.source, Color(1, 1, 1), false, !p_draw.repeat);
-				}
-				else if constexpr (std::is_same_v<Draw, Circle>) {
-					const Vector2 center = p_draw.center + p_offset;
-					if (p_draw.filled) {
-						p_server.canvas_item_add_circle(p_canvas, center, p_draw.radius, p_draw.color, true);
-					}
-					else {
-						PackedVector2Array points;
-						constexpr int SEGMENTS = 20;
-						for (int index = 0; index <= SEGMENTS; ++index) {
-							const float angle = static_cast<float>(Math_TAU) * index / SEGMENTS;
-							points.push_back(center + Vector2(std::cos(angle), std::sin(angle)) * p_draw.radius);
-						}
-						p_server.canvas_item_add_polyline(p_canvas, points, PackedColorArray({ p_draw.color }), 1.0f, true);
-					}
-				}
-				}, command);
-		}
-	}
-
 	Ref<ShaderMaterial> LiteHTMLContainer::create_material(const RoundedRect* p_shape) {
 		if (paint_shader.is_null()) {
 			paint_shader.instantiate();
@@ -1073,13 +1023,17 @@ void fragment() {
 			bases.push_back(Vector4(relative[0].x, relative[0].y, relative[1].x, relative[1].y));
 			offsets.push_back(relative[2]);
 		};
-		for (auto clip = clips.rbegin(); clip != clips.rend() && boxes.size() < MAX_ROUNDED_CLIPS - (p_shape ? 1 : 0); ++clip) {
-			if (clip->shape.has_radius() || clip->matrix != Transform2D()) {
+		int remaining = MAX_ROUNDED_CLIPS;
+		for (auto clip = clips.rbegin(); clip != clips.rend() && remaining > 0; ++clip) {
+			if (use_precise_clip(clip->shape, clip->matrix, remaining)) {
 				append(clip->shape, clip->matrix);
 			}
 		}
 		if (p_shape) {
-			append(*p_shape, matrix);
+			material->set_shader_parameter("has_shape", true);
+			material->set_shader_parameter("shape_box", box_uniform(p_shape->rect));
+			material->set_shader_parameter("shape_radii_x", p_shape->radii_x);
+			material->set_shader_parameter("shape_radii_y", p_shape->radii_y);
 		}
 		material->set_shader_parameter("clip_count", boxes.size());
 		if (!boxes.is_empty()) {
@@ -1104,7 +1058,7 @@ void fragment() {
 		add_command_to(paint_runs, std::move(p_command), std::move(p_material));
 	}
 
-	void LiteHTMLContainer::add_command_to(std::vector<PaintRun>& r_runs, Command p_command, Ref<ShaderMaterial> p_material) {
+	void LiteHTMLContainer::add_command_to(std::vector<HTMLPaintRun>& r_runs, Command p_command, Ref<ShaderMaterial> p_material) {
 		if (active_geometry && !active_geometry->inverse) return;
 		const Transform2D matrix = active_geometry ? active_geometry->matrix : Transform2D();
 		std::optional<Rect2> clip;
@@ -1114,10 +1068,7 @@ void fragment() {
 			}
 			clip = clips.back().bounds;
 			if (p_material.is_null()) {
-				const bool needs_mask = std::any_of(clips.begin(), clips.end(), [](const Clip& p_clip) {
-					return p_clip.shape.has_radius() || p_clip.matrix != Transform2D();
-				});
-				if (needs_mask) {
+				if (clips.back().has_precise_clip) {
 					if (clip_material.is_null() || clip_material_matrix != matrix) {
 						clip_material = create_material();
 						clip_material_matrix = matrix;
@@ -1128,9 +1079,7 @@ void fragment() {
 		}
 		if (r_runs.empty() || r_runs.back().clip != clip || r_runs.back().matrix != matrix || r_runs.back().material != p_material) {
 			r_runs.push_back({ clip, matrix, {}, p_material, {} });
-			if (matrix != Transform2D() || std::any_of(clips.begin(), clips.end(), [](const Clip& p_clip) {
-				return p_clip.matrix != Transform2D();
-			})) {
+			if (matrix != Transform2D() || (!clips.empty() && clips.back().has_precise_clip)) {
 				for (const auto& entry : clips) r_runs.back().clips.push_back({ entry.shape, entry.matrix });
 			}
 		}
@@ -1871,7 +1820,8 @@ void fragment() {
 
 	void LiteHTMLContainer::push_clip(const RoundedRect& p_shape, const Transform2D& p_matrix) {
 		const Rect2 bounds = p_matrix.xform(p_shape.rect);
-		const Clip clip{ clips.empty() ? bounds : clips.back().bounds.intersection(bounds), p_shape, p_matrix };
+		const bool precise = p_shape.has_radius() || p_matrix != Transform2D() || (!clips.empty() && clips.back().has_precise_clip);
+		const Clip clip{ clips.empty() ? bounds : clips.back().bounds.intersection(bounds), p_shape, p_matrix, precise };
 		clips.push_back(std::move(clip));
 		clip_material.unref();
 	}
@@ -1902,6 +1852,6 @@ void fragment() {
 	}
 } // namespace docrender
 
-void HTMLLayout::release_paint_shader() {
-	docrender::paint_shader.unref();
+void docrender::release_html_paint_shader() {
+	paint_shader.unref();
 }

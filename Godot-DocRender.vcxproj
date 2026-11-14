@@ -135,6 +135,7 @@
     <ClCompile Include="src\formats\markdown\markdown_parser.cpp" />
     <ClCompile Include="src\formats\markdown\markdown_html.cpp" />
     <ClCompile Include="src\formats\mermaid\mermaid_render.cpp" />
+    <ClCompile Include="src\formats\html\html_canvas_renderer.cpp" />
     <ClCompile Include="src\formats\html\html_document.cpp" />
     <ClCompile Include="src\formats\html\html_element.cpp" />
     <ClCompile Include="src\formats\html\html_layout.cpp" />
@@ -185,10 +186,12 @@
     <ClInclude Include="src\formats\markdown\markdown_parser.h" />
     <ClInclude Include="src\formats\markdown\markdown_html.h" />
     <ClInclude Include="src\formats\mermaid\mermaid_render.h" />
+    <ClInclude Include="src\formats\html\html_canvas_renderer.h" />
     <ClInclude Include="src\formats\html\html_document.h" />
     <ClInclude Include="src\formats\html\html_element.h" />
     <ClInclude Include="src\formats\html\html_layout.h" />
     <ClInclude Include="src\formats\html\html_markup.h" />
+    <ClInclude Include="src\formats\html\html_paint_run.h" />
     <ClInclude Include="src\formats\html\litehtml_box_shadow.h" />
     <ClInclude Include="src\formats\html\html_text_mask.h" />
     <ClInclude Include="src\formats\html\litehtml_css.h" />

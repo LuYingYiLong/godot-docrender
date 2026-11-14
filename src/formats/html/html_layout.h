@@ -56,7 +56,6 @@ class HTMLLayout : public godot::RefCounted {
 	void invalidate_styles();
 	void queue_reflow();
 	static void reflow_after_edit(uint64_t p_id, uint64_t p_version);
-	void queue_canvas_redraws();
 	void set_edit_callback(const godot::Callable& p_callback);
 	godot::TypedArray<godot::Rect2> get_element_rects(const std::shared_ptr<litehtml::element>& p_element) const;
 	std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_position) const;
@@ -66,21 +65,6 @@ class HTMLLayout : public godot::RefCounted {
 	void record_css_diagnostics();
 	godot::TypedArray<godot::Dictionary> get_css_diagnostics_for(const litehtml::element& p_element) const;
 	godot::String get_css_diagnostic_tooltip(const godot::Vector2& p_position) const;
-
-	void _on_canvas_redraw(uint64_t p_id);
-	static void finish_canvas_redraw(uint64_t p_layout_id, uint64_t p_canvas_id, uint64_t p_redraw_id);
-	void _detach_canvas(uint64_t p_id);
-	void submit_draw_commands(
-		godot::CanvasItem& p_canvas,
-		const godot::Vector2& p_position,
-		const godot::Rect2& p_clip,
-		const godot::Vector2i& p_selection,
-		const godot::StyleBox* p_selection_style,
-		const godot::Color& p_selection_color,
-		const godot::Vector2i& p_search,
-		const godot::StyleBox* p_search_style
-	);
-
 protected:
 	static void _bind_methods();
 
@@ -105,8 +89,6 @@ public:
 
 	HTMLLayout();
 	~HTMLLayout() override;
-
-	static void release_paint_shader();												// 释放 HTML 绘制使用的共享着色器
 
 	godot::Error parse(const godot::String& p_html,
 		const godot::String& p_base_dir = "res://",

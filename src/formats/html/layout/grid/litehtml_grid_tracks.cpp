@@ -335,12 +335,8 @@ namespace litehtml {
 		}
 	}
 
-	bool parse_grid_tracks(const css_token_vector& tokens, grid_track_template& tracks) {
+	static bool parse_track_template(const css_token_vector& tokens, grid_track_template& tracks, bool allow_repeat) {
 		grid_track_template parsed;
-		if (tokens.size() == 1 && tokens.front().ident() == "none") {
-			tracks = {};
-			return true;
-		}
 		std::size_t available_tracks = grid_track_limit;
 		bool previous_was_line_names = false;
 		for (const auto& token : tokens) {
@@ -352,6 +348,7 @@ namespace litehtml {
 			}
 			previous_was_line_names = false;
 			if (token.type == CV_FUNCTION && lowcase(token.name) == "repeat") {
+				if (!allow_repeat) return false;
 				const auto& args = token.value;
 				if (args.size() < 3 || args[1].ch != ',') return false;
 				const auto keyword = args[0].ident();
@@ -395,6 +392,14 @@ namespace litehtml {
 		} else if (parsed.prefix.tracks.empty()) return false;
 		tracks = std::move(parsed);
 		return true;
+	}
+
+	bool parse_grid_tracks(const css_token_vector& tokens, grid_track_template& tracks) {
+		if (tokens.size() == 1 && tokens.front().ident() == "none") {
+			tracks = {};
+			return true;
+		}
+		return parse_track_template(tokens, tracks, true);
 	}
 
 	bool parse_grid_auto_tracks(const css_token_vector& tokens, grid_track_list& tracks) {
@@ -482,6 +487,79 @@ namespace litehtml {
 			parsed.areas.emplace(name, area.bounds);
 		}
 		areas = std::move(parsed);
+		return true;
+	}
+
+	namespace {
+		bool parse_template_with_areas(const css_token_vector& tokens, grid_definition& definition) {
+			css_token_vector area_rows;
+			auto& rows = definition.rows.prefix;
+			const auto end = tokens.end();
+			auto it = tokens.begin();
+			while (it != end) {
+				if (it->type == SQUARE_BLOCK && !append_grid_line_names(*it++, rows)) return false;
+				if (it == end || it->type != STRING || area_rows.size() == grid_track_limit) return false;
+				area_rows.push_back(*it++);
+				grid_track size;
+				if (it != end && it->type != STRING && it->type != SQUARE_BLOCK && !parse_track(*it++, size)) return false;
+				rows.tracks.push_back(std::move(size));
+				// Trailing names and the next row's leading names belong to the same line.
+				if (it != end && it->type == SQUARE_BLOCK && !append_grid_line_names(*it++, rows)) return false;
+			}
+			return parse_grid_template_areas(area_rows, definition.areas);
+		}
+
+		bool starts_auto_flow(const css_token_vector& tokens) {
+			return !tokens.empty() && is_one_of(tokens.front().ident(), "auto-flow", "dense");
+		}
+
+		bool parse_auto_flow_axis(const css_token_vector& tokens, grid_auto_flow& flow, grid_track_list& sizes) {
+			auto it = tokens.begin();
+			const auto end = tokens.end();
+			const bool dense_first = it->ident() == "dense";
+			if (dense_first) ++it;
+			if (it == end || it->ident() != "auto-flow") return false;
+			++it;
+			flow.dense = dense_first;
+			if (!dense_first && it != end && it->ident() == "dense") {
+				flow.dense = true;
+				++it;
+			}
+			return it == end || parse_grid_auto_tracks(css_token_vector(it, end), sizes);
+		}
+	}
+
+	bool parse_grid_definition(const css_token_vector& tokens, bool allow_auto_flow, grid_definition& definition) {
+		grid_definition parsed;
+		if (tokens.size() == 1 && tokens.front().ident() == "none") {
+			definition = {};
+			return true;
+		}
+		// Slash tokens inside functions (such as calc()) are already grouped.
+		const auto slash = std::find_if(tokens.begin(), tokens.end(), [](const auto& token) { return token.ch == '/'; });
+		const bool has_columns = slash != tokens.end();
+		const css_token_vector rows(tokens.begin(), slash);
+		const css_token_vector columns(has_columns ? slash + 1 : slash, tokens.end());
+		if (rows.empty() || (has_columns && columns.empty())) return false;
+
+		const bool auto_rows = starts_auto_flow(rows);
+		const bool auto_columns = starts_auto_flow(columns);
+		if (auto_rows || auto_columns) {
+			if (!allow_auto_flow || !has_columns || (auto_rows && auto_columns)) return false;
+			parsed.flow.by_column = auto_columns;
+			if (auto_rows) {
+				if (!parse_auto_flow_axis(rows, parsed.flow, parsed.auto_rows) || !parse_grid_tracks(columns, parsed.columns))
+					return false;
+			} else if (!parse_grid_tracks(rows, parsed.rows) || !parse_auto_flow_axis(columns, parsed.flow, parsed.auto_columns)) {
+				return false;
+			}
+		} else if (std::any_of(rows.begin(), rows.end(), [](const auto& token) { return token.type == STRING; })) {
+			if (!parse_template_with_areas(rows, parsed) || (has_columns && !parse_track_template(columns, parsed.columns, false)))
+				return false;
+		} else if (!has_columns || !parse_grid_tracks(rows, parsed.rows) || !parse_grid_tracks(columns, parsed.columns)) {
+			return false;
+		}
+		definition = std::move(parsed);
 		return true;
 	}
 

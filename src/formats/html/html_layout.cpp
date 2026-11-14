@@ -1,15 +1,12 @@
 #include "html_layout.h"
 
+#include "html_canvas_renderer.h"
 #include "html_markup.h"
 #include "layout/html_geometry.h"
 #include "litehtml_container.h"
 #include "litehtml_document_adapter.h"
 
 #include <godot_cpp/classes/canvas_item.hpp>
-#include <godot_cpp/classes/rendering_server.hpp>
-#include <godot_cpp/classes/style_box.hpp>
-#include <godot_cpp/classes/text_server.hpp>
-#include <godot_cpp/classes/text_server_manager.hpp>
 #include <godot_cpp/core/object_id.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <litehtml/css_parser.h>
@@ -24,41 +21,13 @@
 #include <unordered_set>
 
 using namespace godot;
+using docrender::HTMLCanvasRenderer;
 using docrender::HTMLGeometryIndex;
+using docrender::HTMLHighlight;
 using docrender::LiteHTMLContainer;
-using docrender::translate_rect;
 using DocumentAdapter = litehtml::docrender_editor;
 
 namespace {
-	struct CanvasDrawing {
-		Callable redraw;
-		Callable exiting;
-		std::vector<RID> items;
-		std::vector<Ref<ShaderMaterial>> materials;
-		int32_t run_count = 0;
-		uint64_t redraw_id = 0;
-		bool submitted = false;
-
-		void clear() {
-			if (RenderingServer* server = RenderingServer::get_singleton()) {
-				for (auto item = items.rbegin(); item != items.rend(); ++item) {
-					server->free_rid(*item);
-				}
-			}
-			items.clear();
-			materials.clear();
-			run_count = 0;
-		}
-
-		RID add_item(RenderingServer& p_server, const RID& p_parent, int32_t p_draw_index) {
-			const RID item = p_server.canvas_item_create();
-			p_server.canvas_item_set_parent(item, p_parent);
-			p_server.canvas_item_set_draw_index(item, p_draw_index);
-			items.push_back(item);
-			return item;
-		}
-	};
-
 	bool is_valid_tag_name(std::string_view p_name) {
 		const auto is_letter = [](unsigned char p_byte) {
 			return (p_byte >= 'A' && p_byte <= 'Z') || (p_byte >= 'a' && p_byte <= 'z');
@@ -250,8 +219,7 @@ struct HTMLLayout::State {
 	// Render items are cleared before the document releases its fonts through the container.
 	std::unique_ptr<LiteHTMLContainer> container;
 	litehtml::document::ptr document;
-	HashMap<uint64_t, CanvasDrawing> drawings;
-	uint64_t next_redraw_id = 0;
+	Ref<HTMLCanvasRenderer> canvas_renderer;
 	HTMLGeometryIndex geometry;
 	HashMap<const litehtml::element*, ObjectID> element_handles;
 	HashMap<const litehtml::element*, std::weak_ptr<HTMLElement::DetachedTree>> detached_trees;
@@ -471,93 +439,17 @@ void HTMLLayout::draw_with_highlights(CanvasItem* p_canvas, const Vector2& p_pos
 	if (!state->has_layout() || !p_canvas || !p_canvas->is_inside_tree()) {
 		return;
 	}
-	submit_draw_commands(*p_canvas, p_position, p_clip, p_selection, p_selection_style, p_selection_color, p_search, p_search_style);
-}
-
-void HTMLLayout::submit_draw_commands(CanvasItem& p_canvas, const Vector2& p_position, const Rect2& p_clip,
-	const Vector2i& p_selection, const StyleBox* p_selection_style, const Color& p_selection_color,
-	const Vector2i& p_search, const StyleBox* p_search_style) {
 	const auto& runs = state->container->get_paint_runs();
-	const auto& diagnostic_runs = state->container->get_diagnostic_runs();
-	if (runs.empty() && diagnostic_runs.empty()) {
+	const auto& diagnostics = state->container->get_diagnostic_runs();
+	if (runs.empty() && diagnostics.empty()) {
 		return;
 	}
-	const uint64_t instance_id = p_canvas.get_instance_id();
-	CanvasDrawing* drawing = state->drawings.getptr(instance_id);
-	if (!drawing) {
-		CanvasDrawing target;
-		target.redraw = callable_mp(this, &HTMLLayout::_on_canvas_redraw).bind(instance_id);
-		target.exiting = callable_mp(this, &HTMLLayout::_detach_canvas).bind(instance_id);
-		p_canvas.connect("draw", target.redraw);
-		p_canvas.connect("tree_exiting", target.exiting);
-		drawing = &state->drawings.insert(instance_id, std::move(target))->value;
+	if (state->canvas_renderer.is_null()) {
+		state->canvas_renderer.instantiate();
 	}
-	if (!drawing->submitted) {
-		// Replace the previous submission once, then append any additional HTML draws on this canvas.
-		drawing->clear();
-		drawing->submitted = true;
-		_on_canvas_redraw(instance_id);
-	}
-
-	RenderingServer& server = *RenderingServer::get_singleton();
-	const LiteHTMLContainer::Highlight selection{ p_selection.x, p_selection.y, p_selection_style, p_selection_color };
-	const LiteHTMLContainer::Highlight search{ p_search.x, p_search.y, p_search_style, Color(0, 0, 0, 0) };
-	const Ref<TextServer> text_server = p_selection.x < p_selection.y || p_search.x < p_search.y
-		? TextServerManager::get_singleton()->get_primary_interface() : Ref<TextServer>();
-	RID target;
-	std::optional<Rect2> previous_clip;
-	Ref<ShaderMaterial> previous_material;
-	Transform2D previous_matrix;
-	const auto submit_run = [&](const LiteHTMLContainer::PaintRun& run) {
-		std::optional<Rect2> clip;
-		if (run.clip) {
-			clip = translate_rect(*run.clip, p_position);
-		}
-		if (p_clip != Rect2()) {
-			clip = clip ? clip->intersection(p_clip) : p_clip;
-		}
-		if (clip && !clip->has_area()) {
-			return;
-		}
-
-		if (!target.is_valid() || clip != previous_clip || run.material != previous_material || run.matrix != previous_matrix) {
-			if (drawing->items.empty()) {
-				drawing->add_item(server, p_canvas.get_canvas_item(), -1);
-			}
-			const RID root = drawing->items.front();
-			const int32_t index = drawing->run_count++;
-			if (clip) {
-				const RID clip_item = drawing->add_item(server, root, index);
-				server.canvas_item_set_custom_rect(clip_item, true, *clip);
-				server.canvas_item_set_clip(clip_item, true);
-				target = drawing->add_item(server, clip_item, 0);
-			}
-			else {
-				target = drawing->add_item(server, root, index);
-			}
-			if (run.material.is_valid()) {
-				server.canvas_item_set_material(target, run.material->get_rid());
-				drawing->materials.push_back(run.material);
-			}
-			if (run.material.is_valid() || run.matrix != Transform2D()) {
-				server.canvas_item_set_transform(target, Transform2D(0.0, p_position) * run.matrix);
-			}
-			previous_clip = clip;
-			previous_material = run.material;
-			previous_matrix = run.matrix;
-		}
-		run.draw(server, target, run.material.is_valid() || run.matrix != Transform2D() ? Vector2() : p_position,
-			text_server.ptr(), search, selection);
-	};
-	for (const auto& run : runs) {
-		submit_run(run);
-	}
-	if (!diagnostic_runs.empty()) {
-		target = RID();
-		for (const auto& run : diagnostic_runs) {
-			submit_run(run);
-		}
-	}
+	const HTMLHighlight selection{ p_selection.x, p_selection.y, p_selection_style, p_selection_color };
+	const HTMLHighlight search{ p_search.x, p_search.y, p_search_style, Color(0, 0, 0, 0) };
+	state->canvas_renderer->submit(*p_canvas, p_position, p_clip, runs, diagnostics, selection, search);
 }
 
 String HTMLLayout::get_link_at(const Vector2& p_position) const {
@@ -843,14 +735,8 @@ void HTMLLayout::reflow_after_edit(uint64_t p_id, uint64_t p_version) {
 	if (!current.has_layout() && current.viewport_size != Vector2i()) {
 		owner->layout(current.viewport_size);
 	}
-	owner->queue_canvas_redraws();
-}
-
-void HTMLLayout::queue_canvas_redraws() {
-	for (const auto& drawing : state->drawings) {
-		if (auto* canvas = Object::cast_to<CanvasItem>(ObjectDB::get_instance(ObjectID(drawing.key)))) {
-			canvas->queue_redraw();
-		}
+	if (current.canvas_renderer.is_valid()) {
+		current.canvas_renderer->queue_redraws();
 	}
 }
 
@@ -1093,8 +979,8 @@ void HTMLLayout::set_css_diagnostics_enabled(bool p_enabled) {
 			queue_reflow();
 		}
 	}
-	else if (!p_enabled) {
-		queue_canvas_redraws();
+	else if (!p_enabled && state->canvas_renderer.is_valid()) {
+		state->canvas_renderer->queue_redraws();
 	}
 }
 
@@ -1172,9 +1058,7 @@ String HTMLLayout::get_css_diagnostic_tooltip(const Vector2& p_position) const {
 
 void HTMLLayout::clear() {
 	++parse_version;
-	while (!state->drawings.is_empty()) {
-		_detach_canvas(state->drawings.begin()->key);
-	}
+	state->canvas_renderer.unref();
 	state->geometry.clear();
 	state->element_handles.clear();
 	for (const auto& entry : state->detached_trees) {
@@ -1197,43 +1081,4 @@ void HTMLLayout::clear() {
 	state->reflow_queued = false;
 	state->master_styles.clear();
 	state->user_styles.clear();
-}
-
-void HTMLLayout::_on_canvas_redraw(uint64_t p_id) {
-	CanvasDrawing* drawing = state->drawings.getptr(p_id);
-	if (!drawing || drawing->redraw_id != 0) {
-		return;
-	}
-	// A draw signal listener may submit HTML before our listener runs.
-	drawing->redraw_id = ++state->next_redraw_id;
-	callable_mp_static(&HTMLLayout::finish_canvas_redraw).call_deferred(get_instance_id(), p_id, drawing->redraw_id);
-}
-
-void HTMLLayout::finish_canvas_redraw(uint64_t p_layout_id, uint64_t p_canvas_id, uint64_t p_redraw_id) {
-	auto* owner = Object::cast_to<HTMLLayout>(ObjectDB::get_instance(ObjectID(p_layout_id)));
-	if (!owner) {
-		return;
-	}
-	CanvasDrawing* drawing = owner->state->drawings.getptr(p_canvas_id);
-	if (!drawing || drawing->redraw_id != p_redraw_id) {
-		return;
-	}
-	if (!drawing->submitted) {
-		drawing->clear();
-	}
-	drawing->submitted = false;
-	drawing->redraw_id = 0;
-}
-
-void HTMLLayout::_detach_canvas(uint64_t p_id) {
-	CanvasDrawing* drawing = state->drawings.getptr(p_id);
-	if (!drawing) {
-		return;
-	}
-	if (CanvasItem* canvas = Object::cast_to<CanvasItem>(ObjectDB::get_instance(ObjectID(p_id)))) {
-		canvas->disconnect("draw", drawing->redraw);
-		canvas->disconnect("tree_exiting", drawing->exiting);
-	}
-	drawing->clear();
-	state->drawings.erase(p_id);
 }

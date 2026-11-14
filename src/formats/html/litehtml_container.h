@@ -2,7 +2,7 @@
 #define DOCRENDER_LITEHTML_CONTAINER_H
 
 #include "html_layout.h"
-#include "layout/html_geometry.h"
+#include "html_paint_run.h"
 
 #include <godot_cpp/classes/text_line.hpp>
 #include <godot_cpp/classes/texture2d.hpp>
@@ -16,14 +16,7 @@
 #include <litehtml/document_container.h>
 
 #include <optional>
-#include <variant>
 #include <vector>
-
-namespace godot {
-	class RenderingServer;
-	class StyleBox;
-	class TextServer;
-}
 
 namespace docrender {
 	class LiteHTMLContainer final : public litehtml::document_container {
@@ -31,20 +24,7 @@ namespace docrender {
 			godot::Rect2 bounds;
 			RoundedRect shape;
 			godot::Transform2D matrix;
-		};
-
-		struct Fill {
-			godot::Rect2 rect;
-			godot::Color color;
-		};
-
-		struct Text {
-			godot::Ref<godot::TextLine> line;
-			godot::Vector2 position;
-			godot::Color color;
-			int64_t offset = -1;
-			int64_t length = 0;
-			const litehtml::render_item* renderer = nullptr;
+			bool has_precise_clip;
 		};
 
 		struct TextRun {
@@ -58,47 +38,13 @@ namespace docrender {
 			std::vector<TransformedClip> clips;
 		};
 
-		struct Image {
-			godot::Ref<godot::Texture2D> texture;
-			godot::Rect2 destination;
-			godot::Rect2 source;
-			bool repeat;
-		};
-
-		struct Circle {
-			godot::Vector2 center;
-			float radius;
-			godot::Color color;
-			bool filled;
-		};
-
-		using Command = std::variant<Fill, Text, Image, Circle>;
+		using Fill = HTMLFill;
+		using Text = HTMLText;
+		using Image = HTMLImage;
+		using Circle = HTMLCircle;
+		using Command = HTMLPaintCommand;
 
 	public:
-		struct Highlight {
-			int64_t from = 0;
-			int64_t to = 0;
-			const godot::StyleBox* style = nullptr;
-			godot::Color color;
-		};
-
-		struct PaintRun {
-			std::optional<godot::Rect2> clip;
-			godot::Transform2D matrix;
-			std::vector<TransformedClip> clips;
-			godot::Ref<godot::ShaderMaterial> material;
-			std::vector<Command> commands;
-
-			void draw(
-				godot::RenderingServer& p_server,
-				const godot::RID& p_canvas,
-				const godot::Vector2& p_offset,
-				const godot::TextServer* p_text_server,
-				const Highlight& p_search,
-				const Highlight& p_selection
-			) const;																// 将此批绘制命令及高亮提交到指定画布
-		};
-
 		LiteHTMLContainer(
 			const godot::String& p_base_dir,
 			const godot::Dictionary& p_textures,
@@ -113,7 +59,7 @@ namespace docrender {
 			const godot::Vector2i& p_content_size,
 			const HTMLGeometryIndex& p_geometry
 		);																			// 记录已排版文档的绘制命令并建立可选择文本的索引
-		const std::vector<PaintRun>& get_paint_runs() const;						// 返回最近一次记录生成的绘制批次
+		const std::vector<HTMLPaintRun>& get_paint_runs() const;						// 返回最近一次记录生成的绘制批次
 		std::shared_ptr<litehtml::element> hit_test_element(const godot::Vector2& p_point) const;
 		const godot::String& get_plain_text() const;								// 返回从排版结果提取的纯文本
 		const litehtml::string_map* get_source_attributes(
@@ -140,7 +86,7 @@ namespace docrender {
 			const RenderGeometry& p_geometry,
 			const godot::Rect2& p_box
 		);
-		const std::vector<PaintRun>& get_diagnostic_runs() const {
+		const std::vector<HTMLPaintRun>& get_diagnostic_runs() const {
 			return diagnostic_runs;
 		}
 		int64_t hit_test_text(const godot::Vector2& p_point) const;					// 查找最接近文档坐标的文本光标偏移
@@ -182,8 +128,8 @@ namespace docrender {
 		std::optional<godot::HashMap<godot::String, godot::String>> installed_font_names;
 		godot::HashMap<godot::String, godot::Ref<godot::Texture2D>> images;
 		godot::HashMap<const litehtml::element*, SourceAttributes> source_attributes;
-		std::vector<PaintRun> paint_runs;
-		std::vector<PaintRun> diagnostic_runs;
+		std::vector<HTMLPaintRun> paint_runs;
+		std::vector<HTMLPaintRun> diagnostic_runs;
 		std::vector<Clip> clips;
 		godot::Ref<godot::ShaderMaterial> clip_material;
 		godot::Transform2D clip_material_matrix;
@@ -201,7 +147,7 @@ namespace docrender {
 		godot::Ref<godot::Texture2D> load_texture(const char* p_src, const char* p_css_base);
 		godot::Ref<godot::ShaderMaterial> create_material(const RoundedRect* p_shape = nullptr);
 		void add_command(Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
-		void add_command_to(std::vector<PaintRun>& r_runs, Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
+		void add_command_to(std::vector<HTMLPaintRun>& r_runs, Command p_command, godot::Ref<godot::ShaderMaterial> p_material = {});
 		void fill_rect(const godot::Rect2& p_rect, const godot::Color& p_color);
 		void draw_decoration(const godot::Rect2& p_rect, litehtml::text_decoration_style p_style, const godot::Color& p_color);
 		litehtml::css_source get_css_source(const litehtml::string& p_base, bool p_inline) const override;
